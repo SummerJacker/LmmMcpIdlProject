@@ -1,0 +1,25 @@
+/** $Id: grid.idl,v 1.4 2025/06/22 08:04:57 cvswxc Exp $
+    $Log: grid.idl,v $
+    Revision 1.4  2025/06/22 08:04:57  cvswxc
+    #681 remove old infor
+    Committed on the Free edition of March Hare Software CVSNT Server.
+    Upgrade to CVS Suite for more features and support:
+    http://march-hare.com/cvsnt/
+
+*/
+/* Last edited by Mike Spreitzer October 9, 1998 10:29 am PDT */
+
+#pragma ID grid "IDL:grid:1.0"
+
+// IDL defintion of a 2-D grid (in row major order):
+
+interface grid {
+	readonly attribute short height;  // height of the grid
+	readonly attribute short width;   // width of the grid
+
+	// set the element [n,m] of the grid, to value:
+	void set(in short n, in short m, in long value);
+
+	// return element [n,m] of the grid:
+	long get(in short n, in short m);
+};

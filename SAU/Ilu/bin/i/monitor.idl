@@ -1,0 +1,102 @@
+//$Id: monitor.idl,v 1.7 2025/07/16 08:43:00 cvswxc Exp $
+#ifndef MONITOR_INCLUDED
+#define MONITOR_INCLUDED
+
+#include <ground_unit.idl>
+#include <air_unit.idl>
+#include <console.idl>
+module Monitor {
+
+	
+		//智能装备状态
+		struct UnitState
+		{
+			short health;
+			short battery;
+		};
+		
+		//智能装备类型
+		enum UnitType { UnitGroundType, UnitAirType};
+		
+		//智能装备信息
+		union CurrentUnitInfo switch(UnitType)
+		{
+			case UnitGroundType:	Ground_Unit::GroundUnitInfo groundUnitInfo;
+			case UnitAirType:		Air_Unit::AirUnitInfo airUnitInfo;
+		};
+		
+		//发送完整智能装备信息
+		struct CompleteUnitInfo
+		{
+			UnitState us;
+			CurrentUnitInfo cui;
+		};
+
+		 enum TargetType {
+		 Fire,
+		 Person,
+		 Vehicle,
+		 Drone 
+		 };
+		
+		//目标编号:UID+数字
+		typedef string TargetID;
+				
+                //被动返航原因
+                enum BackHomeReason{LowBattery,EmptyLoad,TaskDone, TaskStop};
+                
+                //任务执行情况
+                enum MissionSituation{Success,StillBurning,Locating,Processing};
+                
+                //图片二进制流
+                typedef sequence<octet> PictureFlow;
+                
+                //图片包含信息
+                struct PictureInfo
+                {
+                        string picturName;
+                        PictureFlow pic;
+                        CurrentUnitInfo cui;
+                        short responseTime;
+                };		
+
+	interface  rpc
+	{
+		//汇报状态
+		boolean sendUnitInfo(in CompleteUnitInfo unitInfo);
+		
+		//汇报陷阱
+		boolean sendTrapPoint(in Console::TrapPoint tp);
+
+
+            
+                //************************* 火情相关 **************
+				
+                //发送目标坐标:目标ID，位置点、允许响应时间
+                boolean sendTargetLocation(in TargetID fid,in Ground_Unit::Point2D fp,in short responseTime);
+                
+                //发现火情
+                boolean foundTarget(in TargetID fid,in PictureInfo pi);
+                
+                //确认投掷
+                boolean confirmAction(in TargetID fid,in short responseTime);
+                
+                //被动返航
+                boolean backHome(in Unit::UnitID uid,in BackHomeReason bhr);
+                
+                //汇报任务情况
+                boolean sendMissionState(in TargetID fid,in MissionSituation ms);
+
+               //发送图片 
+               boolean sendPicture(in string pictureName, in PictureFlow pic, in long time,in long procedureStartTime);
+                
+	};
+};
+#endif 
+/*
+2026-7-14 wxc   1 Fire 被  Target接口替代, 为扩展程序多目标识别做扩展 
+				2 未来,所有的界面接口都用rpc替代, 外层模块定义界定接口的具体标识. 
+				3 增加目标对象类型,用于未来多目标识别算法的线上更新或对接. 
+
+2025-7-9 wxc 将接口统一用API替代
+*/

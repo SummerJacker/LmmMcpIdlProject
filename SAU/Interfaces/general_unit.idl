@@ -1,0 +1,267 @@
+//$Id: general_unit.idl,v 1.11 2025/07/16 08:34:30 cvswxc Exp $
+#ifndef UNIT_INCLUDED
+#define UNIT_INCLUDED
+module Unit
+{
+		//单元ID
+		typedef string UnitID;
+	
+		//单元SBH
+		typedef string UnitSBH;
+	
+		//单元ID序列
+		typedef sequence<UnitID> UnitIDSeq; 
+
+		//单元SBH序列
+		typedef sequence<UnitSBH> UnitSBHSeq;
+
+		//short类型序列
+		typedef sequence<short> ShortSeq;
+		
+		//float类型序列
+		typedef sequence<float> FloatSeq;
+
+		//运动持续时间
+		struct ActionDuration
+		{
+			boolean keep;
+			unsigned long ft_s;
+			unsigned long ft_t;
+		};
+		
+		//基本运动数据
+		struct BasicMoveActionData
+		{
+			float speed;
+			ActionDuration duration;
+		};
+		//运动指令类型
+		//地面无人机\空中飞机\水面无人艇等对下面运动行为类型的具体含义或适用性根据具体业务需要进一步界定. 
+  enum MoveActionType { MA_GoAhead,MA_GoBackward, MA_TurnLeft,MA_TurnRight, MA_Stop, MA_GoUp,MA_GoDown,MA_GoLeft,MA_GoRight, MA_TakeOff,MA_Land,MA_LandConfirm,MA_ForceLanding,MA_Lock,MA_Unlock};
+
+		//运动指令
+		union MoveAction switch(MoveActionType)
+		{
+		  case MA_GoUp:		BasicMoveActionData 	goUpData;
+		  case MA_GoDown:		BasicMoveActionData 	goDownData;
+		  case MA_GoAhead:		BasicMoveActionData 	goAheadData;
+		  case MA_GoBackward:	BasicMoveActionData 	goBackwardData;
+		  case MA_GoLeft:		BasicMoveActionData 	goLeftData;
+		  case MA_GoRight:		BasicMoveActionData 	goRightData;
+		  case MA_TurnLeft:		BasicMoveActionData 	turnLeftData;
+		  case MA_TurnRight:	BasicMoveActionData 	turnRightData;
+		  case MA_Stop:		ActionDuration		stopData;
+		};
+
+		//运动行为序列
+		typedef sequence<MoveAction> ActionSeq;
+
+		/*运动单元角色
+			角色的切换：
+			1.Leader --> 任意：
+				1)清除LeaderObj
+				2)清除FollowersObj数组(由控制台通过清除Follower角色实现)
+				3)转换次级模式 任意 --> VMM_None
+				4)转换模式 任意 --> None
+			2.Follower --> 任意：
+				1)清除LeaderObj
+				2)转换次级模式 任意 --> VMM_None
+				3)转换模式 任意 --> None
+			3.None --> 任意：
+				1)清除LeaderObj
+				2)转换次级模式 任意 --> VMM_None
+				3)转换模式 任意 --> None
+		*/
+		enum UnitRole { UR_Leader, UR_Follower, UR_None };
+		
+		/*运动单元模式
+			模式的切换：
+			1.Follow --> 任意非Follow （仅能在Follow模式下的Idle状态执行）
+				1)清空后车对象数组
+				2)清空目标点缓冲区以及相关组件
+				3)清空任务路径（Leader）
+				4)更改模式变量
+				5)更改次级模式变量为该模式的默认次级模式
+			2.任意非Follow --> Follow 
+				1)(如果需要的话)初始化目标点缓存相关组件
+				2)更改模式变量为Follow
+				3)更改次级模式变量为VMM_FW_Object
+			3.任意非Follower --> 任意非Follower
+				1)更改模式变量
+				2)更改次级模式变量为该模式的默认次级模式
+                                                             4. NONE 模式为自己处于无任务\启动状态, Fellow为编队状态, Imitate为模拟状态   Mate为合作状态  
+		*/
+		enum UnitMode { UM_None, UM_Follow, UM_Imitate, UM_Mate };
+		
+		/*次模式
+			Follow下的次模式的切换（同一主模式下）：
+			1.VMM_FW_Object --> VMM_FW_Track：
+				1)点接收策略改变，积累不覆盖
+			2.VMM_FW_Track --> VMM_FW_Object：
+				1)保留当前目标队列的最后一个点，清空队列
+				2)点接收策略改变，覆盖不积累
+			3.非同 mode 下的 minor mode 转换失败
+			Imitate \Mate下的次模式状态均为 None
+		*/
+		enum UnitMinorMode { UMM_None, UMM_FW_Object, UMM_FW_Track };
+		
+		//节点基本信息
+		struct UnitInfo
+		{
+			UnitID uid;
+			UnitSBH sbh;
+		};
+		
+		//序列基本对象的信息集合
+		typedef sequence<UnitInfo> UnitInfoSeq;
+
+		//地面车\空中无人机或空地机器人队形
+		struct Formation
+		{
+			UnitIDSeq robot_ids;
+			ShortSeq leader_ids;
+			FloatSeq distances;
+			FloatSeq angles;
+		};
+
+     
+
+	interface rpc
+	{		
+		//*******************  获取信息  *******************
+		
+		//获取运动单元ID
+		UnitID getID();
+		
+		//获取运动单元CosNaming信息
+		UnitSBH getCosNamingSBH();
+		
+		//获取前车信息,主要就是ID和SBH码 
+		UnitInfo getFrontUnitInfo();
+		
+		//******************角色、模式转换******************
+		
+		//由控制台负责角色转换
+		//设置为领导者角色:
+		//设置为跟随者角色：
+		//设置为空角色：为初始状态，清除所有状态，停止运动单元
+		/*设置当前车与后车的队形
+			1.参数：
+				1)role： 
+				2)consoleSBH：与前车的队形距离
+			2.执行内容：
+				1)根据role
+		*/
+		boolean setRole(in UnitRole role, in UnitSBH consoleSBH);
+		
+		//设置模式
+		boolean setMode(in UnitMode mode);
+		
+		//设置次要模式
+		boolean setMinorMode(in UnitMinorMode minorMode);
+
+		//发送单条指令，并根据 Mode 进行传递执行的操作
+		boolean sendMoveAction(in MoveAction action);
+
+		//发送一系列指令，并根据 Mode 进行传递执行的操作
+		boolean sendMoveActionSeq(in ActionSeq actions, in short times);
+		
+		//*******************构建单元间关系*******************
+		
+		//为当前车设置一个Leader
+		boolean setALeader(in UnitSBH leaderSBH);
+		
+		//为当前车注册一个Follower,这个被setFollower替代 
+		//boolean registerFollower(in UnitID followerUID, in UnitSBH followerSBH);
+		
+		//为当前车解除一个Follower
+		boolean unregisterFollower(in UnitID followerUID);
+       
+		//设置跟随者 
+	       	 boolean setFollower(in UnitInfo ui);
+	
+		 //去除跟随者 
+		 boolean unsetFollower(in UnitID uid);
+		
+		/*为当前车增加一个后车
+			1.参数：
+				1)rearInfo:新添加的后车的信息
+			2.执行内容：
+				1)根据rearInfo生成并保存对象
+		*/
+		boolean addRearVehicle(in UnitInfo rearInfo);
+
+		/*将uid从当前运动单元的后车队列中去除
+			1.参数：
+				1)uid:删除的rear的uid
+			2.执行内容：
+				1)根据uid，从rearObjs中删除对应的对象
+		*/
+		boolean deleteRearVehicle(in UnitID uid);
+		
+		/*将当前队形发送给Leader 仅Leader在Follow模式下
+			1.参数：
+				1)Formation：表示队形
+				2)followers：后车的SBH序列
+				3)distance：与前车的队形距离
+				4)angle：前车的队形角度
+			2.执行内容：
+				1)根据followers重置后车对象数组
+				2)重置distance与angle
+		*/
+	 	
+		 boolean setFormation(in Formation form);
+
+		/*设置当前单元与后单元的队形
+			1.参数：
+				1)followers：后车的SBH序列
+				2)distance：与前车的队形距离
+				3)angle：前车的队形角度
+			2.执行内容：
+				1)根据followers重置后单元对象数组
+				2)重置distance与angle
+		*/
+	 	 boolean setRearVehicles(in Unit::UnitInfoSeq rears, in float distance, in float angle);
+		
+		/* 向Leader汇报未响应的运动单元
+			1.参数：
+				1)uid：无响应的车的编号
+				2)details：无响应原因
+			2.执行内容：
+				1)将uid对应的车从队伍中去除，并重新分配uid的后车
+				2)与控制台同步消息
+		*/
+		boolean reportDeadVehicle(in UnitID uid, in string details);
+		
+
+		//*******************单元控制函数*******************
+		
+		//关闭节点
+		boolean shutDown();
+
+		//以一个频率打开视频流
+		boolean startPhotoStream(in float frequency);
+		
+		//关闭视频流
+		boolean stopPhotoStream();
+           
+        //命令相机拍张照片
+		boolean takePicture(in long time,in long procedureStartTime);
+	};
+	
+};
+#endif
+
+/*
+注释:
+
+2025-7-16 wxc 将setRearVehicles从ground-unit/air-unit中下移过来 
+
+2025-7-10 wxc 将MoveActionType ActionSeq相关的共性数据和操作下沉到General_Unit模块中 
+
+2025-7-9 wxc 将接口统一用API替代 强调 单元 而非历史上的地面车辆
+
+近可能将各类无人车\飞机的通用接口放在这里,方便后期降低编程序代码的重复性
+*/
+
+ 

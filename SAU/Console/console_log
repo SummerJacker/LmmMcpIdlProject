@@ -1,0 +1,57 @@
+/*2020年4月26日
+	1)增加struct UnbindData用于Message中OP_Unbind,details表示解除绑定的原因
+	2)修改
+		将
+			case OP_Bind:
+				CosInfoNode info;
+		改为
+			case OP_Bind:
+				CosInfoNode bindInfo;
+	    将
+			case OP_Unbind:	
+				Ground_Unit::UnitID uid;
+		改为
+			case OP_Unbind:	
+				UnbindData unbindInfo;
+	3)修改函数声明
+			boolean unbind(in Ground_Unit::UnitID uid) raises(NotFound);
+		改为：
+			boolean unbind(in Ground_Unit::UnitID uid, in string details) raises(NotFound);
+*/
+/*2020年5月13日
+	1)增加 enum Operation中项 OP_ReportTrap, OP_AddTrap
+	2)增加 Message 分支：
+		case OP_ReportTrap:
+		case OP_AddTrap:
+			Ground_Unit::Ground_Vehicle::TrapPoint2D trap;
+*/
+//undo
+/*2020年5月22日
+	1)修改联合体Message中的分支描述
+	将
+		union Message switch(Operation)
+		{
+			case OP_SetCosInfo:	CosInfoSeq infoSeq;
+			case OP_Bind:	CosInfoNode bindInfo;
+			case OP_Unbind:	UnbindData unbindInfo;
+			case OP_ReportTrap:
+			case OP_AddTrap:
+				Ground_Unit::Ground_Vehicle::TrapPoint2D trap;
+			case OP_Opened:
+			case OP_Closed:	
+				string details;
+		};
+	更正为
+		union Message switch(Operation)
+		{
+			case OP_SetCosInfo:	CosInfoSeq infoSeq;
+			case OP_Bind:	CosInfoNode bindInfo;
+			case OP_Unbind:	UnbindData unbindInfo;
+			case OP_ReportTrap:	Ground_Unit::Ground_Vehicle::TrapPoint2D reportedTrap;
+			case OP_AddTrap:	Ground_Unit::Ground_Vehicle::TrapPoint2D newTrap;
+			case OP_Opened:	string openDetails;
+			case OP_Closed:	string closeDetails;
+		};
+	原因：KIS-CORBA中关于C++部分的实现，若两个分支公用一个变量，那么在设置数据时，会自动将_d设置为该类型的第一个分支
+	如OP_ReportTrap与OP_AddTrap公用变量trap，在设置trap时，自动将_d设置为OP_ReportTrap
+*/

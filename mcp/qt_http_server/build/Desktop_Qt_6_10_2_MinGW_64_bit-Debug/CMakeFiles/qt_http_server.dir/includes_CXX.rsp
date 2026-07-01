@@ -1,0 +1,1 @@
+-I"C:/mcp/project/firstmcp/qt_http_server/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug/qt_http_server_autogen/include" -isystem C:/QT/6.10.2/mingw_64/include/QtCore -isystem C:/QT/6.10.2/mingw_64/include -isystem "C:/QT/6.10.2/mingw_64/mkspecs/win32-g++" -isystem C:/QT/6.10.2/mingw_64/include/QtNetwork

@@ -1,0 +1,278 @@
+#ifndef AIR_UNIT_INCLUDED
+#define AIR_UNIT_INCLUDED
+#include "general_unit.idl"
+module Air_Unit
+{
+		
+		
+		
+		//��̨�˶��ٶ�
+		struct GimbalSpeed
+		{
+			float yaw;
+			float roll;
+			float pitch;
+		};
+                
+	                //��̨״̬
+	                struct GimbalState
+	                {
+	                        float yaw;
+	                        float roll;
+ 	                        float pitch;
+ 	               };
+		
+		//3Dλ��
+		struct Pose3D
+		{
+			float x;
+			float y;
+			float z;
+			float pitch;
+			float yaw;
+			float roll;
+		};
+		
+		//GPSλ��
+		struct GPSInfo
+		{
+			float longitude;
+			float latitude;
+			float altitude;
+			float height;
+			float time;
+			short health;
+		};
+		
+		//�ٶ�
+		struct Speed3D
+		{
+			float x;
+			float y;
+			float z;
+		};
+		
+		//�ںϽ��ٶ�
+		struct FusionAngularVelocity
+		{
+			float x;
+			float y;
+			float z;
+		};
+		
+		//���˻���Ϣ
+		struct AirUnitInfo
+		{
+		  	Unit::UnitInfo info;
+		  	Unit::UnitRole role;
+			Speed3D speed;
+			FusionAngularVelocity angularVelocity;
+			GPSInfo gps;
+            			GimbalState gs;
+		};
+		
+		//3D����
+		struct Point3D
+		{
+			float x;
+			float y;
+			float z;
+		};
+
+		//3D�����, here this 3DTrapPoints only shows some Air. 
+		//For more details of traps, we need to define out 
+		//for example, 
+		//1 for certain squire from ground to a height; 
+		//2 for a line of certain radius of two 3Dpoints   
+		//3 for a wall of certain two 3D points from ground to certain height
+		struct TrapPoint3D
+		{
+			Point3D point;
+			float radius;
+		};
+
+		//������Χ��״
+		enum SiteType{Rectangle,Circle};
+				
+		//��������
+		struct RectangleData{
+			Point3D po;
+			short 	x;
+			short  	y;
+		};
+				
+		//Բ������
+		struct CircleData{
+			Point3D po;
+			short 	r;
+		};
+				
+		//������Χ
+		union Site switch(SiteType) {
+			case Rectangle:	RectangleData rd;
+			case Circle:	CircleData cd;
+		};
+		
+		//����·��
+		typedef sequence<Point3D> TaskPath;
+		
+		//��������
+		typedef sequence<TrapPoint3D> TrapPointSeq;
+		
+		//Drone's ��ɫ���ж�������������
+		 enum ActionRole { Actor,Standby ,Facilitators};
+                
+      	//Drone in the Air Action Mode���ա�Ѳ������λ�������Ȼ�orTask����ȷУ׼
+      	enum ActionMode {Nothing,Cruise,Locate,Assist,Feedback};
+                
+  	interface rpc:Unit::rpc
+	{              
+		//************************* ��ȡ��Ϣ **************
+		
+		//��ȡ��ǰ�ٶ�
+		Speed3D getCurrentSpeed();
+		
+		//��ȡ��ǰ3Dλ��
+		Pose3D getCurrentPose();
+		
+		//��ȡ��ǰ���˻���Ϣ
+		AirUnitInfo getCurrentInfo();
+		
+		//************************* ���˻����ƺ��� **************
+		
+		
+		//������̨���ٶ��˶�
+		boolean sendGimbalSpeed(in GimbalSpeed speed);
+		
+		//������̨����
+		boolean resetGimbal();
+		
+		
+		/*ǰ����������λ��
+			1.������
+				1)info��ǰ����ǰ������Ϣ
+			2.ִ�����ݣ�
+				1)��Ŀ��λ�÷��뻺������ֱ�Ӹ��ǵ�ǰĿ�ꣿ
+		*/
+		boolean sendVehicleInfo(in AirUnitInfo info);
+		
+		
+		/*��Leader�㱨���壬��Leader��Ӧ
+			1.������
+				1)trap: ��������
+			2.ִ�����ݣ�
+				1)Leader�㲥���壬�������̨ͬ����OP_AddTrap
+		*/
+		boolean reportTrap(in TrapPoint3D trap);
+		
+		/*����������壬����̨����********************���ڲ���********************
+			1.������
+			2.ִ�����ݣ�
+				1)�����ǰ������������
+		*/
+		boolean clearTraps();
+		
+		/*��ȡ��������
+			1.������
+			2.ִ�����ݣ�
+				1)���ص�ǰ�������������
+		*/
+		TrapPointSeq getTraps();
+		
+		/*���������
+			1.������
+				1)trap�������
+			2.ִ�����ݣ��������trap�����У����ڱ��ã�������ģʽ
+		*/
+		boolean setTrapPoint(in TrapPoint3D trap);
+		
+		/*���ó�����Ŀ�����
+			1.������
+				1)path���켣��
+			2.ִ�����ݣ�
+				1)���ó�����Ŀ����У�����VMM_FW_Trackģʽ����Ч
+		*/
+		boolean setTrack(in TaskPath track);
+		
+		/*��������·��
+			ִ�����ݣ�
+				1)��������·��
+		*/
+		boolean setTaskPath(in TaskPath path);
+		
+		/*����Ŀ���
+			ִ�����ݣ�
+				1)����Ŀ���
+		*/
+		boolean setTaskPoint(in Point3D point);
+
+		boolean clearTaskPoint();
+		
+
+		//��ÿ���Ȩ
+		boolean obtainCtrlAuthority();
+
+        //�ͷſ���Ȩ
+		boolean releaseCtrlAuthority();
+                
+                
+                
+	//************************* ������� **************
+                
+
+		 //���ý�ɫ
+		 boolean setActionRole(in ActionRole ar);
+                
+		 //����ģʽ
+ 		 boolean setActionMode(in ActionMode am);
+                
+		  //����Ѳ����Χ
+		  boolean setCruiseScope(in Site s);
+				
+				
+		//����ɿ������˻�
+		boolean sendControlledVehicle(in Unit::UnitSBHSeq uss);
+                                
+            //ȷ��Ͷ��
+           	boolean confirmThrow();
+				
+			//ȡ��Ͷ��
+			boolean cancelThrow();
+				
+			boolean actionThrow();
+			
+			//ȷ�ϻ���
+			boolean confirmFire();
+				
+			//ȡ������
+			boolean cancelFire();
+				
+			//ȷ�ϻ���λ��
+			boolean confirmFireLocation();
+				
+			//���¶�λ
+			boolean cancelFireLocation();
+
+			boolean controlVehicleVelocity(in float vx,in float vy,in float vz, in float angle);
+				
+			boolean backHome();
+			
+			boolean setCruiseSpeed(in float cs);
+	};
+};
+#endif
+
+/*
+
+2025-7-16 wxc  ���ɻ��ͳ����е�setRearVehicles�ƶ���unit����
+		
+2025-7-14 wxc �ӿ�����ͳһΪ  rpc  ���濪���˱����. 
+
+2025-7-10 wxc ��MoveActionType ActionSeq��صĹ������ݺͲ����³���General_Unitģ���� 
+
+2025-7-9 wxc ���ӿ�ͳһ��API���
+
+2025-7-7 wxc
+1 Sequence->Seq for all data's sequence defi
+2 need to make sure all data def is in module but outside interface 
+*/

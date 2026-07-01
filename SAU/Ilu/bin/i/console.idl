@@ -1,0 +1,295 @@
+//$Id: console.idl,v 1.12 2025/07/16 08:34:30 cvswxc Exp $
+#ifndef CONSOLE_INCLUDED
+#define CONSOLE_INCLUDED
+#include <air_unit.idl>
+#include <ground_unit.idl>
+
+module Console {
+		
+	
+
+		 //任务状态(执行中、挂起、成功、失败)
+		enum MissionState 	{
+			MssionImplement,
+			MissionSuspend,
+			MissionSuccess,
+			MissionFail,
+			MissionCancel};
+		
+		
+
+		//任务状态数据		
+		union MissionStateData switch(MissionState){
+			case MissionSuspend:	short time;
+		};
+
+
+		
+		//编队状态(执行中、挂起、成功、失败)
+		enum FormationState    {
+			FormationImplement,
+			FormationSuspend,
+			FormationSuccess,
+			FormationFail};
+
+
+
+		//队形(一字型、方阵、雁型)		
+		enum FormationType{OneLine,Matrix,WildGoose};
+
+		
+		//跟踪类型（轨迹、目标）		
+		enum TrackMode{RouteTrack,ObjectTrack};
+
+		
+		//点类型
+		enum PointType { PointGroundType, PointAirType};
+
+		
+		//点
+		union Point switch (PointType) {					
+		case PointGroundType: Ground_Unit::Point2D p2D;
+		case PointAirType:  Air_Unit::Point3D p3D;
+		};
+
+		
+		//陷阱类型
+		enum TrapType { TrapGroundType, TrapAirType};
+
+		//陷阱
+		union TrapPoint switch (TrapType) {
+			case TrapGroundType: 
+			Ground_Unit::TrapPoint2D trapPoint2D;
+			case TrapAirType:	
+			Air_Unit::TrapPoint3D trapPoint3D;
+			};
+
+/*操作消息类型
+				
+1）OP_SetCosInfo：设置CosNaming表信息
+			
+2）OP_Bind：同步新的Bind信息
+			
+3）OP_Unbind：同步新的Unbind信息
+			
+4）OP_Opened：表明此CosNaming处于开启状态
+			
+5）OP_Closed：表明此CosNaming处于关闭状态
+
+6）OP_ReportTrap：汇报新的Trap，车辆发送给控制台，控制台广播陷阱
+			
+7）OP_AddTrap：同步新的Trap信息，由Leader发送给控制台
+		
+*/
+	
+	
+		enum Operation{ OP_SetCosInfo, OP_Bind, OP_Unbind, OP_Opened, OP_Closed, OP_ReportTrap, OP_AddTrap };
+		
+		
+
+		//解绑数据
+		struct UnbindData {
+			Unit::UnitID uid;
+			string details;
+		};
+
+		
+		//发送的消息
+		union Message switch(Operation) {
+				case OP_SetCosInfo: Unit::UnitInfoSeq infoSeq;
+				case OP_Bind://队形由leader设置
+				Unit::UnitInfo  bindInfo;
+				case OP_Unbind:	UnbindData unbindInfo;
+				case OP_ReportTrap:
+				case OP_AddTrap: TrapPoint tp;
+				case OP_Opened:
+				case OP_Closed:	string details;
+		};
+
+
+		
+		//点序列
+		typedef sequence<Point> PointSeq;
+		
+		//陷阱点序列
+		typedef sequence<TrapPoint> TrapPointSeq;
+
+	interface rpc {
+		
+		//已经绑定异常
+		exception AlreadyBind{};
+
+		//没有找到异常
+		exception NotFound{};
+
+		//获得命名服务节点序列 
+		Unit::UnitInfoSeq getCosNamingInfo();
+		
+		//发送消息
+		boolean sendMsg(in Message m);
+		
+		//绑定
+		boolean bind(in Unit::UnitID uid,in Unit::UnitSBH sbh) raises(AlreadyBind);
+		
+		//解绑
+		boolean unbind(in Unit::UnitID uid, in string details) raises(NotFound);
+
+		
+		//重新绑定
+		boolean rebind(in Unit::UnitID uid,in Unit::UnitSBH sbh) raises(NotFound);
+		
+		//设置名称 eg：设置当前无人系统标记为一号车
+		boolean setNickname(in Unit::UnitInfo uinfo ,in string newName);
+
+
+		//设置特殊点坐标
+		boolean setPosition(in string name,in Point p);
+		
+		//加入目标点（压入队列）
+		boolean addGoalPoint(in Point p);
+		
+		//设置目标点（更新为最新目标点）
+		boolean setGoalPoint (in Point p);
+		
+		//设置角色
+	         boolean setRole(in Unit::UnitInfo uinfo, in Unit::UnitRole r); 
+		
+		//取消某节点角色
+		boolean cancelRole(in Unit::UnitInfo uinfo);
+
+		//设置陷阱点
+		boolean setTrapPoint(in TrapPoint p);
+		
+		//设置节点跟随(setFollow(1,2)为1跟随2)
+		boolean setFollow(in Unit::UnitInfo uinfo1,in Unit::UnitInfo uinfo2);
+		
+		//设置队形
+		boolean setFormationType(in FormationType f);
+	
+		//设置跟随模式
+		boolean setTrackMode(in TrackMode tm);
+
+		//************************获取信息*************************
+
+		//获得当前控制单元
+		Unit::UnitInfo  getCurrentUnit();
+	
+		//获得总节点数量
+		short getUnitNum();
+		
+		//获得编队中节点数量
+		short getFormationNum();
+
+		//获得陷阱数量
+		short getTrapNum();
+
+		//获得编队类型
+		FormationType getFormationType();
+		
+		//获得编队状态
+		FormationState getFormationState();
+		
+		//获得任务状态
+		MissionState getMissionState();
+		
+		//获得某节点位置
+		Point getUnitPoint(in string name);
+		
+		//通过名字查找单元
+		Unit::UnitInfo getByName(in string name);
+		
+		//获得领队位置
+		Point getLeaderPoint();
+		
+		//获得编队路径
+		PointSeq getPointSeq();
+
+
+		//*************************动作**********************
+
+		//取消编队
+		boolean cancelFormation();
+		
+		//领队暂停
+		boolean setLeaderSuspend();
+	
+		//领队恢复
+		boolean recoveryLeaderAction();
+		
+		//向队列中加入节点
+		boolean addUnitFormation(in Unit::UnitInfo uinfo);
+		
+		//队列中删除某节点
+		boolean deleteUnitFormation(in Unit::UnitInfo uinfo);
+
+		//设置节点为故障节点
+		boolean setUnitFault(in Unit::UnitInfo uinfo);
+
+		//设置节点所在位置为故障位
+		boolean setUnitFaultPosition (in Unit::UnitInfo uinfo);
+
+		//设置编队状态
+		boolean setFormationState (in FormationState fs);
+	
+		//设置任务状态
+		boolean setMissionState (in MissionStateData msd);
+		
+	};
+};
+
+#endif 
+
+/*
+
+2025-7-10 wxc 这里,需要理清楚Role角色的作用就是对Unit中的对应 
+
+2025-07-08: wxc
+1 命名服务节点信息  typedef General_Unit::UnitInfo CosInfoNode,  本身就是General_UnitInfo 
+2/命名服务节点序列 typedef  General_Unit::UnitInfoSeq CosInfoSeq, 本身就是General_Unit::UnitInfoSeq 
+在Console属于重复定义. 需要去掉.
+
+2025-7-7 wxc Sequence->Seq for all sequence stucture 
+
+2020年4月26日
+	
+1)增加   struct UnbindData
+         用于Message中OP_Unbind,details表示解除绑定的原因
+	
+2)修改
+将
+ case OP_Bind:
+	CosInfoNode info;
+		
+  改为
+			case OP_Bind:
+	 CosInfoNode bindInfo;
+	    
+  将
+			case OP_Unbind:	 Ground_Unit::UnitID uid;
+		
+ 改为
+			case OP_Unbind:	
+ UnbindData unbindInfo;
+	
+3)修改函数声明
+		boolean unbind(in Ground_Unit::UnitID uid) raises(NotFound);
+		
+ 改为：
+			boolean unbind(in Ground_Unit::UnitID uid, in string details) raises(NotFound);
+
+
+2020年5月13日
+	
+1）增加 enum Operation中项 OP_ReportTrap, OP_AddTrap
+	
+2）增加 Message 分支：
+	  
+   case OP_ReportTrap:
+		
+   case OP_AddTrap:
+ Ground_Unit::Ground_Vehicle::TrapPoint2D trap;
+
+2021年1月23日
+	1）为语音识别增加接口
+
+*/

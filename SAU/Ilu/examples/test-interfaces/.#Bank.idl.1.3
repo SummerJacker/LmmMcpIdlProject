@@ -1,0 +1,14 @@
+/**
+$Id: Bank.idl,v 1.3 2018/08/13 08:18:25 cvswxc Exp $
+$Log$ 
+*/
+/* Last edited by Mike Spreitzer October 8, 1998 10:21 pm PDT */
+
+module Bank {
+  interface Account {
+    float balance();
+  };
+  interface AccountManager {
+    Account open(in string name);
+  };
+};

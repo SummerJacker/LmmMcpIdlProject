@@ -1,0 +1,5 @@
+C:/mcp/project/firstmcp/qt_http_server/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug/CMakeFiles/qt_http_server.dir
+C:/mcp/project/firstmcp/qt_http_server/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug/CMakeFiles/edit_cache.dir
+C:/mcp/project/firstmcp/qt_http_server/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug/CMakeFiles/rebuild_cache.dir
+C:/mcp/project/firstmcp/qt_http_server/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug/CMakeFiles/qt_http_server_autogen_timestamp_deps.dir
+C:/mcp/project/firstmcp/qt_http_server/build/Desktop_Qt_6_10_2_MinGW_64_bit-Debug/CMakeFiles/qt_http_server_autogen.dir

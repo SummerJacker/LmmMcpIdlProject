@@ -1,0 +1,34 @@
+2026-03-30 18:22:06 [INFO] RobotAdapter: move_to start: robot_id=robot_1 target=(1.5,2.0,0.0)
+2026-03-30 18:22:06 [INFO] RobotAdapter: move_to success: robot_id=robot_1
+2026-03-30 18:22:06 [INFO] RobotAdapter: gripper_command start: robot_id=robot_1 action=GRAB force_max_newton=20.0
+2026-03-30 18:22:07 [INFO] RobotAdapter: gripper_command success: robot_id=robot_1
+2026-03-30 18:22:07 [INFO] RobotAdapter: get_status start: robot_id=robot_1
+2026-03-30 18:22:07 [INFO] RobotAdapter: get_status success: robot_id=robot_1
+2026-03-30 18:22:30 [INFO] RobotAdapter: move_to start: robot_id=robot_1 target=(1,2,0)
+2026-03-30 18:22:30 [INFO] RobotAdapter: move_to success: robot_id=robot_1
+2026-03-31 12:49:58 [INFO] RobotAdapter: move_to start: robot_id=robot_1 target=(1,2,0)
+2026-03-31 12:49:59 [INFO] RobotAdapter: move_to success: robot_id=robot_1
+2026-03-31 13:12:18 [INFO] httpx: HTTP Request: GET https://pypi.org/pypi/fastmcp/json "HTTP/1.1 200 OK"
+2026-03-31 13:12:18 [INFO] mcp.server.lowlevel.server: Processing request of type ListToolsRequest
+2026-04-02 12:15:07 [INFO] httpx: HTTP Request: GET https://pypi.org/pypi/fastmcp/json "HTTP/1.1 200 OK"
+2026-04-17 14:12:49 [INFO] httpx: HTTP Request: GET https://pypi.org/pypi/fastmcp/json "HTTP/1.1 200 OK"
+2026-04-17 14:13:05 [ERROR] mcp.server.lowlevel.server: Received exception from stream: 1 validation error for JSONRPCMessage
+  Invalid JSON: expected ident at line 1 column 3 [type=json_invalid, input_value='fastmcp call list_robots\n', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.12/v/json_invalid
+2026-04-17 14:14:18 [ERROR] mcp.server.lowlevel.server: Received exception from stream: 1 validation error for JSONRPCMessage
+  Invalid JSON: expected ident at line 1 column 3 [type=json_invalid, input_value='fastmcp call list_robots --json\n', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.12/v/json_invalid
+2026-04-18 19:20:31 [INFO] httpx: HTTP Request: GET https://pypi.org/pypi/fastmcp/json "HTTP/1.1 200 OK"
+2026-04-19 10:47:41 [INFO] httpx: HTTP Request: GET https://pypi.org/pypi/fastmcp/json "HTTP/1.1 200 OK"
+2026-04-21 19:38:38 [INFO] httpx: HTTP Request: GET https://pypi.org/pypi/fastmcp/json "HTTP/1.1 200 OK"
+2026-04-23 17:17:44 [INFO] httpx: HTTP Request: GET https://pypi.org/pypi/fastmcp/json "HTTP/1.1 200 OK"
+2026-04-29 08:56:17 [INFO] httpx: HTTP Request: GET https://pypi.org/pypi/fastmcp/json "HTTP/1.1 200 OK"
+2026-05-03 19:46:36 [INFO] httpx: HTTP Request: GET https://pypi.org/pypi/fastmcp/json "HTTP/1.1 200 OK"
+2026-05-08 11:35:42 [INFO] httpx: HTTP Request: GET https://pypi.org/pypi/fastmcp/json "HTTP/1.1 200 OK"
+2026-05-08 12:24:19 [ERROR] mcp.server.lowlevel.server: Received exception from stream: 1 validation error for JSONRPCMessage
+  Invalid JSON: EOF while parsing a value at line 2 column 0 [type=json_invalid, input_value='\n', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.12/v/json_invalid
+2026-05-10 17:48:08 [INFO] httpx: HTTP Request: GET https://pypi.org/pypi/fastmcp/json "HTTP/1.1 200 OK"
+2026-05-17 12:06:22 [INFO] httpx: HTTP Request: GET https://pypi.org/pypi/fastmcp/json "HTTP/1.1 200 OK"
+2026-05-27 15:37:54 [INFO] httpx: HTTP Request: GET https://pypi.org/pypi/fastmcp/json "HTTP/1.1 200 OK"
+2026-05-28 10:48:59 [INFO] httpx: HTTP Request: GET https://pypi.org/pypi/fastmcp/json "HTTP/1.1 200 OK"

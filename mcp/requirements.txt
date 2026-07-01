@@ -1,0 +1,5 @@
+fastmcp
+pytest
+pytest-asyncio
+requests
+openai>=1.0.0

@@ -1,0 +1,42 @@
+/*2020年4月26日
+	1)增加类型 enum VehicleMinorMode
+	2)增加函数 boolean setMinorMode(in VehicleMinorMode minorMode);
+	3)函数声明改动
+			boolean reportDeadRearVehicle(in UnitID uid) 
+	  改为：
+			boolean reportDeadVehicle(in UnitID uid, in string details);
+	4)增加函数
+			boolean setTrack(in TaskPath path);
+*/
+/*2020年5月8日
+	1)增加函数 boolean setTrapPoint(in Point2D trap, in float radius);
+*/
+/*2020年5月12日
+	1)增加类型 struct TrapPoint2D
+	2)函数声明改动
+			boolean reportDeadVehicle(in UnitID uid, in string details);
+	  改为：
+			boolean reportDeadVehicle(in UnitID uid, in string details, in TrapPoint2D trap);
+	3)函数声明改动
+			boolean setTrapPoint(in Point2D trap, in float radius);
+	  改为：
+			boolean setTrapPoint(in TrapPoint2D trap);
+*/
+/*2020年5月13日
+	1)函数声明改动
+			boolean reportDeadVehicle(in UnitID uid, in string details, in TrapPoint2D trap);
+	  改为：
+			boolean reportDeadVehicle(in UnitID uid, in string details);
+	2)增加类型
+			typedef sequence<TrapPoint2D> TrapPointSequence;
+	3)增加函数
+			boolean reportTrap(in TrapPoint2D trap);
+	4)增加函数
+			TrapPointSequence getTraps();
+	5)增加函数
+			boolean clearTraps();
+	6)函数声明改动
+			boolean setRole(in VehicleRole role);
+	  改为：
+			boolean setRole(in VehicleRole role, in UnitSBH consoleSBH);
+*/

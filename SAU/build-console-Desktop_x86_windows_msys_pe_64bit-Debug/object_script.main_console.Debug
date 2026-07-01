@@ -1,0 +1,15 @@
+debug/Air_Unit-common.o
+debug/Air_Unit-surrogate.o
+debug/Console-common.o
+debug/Console-surrogate.o
+debug/Console-true.o
+debug/Ground_Unit-common.o
+debug/Ground_Unit-surrogate.o
+debug/Monitor-common.o
+debug/Monitor-surrogate.o
+debug/Unit-common.o
+debug/Unit-surrogate.o
+debug/console.o
+debug/mainwindow.o
+debug/moc_mainwindow.o
+debug/moc_serverthread.o
