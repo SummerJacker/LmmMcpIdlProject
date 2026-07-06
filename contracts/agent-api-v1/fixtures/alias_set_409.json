@@ -1,0 +1,9 @@
+{
+  "success": false,
+  "message": "alias conflict: '先锋车' is already in use",
+  "data": {
+    "error_code": "alias_conflict",
+    "conflicting_name": "先锋车",
+    "conflict_type": "alias"
+  }
+}

@@ -8,9 +8,10 @@ from __future__ import annotations
 
 from fastmcp import FastMCP
 
-from config import DEFAULT_TOOL_TIMEOUT_S, LOG_FILE
+from config import DEFAULT_TOOL_TIMEOUT_S, LOG_FILE, QT_HTTP_BASE
 from robot_adapter import RobotAdapter
 from utils.logging_setup import setup_logging
+from agents import AgentApiClient, AgentResolver, AgentService, register_agent_tools
 
 
 def create_app() -> FastMCP:
@@ -22,6 +23,14 @@ def create_app() -> FastMCP:
 
     mcp = FastMCP(name="firstmcp-robot-server")
     adapter = RobotAdapter(tool_timeout_s=DEFAULT_TOOL_TIMEOUT_S)
+
+    # --- 智能体目录、状态与别名系统（Phase 2）---
+    agent_api_client = AgentApiClient(base_url=QT_HTTP_BASE)
+    agent_resolver = AgentResolver(agent_api_client, adapter._manager)
+    agent_service = AgentService(agent_api_client, agent_resolver)
+    register_agent_tools(mcp, agent_service)
+    # 注入 AgentResolver 到 RobotAdapter，使所有旧工具支持别名解析
+    adapter.set_agent_resolver(agent_resolver)
 
     @mcp.tool
     async def send_move(

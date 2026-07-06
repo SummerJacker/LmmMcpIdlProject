@@ -1,0 +1,8 @@
+{
+  "success": true,
+  "message": "alias cleared",
+  "data": {
+    "unit_id": "GV1",
+    "updated_at_ms": 1782864000000
+  }
+}

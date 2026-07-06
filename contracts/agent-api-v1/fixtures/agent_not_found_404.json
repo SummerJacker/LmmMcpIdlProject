@@ -1,0 +1,7 @@
+{
+  "success": false,
+  "message": "agent not found: 'UnknownCar'",
+  "data": {
+    "error_code": "agent_not_found"
+  }
+}

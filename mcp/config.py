@@ -93,6 +93,12 @@ QT_TRAP_CLEAR_PATH: str = "/api/trap/clear"
 QT_RESET_RELATIONS_PATH: str = "/api/system/reset_relations"
 QT_HTTP_TIMEOUT_S: float = 5.0
 
+# --- Agent API v1 路由（Phase 2: 智能体目录、状态与别名系统）---
+QT_AGENT_LIST_PATH: str = "/api/agent/list"
+QT_AGENT_STATUS_PATH: str = "/api/agent/status"
+QT_AGENT_ALIAS_SET_PATH: str = "/api/agent/alias/set"
+QT_AGENT_ALIAS_CLEAR_PATH: str = "/api/agent/alias/clear"
+
 # --- 线速度 / 角速度 demo 安全范围 ---
 LINEAR_VELOCITY_MAX_ABS_M_S: float = 5.0
 ANGULAR_VELOCITY_MAX_ABS_RAD_S: float = 10.0

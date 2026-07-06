@@ -1,0 +1,25 @@
+{
+  "success": true,
+  "message": "ok",
+  "data": {
+    "unit_id": "GV1",
+    "alias": "先锋车",
+    "display_name": "先锋车",
+    "unit_type": "ground",
+    "binding_state": "bound",
+    "binding_origin": "mock",
+    "connection_state": "online",
+    "status_freshness": "fresh",
+    "mock": true,
+    "run_mode": "sim",
+    "role": "leader",
+    "pose": {"x": 1.5, "y": 2.5, "yaw": 0.8},
+    "speed": {"linear_m_s": 0.3, "angular_rad_s": 0.1},
+    "battery_percent": null,
+    "health": null,
+    "last_seen_ms": 1782863999500,
+    "observed_at_ms": 1782863999500,
+    "last_error": null,
+    "capabilities": ["pose", "speed", "role"]
+  }
+}

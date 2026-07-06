@@ -17,8 +17,11 @@ import json
 import math
 import time
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TYPE_CHECKING
 from urllib.parse import quote
+
+if TYPE_CHECKING:
+    from agents.agent_resolver import AgentResolver
 
 from config import (
     ANGULAR_VELOCITY_MAX_ABS_RAD_S,
@@ -347,6 +350,24 @@ class RobotAdapter:
         self._logger = get_logger("RobotAdapter")
         self._fleet_lock = asyncio.Lock()
         self._cached_rpc_enabled: bool = False
+        self._agent_resolver: AgentResolver | None = None
+
+    def set_agent_resolver(self, resolver: AgentResolver) -> None:
+        """注入 AgentResolver，使所有工具支持 Qt 别名和动态智能体解析。"""
+        self._agent_resolver = resolver
+
+    async def _resolve_to_unit_id(self, name: str) -> str | None:
+        """解析机器人标识为 unit_id。先查 robots.json，再查 Qt AgentResolver。"""
+        # 1. robots.json canonical lookup
+        canon = self._manager.canonical_robot_id(name)
+        if canon:
+            return self._manager.unit_id_for(canon)
+        # 2. AgentResolver (Qt directory: unit_id, alias, dynamic agents)
+        if self._agent_resolver:
+            resolved = await self._agent_resolver.resolve(name)
+            if resolved:
+                return resolved
+        return None
 
     def _inject_run_mode(self, data: Any) -> None:
         """
@@ -522,12 +543,9 @@ class RobotAdapter:
             duration_ms,
         )
 
-        canon = self._manager.canonical_robot_id(robot_id)
-        if canon is None:
+        unit_id = await self._resolve_to_unit_id(robot_id)
+        if unit_id is None:
             return make_tool_response(success=False, message=_message_unit_not_bound(robot_id))
-
-        unit_id = self._manager.unit_id_for(canon)
-        assert unit_id is not None
 
         if abs(float(linear_velocity)) > LINEAR_VELOCITY_MAX_ABS_M_S:
             return make_tool_response(success=False, message=_message_speed_linear_out_of_bounds(linear_velocity))
@@ -546,12 +564,12 @@ class RobotAdapter:
             "timestamp": ts,
         }
 
-        self._logger.info("send_move alias_in=%s canonical_robot_id=%s unit_id=%s", robot_id, canon, unit_id)
+        self._logger.info("send_move alias_in=%s unit_id=%s", robot_id, unit_id)
         return await self._run_http(
             method="POST",
             url=self._send_move_url(),
             json_body=payload,
-            robot_id_for_lock=canon,
+            robot_id_for_lock=unit_id,  # lock on unit_id for dynamic agents
             op_name="send_move",
         )
 
@@ -562,17 +580,15 @@ class RobotAdapter:
         @param robot_id: MCP 标识
         @returns: 统一 JSON
         """
-        canon = self._manager.canonical_robot_id(robot_id)
-        if canon is None:
+        unit_id = await self._resolve_to_unit_id(robot_id)
+        if unit_id is None:
             return make_tool_response(success=False, message=_message_unit_not_bound(robot_id))
-        unit_id = self._manager.unit_id_for(canon)
-        assert unit_id is not None
-        self._logger.info("stop_robot alias_in=%s canonical=%s unit_id=%s", robot_id, canon, unit_id)
+        self._logger.info("stop_robot alias_in=%s unit_id=%s", robot_id, unit_id)
         return await self._run_http(
             method="POST",
             url=qt_url(QT_STOP_PATH),
             json_body={"unit_id": unit_id},
-            robot_id_for_lock=canon,
+            robot_id_for_lock=unit_id,
             op_name="stop_robot",
         )
 
@@ -594,23 +610,22 @@ class RobotAdapter:
     async def get_robot_status(self, *, robot_id: str) -> str:
         """
         查询单车状态（位姿、速度等，依赖主控台 /api/robot/status）。
+        支持 robot_id、unit_id（如 GV1）、或 Qt 别名解析。
 
         @param robot_id: MCP 标识
         @returns: 统一 JSON，data 中含主控台返回字段
         """
-        canon = self._manager.canonical_robot_id(robot_id)
-        if canon is None:
+        unit_id = await self._resolve_to_unit_id(robot_id)
+        if unit_id is None:
             return make_tool_response(success=False, message=_message_unit_not_bound(robot_id))
-        unit_id = self._manager.unit_id_for(canon)
-        assert unit_id is not None
         q = quote(unit_id, safe="")
         url = f"{qt_url(QT_STATUS_PATH)}?unit_id={q}"
-        self._logger.info("get_robot_status alias_in=%s canonical=%s unit_id=%s", robot_id, canon, unit_id)
+        self._logger.info("get_robot_status alias_in=%s unit_id=%s", robot_id, unit_id)
         raw = await self._run_http(
             method="GET",
             url=url,
             json_body=None,
-            robot_id_for_lock=canon,
+            robot_id_for_lock=unit_id,
             op_name="get_robot_status",
         )
         return self._maybe_enrich_tool_data(raw)
@@ -634,17 +649,15 @@ class RobotAdapter:
 
     async def set_leader(self, *, robot_id: str) -> str:
         """
-        设置地面编队队长。
+        设置地面编队队长。支持 robot_id、unit_id 或 Qt 别名。
 
         @param robot_id: robot_id 或 unit_id
         @returns: 统一 JSON
         """
 
-        canon = self._manager.canonical_robot_id(robot_id)
-        if canon is None:
+        unit_id = await self._resolve_to_unit_id(robot_id)
+        if unit_id is None:
             return make_tool_response(success=False, message=_message_unit_not_bound(robot_id))
-        unit_id = self._manager.unit_id_for(canon)
-        assert unit_id is not None
         return await self._post_qt(
             path=QT_SET_LEADER_PATH,
             json_body={"unit_id": unit_id},
@@ -696,7 +709,7 @@ class RobotAdapter:
 
     async def set_task_point(self, *, robot_id: str, x: float, y: float) -> str:
         """
-        下发单车任务点。
+        下发单车任务点。支持 robot_id、unit_id 或 Qt 别名。
 
         @param robot_id: robot_id 或 unit_id
         @param x: 目标 x
@@ -704,8 +717,8 @@ class RobotAdapter:
         @returns: 统一 JSON
         """
 
-        canon = self._manager.canonical_robot_id(robot_id)
-        if canon is None:
+        unit_id = await self._resolve_to_unit_id(robot_id)
+        if unit_id is None:
             return make_tool_response(success=False, message=_message_unit_not_bound(robot_id))
         ok_x, xv, msg_x = _finite_float(x, "x")
         if not ok_x:
@@ -714,37 +727,33 @@ class RobotAdapter:
         if not ok_y:
             return make_tool_response(success=False, message=msg_y)
 
-        unit_id = self._manager.unit_id_for(canon)
-        assert unit_id is not None
         return await self._post_qt(
             path=QT_TASK_POINT_PATH,
             json_body={"unit_id": unit_id, "x": xv, "y": yv},
-            robot_id_for_lock=canon,
+            robot_id_for_lock=unit_id,
             op_name="set_task_point",
         )
 
     async def set_task_path(self, *, robot_id: str, points_json: str) -> str:
         """
-        下发单车任务路径。
+        下发单车任务路径。支持 robot_id、unit_id 或 Qt 别名。
 
         @param robot_id: robot_id 或 unit_id
         @param points_json: JSON 列表，元素包含 x/y
         @returns: 统一 JSON
         """
 
-        canon = self._manager.canonical_robot_id(robot_id)
-        if canon is None:
+        unit_id = await self._resolve_to_unit_id(robot_id)
+        if unit_id is None:
             return make_tool_response(success=False, message=_message_unit_not_bound(robot_id))
         ok, points, msg = _parse_task_points(points_json)
         if not ok:
             return make_tool_response(success=False, message=msg)
 
-        unit_id = self._manager.unit_id_for(canon)
-        assert unit_id is not None
         return await self._post_qt(
             path=QT_TASK_PATH_PATH,
             json_body={"unit_id": unit_id, "points": points},
-            robot_id_for_lock=canon,
+            robot_id_for_lock=unit_id,
             op_name="set_task_path",
         )
 
@@ -1151,18 +1160,29 @@ class RobotAdapter:
         """
         批量查询多机器人状态，便于多车编队/闭环规划。
 
-        @param robot_ids_csv: 逗号分隔的 robot_id 或 unit_id；为空时默认查询 robots.json 全部配置
+        @param robot_ids_csv: 逗号分隔的 robot_id 或 unit_id；为空时查询 Qt 当前绑定目录（优先）或 robots.json
         @returns: 统一 JSON，data 包含 items 与 summary
         """
 
         raw_ids = [s.strip() for s in robot_ids_csv.split(",") if s.strip()] if robot_ids_csv.strip() else []
-        query_ids = raw_ids if raw_ids else self._manager.configured_robot_ids()
-        if not query_ids:
+        if not raw_ids:
+            # 默认查询 Qt 当前绑定目录（通过 AgentResolver），回退为 robots.json 配置
+            if self._agent_resolver:
+                try:
+                    dir_data = await self._agent_resolver._api.list_agents()
+                    if dir_data.get("success") and isinstance(dir_data.get("data"), dict):
+                        agents = dir_data["data"].get("agents", [])
+                        raw_ids = [a["unit_id"] for a in agents if isinstance(a, dict) and a.get("unit_id")]
+                except Exception:
+                    raw_ids = []
+            if not raw_ids:
+                raw_ids = self._manager.configured_robot_ids()
+        if not raw_ids:
             return make_tool_response(success=False, message="No robots configured")
 
         items: list[dict[str, Any]] = []
         ok_count = 0
-        for rid in query_ids:
+        for rid in raw_ids:
             one = await self.get_robot_status(robot_id=rid)
             try:
                 payload = json.loads(one)

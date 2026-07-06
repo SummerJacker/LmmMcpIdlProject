@@ -1,0 +1,81 @@
+{
+  "success": true,
+  "message": "ok",
+  "data": {
+    "schema_version": "1.0",
+    "generated_at_ms": 1782864000000,
+    "agents": [
+      {
+        "unit_id": "GV1",
+        "alias": "先锋车",
+        "display_name": "先锋车",
+        "unit_type": "ground",
+        "binding_state": "bound",
+        "binding_origin": "mock",
+        "connection_state": "online",
+        "status_freshness": "fresh",
+        "mock": true,
+        "run_mode": "sim",
+        "role": "leader",
+        "pose": {"x": 1.0, "y": 2.0, "yaw": 0.5},
+        "speed": {"linear_m_s": 0.2, "angular_rad_s": 0.0},
+        "battery_percent": null,
+        "health": null,
+        "last_seen_ms": 1782863999000,
+        "observed_at_ms": 1782863999000,
+        "last_error": null,
+        "capabilities": ["pose", "speed", "role"]
+      },
+      {
+        "unit_id": "GV2",
+        "alias": "跟随车",
+        "display_name": "跟随车",
+        "unit_type": "ground",
+        "binding_state": "bound",
+        "binding_origin": "mock",
+        "connection_state": "online",
+        "status_freshness": "fresh",
+        "mock": true,
+        "run_mode": "sim",
+        "role": "follower",
+        "pose": {"x": 3.0, "y": 4.0, "yaw": 1.2},
+        "speed": {"linear_m_s": 0.0, "angular_rad_s": 0.0},
+        "battery_percent": null,
+        "health": null,
+        "last_seen_ms": 1782863999000,
+        "observed_at_ms": 1782863999000,
+        "last_error": null,
+        "capabilities": ["pose", "speed", "role"]
+      },
+      {
+        "unit_id": "GV3",
+        "alias": null,
+        "display_name": "GV3",
+        "unit_type": "ground",
+        "binding_state": "bound",
+        "binding_origin": "restored",
+        "connection_state": "unknown",
+        "status_freshness": "unavailable",
+        "mock": false,
+        "run_mode": "sim",
+        "role": "none",
+        "pose": null,
+        "speed": null,
+        "battery_percent": null,
+        "health": null,
+        "last_seen_ms": null,
+        "observed_at_ms": 1782864000000,
+        "last_error": "RPC disabled, no probe attempted",
+        "capabilities": []
+      }
+    ],
+    "summary": {
+      "total": 3,
+      "online": 2,
+      "offline": 0,
+      "unknown": 1,
+      "mock": 2,
+      "real": 0
+    }
+  }
+}

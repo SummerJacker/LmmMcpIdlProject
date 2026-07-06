@@ -1,0 +1,2 @@
+GV2 ilusbh:rikirobot4/vehicle;IDL%3AGround_Unit%2Frpc%3A1.0;iiop@tcp_192.168.3.102_5004
+GV3 ilusbh:rikirobot2/vehicle;IDL%3AGround_Unit%2Frpc%3A1.0;iiop@tcp_192.168.3.39_5000
