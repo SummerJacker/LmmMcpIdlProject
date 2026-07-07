@@ -39,6 +39,14 @@ void MockRobotSimulator::applyMove(const QString &unitId, double linearVelocity,
     s.yaw += angularVelocity * dt;
 }
 
+void MockRobotSimulator::setPose(const QString &unitId, double x, double y, double yaw) {
+    QMutexLocker lock(&mutex_);
+    State &s = units_[unitId];
+    s.x = x;
+    s.y = y;
+    s.yaw = yaw;
+}
+
 void MockRobotSimulator::stop(const QString &unitId) {
     QMutexLocker lock(&mutex_);
     if (!units_.contains(unitId))

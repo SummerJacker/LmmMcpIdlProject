@@ -1,4 +1,4 @@
-#-------------------------------------------------
+haiyou#-------------------------------------------------
 # 项目名称与模板类型
 #-------------------------------------------------
 TEMPLATE = app                 # 应用程序模板
@@ -16,6 +16,14 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets  # 启用 QtWidgets（Qt5 及以
 #-------------------------------------------------
 CONFIG += c++11                        # 启用 C++11 标准
 QMAKE_CXXFLAGS -= -Zc:strictStrings    # 关闭严格字符串检查（MSVC 特有）
+
+# MSVC：源码为「无 BOM 的 UTF-8」，中文 locale 下 MSVC 默认按 GBK 代码页解析，
+# 会把 UTF-8 中文注释的多字节误判，导致后续正常代码报出乱码标识符、C3927/C2447 等假错。
+# /utf-8 同时设置 source-charset 与 execution-charset 为 UTF-8，从根本上修复。
+win32:!win32-g++ {
+    QMAKE_CFLAGS   += /utf-8
+    QMAKE_CXXFLAGS += /utf-8
+}
 
 # MSVC：用 cmd 包装 link，注入 SDK 下 rc.exe 所在 PATH（修复 LNK1158；不依赖 console.pro.user 里 RC/PATH 是否被 Qt Creator 覆盖）
 win32:!win32-g++ {
@@ -56,6 +64,8 @@ SOURCES += \
     HttpApiExecutor.cpp \
     HttpPlugin.cpp \
     MockRobotSimulator.cpp \
+    TaskManager.cpp \
+    SafetyValidator.cpp \
     mainwindow.cpp \
     agents/identity/AgentNameNormalizer.cpp \
     agents/identity/AliasStore.cpp \
@@ -81,6 +91,8 @@ HEADERS += \
     HttpApiExecutor.h \
     HttpPlugin.h \
     MockRobotSimulator.h \
+    TaskManager.h \
+    SafetyValidator.h \
     mainwindow.h \
     serverthread.h \
     agents/contracts/AgentContracts.h \

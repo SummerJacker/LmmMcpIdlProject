@@ -41,6 +41,11 @@ from config import (
     QT_TASK_POINT_PATH,
     QT_TRAP_ADD_PATH,
     QT_TRAP_CLEAR_PATH,
+    QT_GOTO_POSE_PATH,
+    QT_GOTO_POSE_BATCH_PATH,
+    QT_FORMATION_EXECUTE_PATH,
+    QT_TASK_STATUS_PATH,
+    QT_TASK_CANCEL_PATH,
     load_robot_configs,
     qt_url,
 )
@@ -812,6 +817,235 @@ class RobotAdapter:
             json_body={},
             robot_id_for_lock=None,
             op_name="reset_unit_relations",
+        )
+
+    # =====================================================================
+    # MCP-IDL Task-Level Tools (mcp_swarm_task.idl SwarmTaskControl)
+    # =====================================================================
+
+    async def goto_pose(
+        self, *,
+        robot_id: str,
+        x: float,
+        y: float,
+        yaw: float = 0.0,
+        linear_speed_m_s: float = 0.3,
+        angular_speed_rad_s: float = 0.6,
+        tolerance_m: float = 0.15,
+        timeout_ms: int = 30000,
+    ) -> str:
+        """
+        MCP-IDL: 单智能体自主导航到目标点位。
+
+        底层调用 Ground_Unit_rpc_setTaskPoint + QTimer 轮询 getCurrentPose。
+        返回 task_id，大模型应通过 get_task_status 轮询进度。
+        """
+        from safety.validator import validate_goto_pose
+
+        unit_id = await self._resolve_to_unit_id(robot_id)
+        if unit_id is None:
+            return make_tool_response(success=False, message=_message_unit_not_bound(robot_id))
+
+        ok_x, xv, msg_x = _finite_float(x, "x")
+        if not ok_x:
+            return make_tool_response(success=False, message=msg_x)
+        ok_y, yv, msg_y = _finite_float(y, "y")
+        if not ok_y:
+            return make_tool_response(success=False, message=msg_y)
+
+        # 客户端侧安全预检
+        passed, err_code, err_msg = validate_goto_pose(
+            unit_id, xv, yv, linear_speed_m_s, angular_speed_rad_s, tolerance_m,
+        )
+        if not passed:
+            return make_tool_response(
+                success=False, message=err_msg,
+                data={"error_code": err_code},
+            )
+
+        if timeout_ms <= 0:
+            return make_tool_response(success=False, message="timeout_ms must be > 0")
+
+        self._logger.info(
+            "goto_pose: unit=%s target=(%.2f,%.2f) tol=%.2f timeout=%d",
+            unit_id, xv, yv, tolerance_m, timeout_ms,
+        )
+
+        return await self._post_qt(
+            path=QT_GOTO_POSE_PATH,
+            json_body={
+                "unit_id": unit_id, "x": xv, "y": yv, "yaw": yaw,
+                "linear_speed_m_s": linear_speed_m_s,
+                "angular_speed_rad_s": angular_speed_rad_s,
+                "tolerance_m": tolerance_m,
+                "timeout_ms": timeout_ms,
+            },
+            robot_id_for_lock=unit_id,
+            op_name="goto_pose",
+        )
+
+    async def goto_pose_batch(
+        self, *,
+        targets_json: str,
+        tolerance_m: float = 0.15,
+        timeout_ms: int = 30000,
+    ) -> str:
+        """
+        MCP-IDL: 多智能体并发导航到各自目标点。
+
+        targets_json: [{"robot_id":"GV1","x":3,"y":5}, {"robot_id":"GV2","x":6,"y":5}]
+        任何单点校验失败则整体 REJECTED。
+        """
+        import json as _json
+        from safety.validator import validate_goto_pose_batch
+
+        try:
+            raw = _json.loads(targets_json)
+        except _json.JSONDecodeError as e:
+            return make_tool_response(
+                success=False,
+                message=f"targets_json parse error: {e}",
+            )
+
+        if not isinstance(raw, list):
+            return make_tool_response(
+                success=False,
+                message="targets_json must be a JSON array",
+            )
+
+        # 解析并转换为 unit_id
+        parsed: list[dict] = []
+        for item in raw:
+            if not isinstance(item, dict):
+                return make_tool_response(success=False, message="each target must be a JSON object")
+            rid = str(item.get("robot_id", "")).strip()
+            uid = await self._resolve_to_unit_id(rid)
+            if uid is None:
+                return make_tool_response(success=False, message=_message_unit_not_bound(rid))
+            parsed.append({"unit_id": uid, "x": item.get("x"), "y": item.get("y")})
+
+        passed, err_code, err_msg, failed_idx = validate_goto_pose_batch(parsed, tolerance_m)
+        if not passed:
+            return make_tool_response(
+                success=False, message=err_msg,
+                data={"error_code": err_code, "failed_index": failed_idx},
+            )
+
+        self._logger.info("goto_pose_batch: %d targets", len(parsed))
+
+        return await self._post_qt(
+            path=QT_GOTO_POSE_BATCH_PATH,
+            json_body={
+                "targets": parsed,
+                "tolerance_m": tolerance_m,
+                "timeout_ms": timeout_ms,
+            },
+            robot_id_for_lock=None,
+            op_name="goto_pose_batch",
+        )
+
+    async def execute_formation(
+        self, *,
+        formation_type: str,
+        unit_ids_csv: str = "",
+        spacing_m: float = 1.0,
+        anchor_json: str = "",
+        heading_rad: float = 0.0,
+        tolerance_m: float = 0.15,
+        timeout_ms: int = 30000,
+    ) -> str:
+        """
+        MCP-IDL: 执行编队任务。
+
+        只接受语义化参数 (formation_type + spacing_m + unit_ids)，
+        不对大模型暴露底层 leader_ids / angles。
+        """
+        import json as _json
+        from safety.validator import validate_formation
+
+        ftype = formation_type.strip().lower()
+        raw_ids = [s.strip() for s in unit_ids_csv.split(",") if s.strip()] if unit_ids_csv.strip() else []
+
+        # 解析 unit_ids (支持 robot_id 别名)
+        unit_ids: list[str] = []
+        for rid in raw_ids:
+            uid = await self._resolve_to_unit_id(rid)
+            if uid is None:
+                return make_tool_response(success=False, message=_message_unit_not_bound(rid))
+            unit_ids.append(uid)
+
+        # 安全检查
+        passed, err_code, err_msg = validate_formation(ftype, unit_ids, spacing_m)
+        if not passed:
+            return make_tool_response(
+                success=False, message=err_msg,
+                data={"error_code": err_code},
+            )
+
+        self._logger.info(
+            "execute_formation: type=%s units=%s spacing=%.2f",
+            ftype, unit_ids, spacing_m,
+        )
+
+        payload: dict = {
+            "formation_type": ftype,
+            "unit_ids": unit_ids,
+            "spacing_m": spacing_m,
+            "heading_rad": heading_rad,
+            "tolerance_m": tolerance_m,
+            "timeout_ms": timeout_ms,
+        }
+
+        if anchor_json:
+            try:
+                anchor = _json.loads(anchor_json)
+                payload["anchor"] = anchor
+            except _json.JSONDecodeError:
+                pass  # 忽略非法 JSON，使用默认
+
+        return await self._post_qt(
+            path=QT_FORMATION_EXECUTE_PATH,
+            json_body=payload,
+            robot_id_for_lock=None,
+            op_name="execute_formation",
+        )
+
+    async def get_task_status(self, *, task_id: str) -> str:
+        """
+        MCP-IDL: 查询任务进度。
+
+        返回完整的 TaskResult，包含每个 unit 的子状态。
+        """
+        tid = task_id.strip()
+        if not tid:
+            return make_tool_response(success=False, message="task_id is empty")
+
+        from urllib.parse import quote
+        url = f"{qt_url(QT_TASK_STATUS_PATH)}?task_id={quote(tid, safe='')}"
+
+        self._logger.info("get_task_status: %s", tid)
+        raw = await self._run_http(
+            method="GET", url=url, json_body=None,
+            robot_id_for_lock=None, op_name="get_task_status",
+        )
+        return self._maybe_enrich_tool_data(raw)
+
+    async def cancel_task(self, *, task_id: str) -> str:
+        """
+        MCP-IDL: 取消运行中的任务。
+
+        所有相关智能体立即停止，任务状态变为 CANCELLED。
+        """
+        tid = task_id.strip()
+        if not tid:
+            return make_tool_response(success=False, message="task_id is empty")
+
+        self._logger.info("cancel_task: %s", tid)
+        return await self._post_qt(
+            path=QT_TASK_CANCEL_PATH,
+            json_body={"task_id": tid},
+            robot_id_for_lock=None,
+            op_name="cancel_task",
         )
 
     async def compute_remaining_distance(

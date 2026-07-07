@@ -34,6 +34,9 @@ public:
 
     void stop(const QString &unitId);
 
+    /** @brief 直接设置位姿（供 mock goto_pose 轮询使用） */
+    void setPose(const QString &unitId, double x, double y, double yaw);
+
     /** @brief 地面单元形态 JSON：pose/speed/mock */
     QJsonObject groundStatusJson(const QString &unitId) const;
 

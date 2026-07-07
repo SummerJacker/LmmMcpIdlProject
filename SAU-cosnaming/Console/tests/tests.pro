@@ -11,6 +11,12 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 CONFIG += c++11
 QMAKE_CXXFLAGS -= -Zc:strictStrings
 
+# MSVC：源码为无 BOM 的 UTF-8，中文 locale 下按 GBK 解析会导致乱码假错，用 /utf-8 修复
+win32:!win32-g++ {
+    QMAKE_CFLAGS   += /utf-8
+    QMAKE_CXXFLAGS += /utf-8
+}
+
 DEFINES += QT_DEPRECATED_WARNINGS
 DEFINES += __STDC_LIMIT_MACROS
 DEFINES += UNIT_TEST

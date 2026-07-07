@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XY2D Monitor — SAU Console</title>
+<style>
+  :root { --bg: #1a1a2e; --panel: #16213e; --text: #e0e0e0; --accent: #0f3460; --highlight: #e94560; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 16px; }
+  h1 { font-size: 1.2rem; margin-bottom: 12px; color: var(--highlight); }
+  .panel { background: var(--panel); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .robot-card { background: var(--accent); border-radius: 6px; padding: 8px 12px; display: inline-block; margin: 4px; min-width: 140px; }
+  .robot-card .uid { font-weight: bold; font-size: 1.1rem; }
+  .robot-card .coords { font-size: 0.85rem; opacity: 0.8; }
+  #status { font-size: 0.8rem; color: #888; }
+</style>
+</head>
+<body>
+<h1>SAU Console — XY2D Monitor</h1>
+<div class="panel">
+  <div id="phase" style="margin-bottom:4px;">阶段: 空闲</div>
+  <div id="nl" style="font-style:italic;color:#aaa;"></div>
+</div>
+<div class="panel" id="robots"></div>
+<div id="status">等待 SSE 连接...</div>
+
+<script>
+  const robotsEl = document.getElementById('robots');
+  const phaseEl = document.getElementById('phase');
+  const nlEl = document.getElementById('nl');
+  const statusEl = document.getElementById('status');
+
+  const evtSource = new EventSource('/debug/xy2d/stream');
+  evtSource.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      phaseEl.textContent = '阶段: ' + (data.phase_text || '空闲');
+      nlEl.textContent = data.natural_language || '';
+      statusEl.textContent = '更新: ' + new Date(data.ts_ms).toLocaleTimeString();
+
+      let html = '';
+      if (data.robots && data.robots.length) {
+        for (const r of data.robots) {
+          html += `<div class="robot-card">
+            <div class="uid">${r.unit_id}</div>
+            <div class="coords">x=${r.x_m?.toFixed(2)} y=${r.y_m?.toFixed(2)} yaw=${r.yaw_rad?.toFixed(2)}</div>
+          </div>`;
+        }
+      } else {
+        html = '<div style="color:#666;">无在线单元</div>';
+      }
+      robotsEl.innerHTML = html;
+    } catch(e) { /* ignore parse errors */ }
+  };
+  evtSource.onerror = () => { statusEl.textContent = 'SSE 连接断开，尝试重连...'; };
+</script>
+</body>
+</html>

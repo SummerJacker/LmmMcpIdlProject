@@ -6,6 +6,8 @@
 #include "HttpApiExecutor.h"
 
 #include "MockRobotSimulator.h"
+#include "TaskManager.h"
+#include "SafetyValidator.h"
 #include "agents/http/AgentHttpController.h"
 #include "console.h"
 #include "serverthread.h"
@@ -981,6 +983,654 @@ QByteArray HttpApiExecutor::processRequest(const QString &method, const QString 
             mcpLogs_.removeAt(0);
         }
         return jsonResponseObj(true, QStringLiteral("ok"), QJsonObject(), httpStatus);
+    }
+
+    // =====================================================================
+    // MCP-IDL 任务级接口: POST /api/task/goto_pose
+    // 对应 mcp_swarm_task.idl SwarmTaskControl::gotoPose
+    // =====================================================================
+    if (path == QStringLiteral("/api/task/goto_pose") && method == QStringLiteral("POST")) {
+        QJsonObject o;
+        QByteArray errResp;
+        if (!parseJsonObjectBody(body, &o, &errResp, httpStatus))
+            return errResp;
+
+        const QString unitId = o.value(QStringLiteral("unit_id")).toString().trimmed();
+        if (unitId.isEmpty())
+            return jsonResponse(false, QStringLiteral("missing unit_id"), QJsonValue::Null, httpStatus);
+        if (!isGroundUnitId(unitId))
+            return jsonResponse(false, QStringLiteral("goto_pose currently supports ground units only"),
+                                QJsonValue::Null, httpStatus);
+
+        double x = 0.0, y = 0.0;
+        if (!readFiniteNumber(o, QStringLiteral("x"), &x) ||
+            !readFiniteNumber(o, QStringLiteral("y"), &y))
+            return jsonResponse(false, QStringLiteral("x and y must be finite numbers"),
+                                QJsonValue::Null, httpStatus);
+
+        double lv = o.value(QStringLiteral("linear_speed_m_s")).toDouble(0.3);
+        double av = o.value(QStringLiteral("angular_speed_rad_s")).toDouble(0.6);
+        double tol = o.value(QStringLiteral("tolerance_m")).toDouble(0.15);
+        int timeoutMs = o.value(QStringLiteral("timeout_ms")).toInt(30000);
+
+        // 参数范围校验（与 mcp/safety/validator.py 同步）
+        if (tol < 0.02 || !qIsFinite(tol)) {
+            QJsonObject rejData;
+            rejData.insert(QStringLiteral("error_code"), QStringLiteral("SAFETY_REJECTED"));
+            return jsonResponseObj(false,
+                QStringLiteral("tolerance_m %1 is below minimum 0.02").arg(tol, 0, 'f', 3),
+                rejData, httpStatus, 400);
+        }
+        if (timeoutMs <= 0 || timeoutMs > 600000) {
+            QJsonObject rejData;
+            rejData.insert(QStringLiteral("error_code"), QStringLiteral("SAFETY_REJECTED"));
+            return jsonResponseObj(false,
+                QStringLiteral("timeout_ms %1 out of range (1..600000)").arg(timeoutMs),
+                rejData, httpStatus, 400);
+        }
+
+        // 安全校验
+        SafetyValidator sv;
+        SafetyValidator::ValidationResult vr =
+            sv.validateGotoPose(unitId, x, y, lv, av);
+        if (!vr.passed) {
+            TaskManager::instance().appendAudit(
+                QStringLiteral("rejected-%1").arg(unitId),
+                QStringLiteral("SAFETY_REJECTED"),
+                QStringLiteral("%1: %2").arg(vr.errorCode).arg(vr.message));
+            QJsonObject rejData;
+            rejData.insert(QStringLiteral("error_code"), vr.errorCode);
+            return jsonResponseObj(false, vr.message, rejData, httpStatus, 400);
+        }
+
+        char *sbh = sbhForUid(unitId);
+        if (!sbh)
+            return jsonResponse(false, QStringLiteral("unit not bound"), QJsonValue::Null, httpStatus);
+
+        // 创建任务并进入 RUNNING 状态
+        QJsonObject params;
+        params.insert(QStringLiteral("unit_id"), unitId);
+        params.insert(QStringLiteral("target_x"), x);
+        params.insert(QStringLiteral("target_y"), y);
+        params.insert(QStringLiteral("tolerance_m"), tol);
+        params.insert(QStringLiteral("timeout_ms"), timeoutMs);
+
+        QString taskId = TaskManager::instance().createTask(
+            QStringLiteral("goto_pose"), params, {unitId});
+        TaskManager::instance().transitionTask(taskId, QStringLiteral("RUNNING"));
+
+        // 对 MOCK 单元: 直接调用 setTaskPoint 等价操作 + 启动轮询定时器
+        if (MockRobotSimulator::isMockSbh(sbh)) {
+            // MOCK: 下发给模拟器 (运动学更新在 buildXy2dMonitorEventPayload 中处理)
+            // 启动 QTimer 轮询进度
+            QTimer *pollTimer = new QTimer();
+            pollTimer->setInterval(200); // 200ms
+            QString capturedTaskId = taskId;
+            QString capturedUnitId = unitId;
+            double capturedX = x, capturedY = y, capturedTol = tol;
+            qint64 startMs = QDateTime::currentMSecsSinceEpoch();
+            int capturedTimeoutMs = timeoutMs;
+
+            QObject::connect(pollTimer, &QTimer::timeout, [capturedTaskId, capturedUnitId,
+                                 capturedX, capturedY, capturedTol, capturedTimeoutMs,
+                                 startMs, pollTimer]() {
+                TaskManager &tm = TaskManager::instance();
+                TaskManager::TaskEntry *entry = tm.getTask(capturedTaskId);
+                if (!entry || entry->state != "RUNNING") {
+                    // 任务已被取消或完成, 清理
+                    return;
+                }
+
+                // 读取当前位置
+                QJsonObject status = MockRobotSimulator::instance().groundStatusJson(capturedUnitId);
+                QJsonObject pose = status.value("pose").toObject();
+                double cx = pose.value("x").toDouble();
+                double cy = pose.value("y").toDouble();
+                double dx = capturedX - cx;
+                double dy = capturedY - cy;
+                double dist = qSqrt(dx * dx + dy * dy);
+
+                // Mock 运动学: 每 tick (200ms) 朝目标推进 0.06m (0.3m/s * 0.2s)
+                if (dist > capturedTol && dist > 0.0) {
+                    double step = qMin(dist, 0.06);  // 不超过剩余距离
+                    double newX = cx + (dx / dist) * step;
+                    double newY = cy + (dy / dist) * step;
+                    double newYaw = qAtan2(dy, dx);
+                    MockRobotSimulator::instance().setPose(capturedUnitId, newX, newY, newYaw);
+                }
+
+                double progress = (dist <= capturedTol) ? 100.0
+                    : qMax(0.0, 100.0 * (1.0 - dist / qMax(1.0, qSqrt(capturedX*capturedX + capturedY*capturedY))));
+
+                tm.updateProgress(capturedTaskId, progress);
+                tm.updateSubTask(capturedTaskId, capturedUnitId, "RUNNING", progress, "",
+                    QStringLiteral("dist=%1m").arg(dist, 0, 'f', 2));
+
+                qint64 elapsed = QDateTime::currentMSecsSinceEpoch() - startMs;
+                tm.appendAudit(capturedTaskId, "POLL_POSE",
+                    QStringLiteral("pos=(%1,%2) dist=%3m progress=%4%").arg(cx, 0, 'f', 2).arg(cy, 0, 'f', 2).arg(dist, 0, 'f', 2).arg(progress, 0, 'f', 1));
+
+                // 到达容差 → 完成
+                if (dist <= capturedTol) {
+                    tm.transitionTask(capturedTaskId, "COMPLETED");
+                    tm.updateSubTask(capturedTaskId, capturedUnitId, "COMPLETED", 100.0);
+                    tm.appendAudit(capturedTaskId, "ARRIVED",
+                        QStringLiteral("pos=(%1,%2) dist=%3m within %4m").arg(cx, 0, 'f', 2).arg(cy, 0, 'f', 2).arg(dist, 0, 'f', 2).arg(capturedTol, 0, 'f', 2));
+                    // 停止自身定时器
+                    if (pollTimer) { pollTimer->stop(); pollTimer->deleteLater(); }
+                }
+
+                // 超时
+                if (elapsed > capturedTimeoutMs) {
+                    tm.transitionTask(capturedTaskId, "TIMEOUT", "TIMEOUT",
+                        QStringLiteral("elapsed %1ms > %2ms").arg(elapsed).arg(capturedTimeoutMs));
+                    tm.updateSubTask(capturedTaskId, capturedUnitId, "TIMEOUT", progress, "TIMEOUT");
+                    if (pollTimer) { pollTimer->stop(); pollTimer->deleteLater(); }
+                }
+            });
+
+            pollTimer->start();
+            TaskManager::instance().registerTimer(taskId, pollTimer);
+
+            if (st)
+                emit st->infoAppended(
+                    QStringLiteral("[MCP-IDL] goto_pose task=%1 unit=%2 target=(%3,%4)")
+                        .arg(taskId).arg(unitId).arg(x, 0, 'f', 1).arg(y, 0, 'f', 1));
+
+            TaskManager::TaskEntry *entry = TaskManager::instance().getTask(taskId);
+            QJsonObject data = entry ? entry->toJson() : QJsonObject();
+            data.insert(QStringLiteral("mock"), QJsonValue(true));
+            return jsonResponseObj(true, QStringLiteral("task accepted"), data, httpStatus);
+        }
+
+        // 真实单元: 调用 setTaskPoint + 启动轮询
+        if (!isRealUnitRpcEnabled())
+            return realUnitRpcDisabledResponse(httpStatus);
+
+        Ground_Unit_rpc proxy = groundProxyForUnit(unitId, &errResp, httpStatus);
+        if (!proxy)
+            return errResp;
+
+        Ground_Unit_Point2D p{};
+        p.x = (CORBA_float)x;
+        p.y = (CORBA_float)y;
+        CORBA_Environment ev;
+        CORBA_boolean ok = Ground_Unit_rpc_setTaskPoint(proxy, &p, &ev);
+        Ground_Unit_rpc__Free(&proxy);
+        if (!ILU_C_SUCCESSFUL(&ev) || !ok) {
+            QString msg = QStringLiteral("ILU setTaskPoint failed: %1").arg(ev.returnCode);
+            ILU_C_EXCEPTION_FREE(&ev);
+            TaskManager::instance().transitionTask(taskId, "FAILED", "INTERNAL_ERROR", msg);
+            TaskManager::TaskEntry *entry = TaskManager::instance().getTask(taskId);
+            return jsonResponse(false, msg, entry ? QJsonValue(entry->toJson()) : QJsonValue::Null, httpStatus);
+        }
+
+        // 启动轮询定时器 (真实单元: 读 getCurrentPose)
+        QTimer *realPollTimer = new QTimer();
+        realPollTimer->setInterval(200);
+        QString capturedTaskId2 = taskId;
+        QString capturedUnitId2 = unitId;
+        double capturedX2 = x, capturedY2 = y, capturedTol2 = tol;
+        qint64 startMs2 = QDateTime::currentMSecsSinceEpoch();
+        int capturedTimeoutMs2 = timeoutMs;
+
+        QObject::connect(realPollTimer, &QTimer::timeout, [capturedTaskId2, capturedUnitId2,
+                             capturedX2, capturedY2, capturedTol2, capturedTimeoutMs2,
+                             startMs2, realPollTimer]() {
+            TaskManager &tm = TaskManager::instance();
+            TaskManager::TaskEntry *entry = tm.getTask(capturedTaskId2);
+            if (!entry || entry->state != "RUNNING")
+                return;
+
+            // 注意: ILU 调用必须在主线程, 这里在 QTimer 回调中 (主线程)
+            char *s = sbhForUid(capturedUnitId2);
+            if (!s) {
+                tm.transitionTask(capturedTaskId2, "FAILED", "UNIT_OFFLINE",
+                    QStringLiteral("unit %1 disappeared").arg(capturedUnitId2));
+                realPollTimer->stop();
+                realPollTimer->deleteLater();
+                return;
+            }
+
+            CORBA_Environment ev2;
+            Ground_Unit_rpc g = (Ground_Unit_rpc)ILU_C_SBHToObject(s, Ground_Unit_rpc__MSType, &ev2);
+            if (!ILU_C_SUCCESSFUL(&ev2) || !g) {
+                ILU_C_EXCEPTION_FREE(&ev2);
+                return; // 重试下一次
+            }
+
+            Ground_Unit_Pose2D pose = Ground_Unit_rpc_getCurrentPose(g, &ev2);
+            Ground_Unit_rpc__Free(&g);
+            if (!ILU_C_SUCCESSFUL(&ev2)) {
+                ILU_C_EXCEPTION_FREE(&ev2);
+                return;
+            }
+
+            double dx = capturedX2 - pose.x;
+            double dy = capturedY2 - pose.y;
+            double dist = qSqrt(dx * dx + dy * dy);
+            double progress = (dist <= capturedTol2) ? 100.0
+                : qMax(0.0, 100.0 * (1.0 - dist / qMax(1.0, qSqrt(capturedX2*capturedX2 + capturedY2*capturedY2))));
+
+            tm.updateProgress(capturedTaskId2, progress);
+            tm.updateSubTask(capturedTaskId2, capturedUnitId2, "RUNNING", progress, "",
+                QStringLiteral("dist=%1m").arg(dist, 0, 'f', 2));
+
+            qint64 elapsed = QDateTime::currentMSecsSinceEpoch() - startMs2;
+            tm.appendAudit(capturedTaskId2, "POLL_POSE",
+                QStringLiteral("pos=(%1,%2) dist=%3m progress=%4%").arg((double)pose.x, 0, 'f', 2).arg((double)pose.y, 0, 'f', 2).arg(dist, 0, 'f', 2).arg(progress, 0, 'f', 1));
+
+            if (dist <= capturedTol2) {
+                tm.transitionTask(capturedTaskId2, "COMPLETED");
+                tm.updateSubTask(capturedTaskId2, capturedUnitId2, "COMPLETED", 100.0);
+                tm.appendAudit(capturedTaskId2, "ARRIVED",
+                    QStringLiteral("dist=%1m within %2m").arg(dist, 0, 'f', 2).arg(capturedTol2, 0, 'f', 2));
+                realPollTimer->stop();
+                realPollTimer->deleteLater();
+            }
+
+            if (elapsed > capturedTimeoutMs2) {
+                tm.transitionTask(capturedTaskId2, "TIMEOUT", "TIMEOUT",
+                    QStringLiteral("elapsed %1ms > %2ms").arg(elapsed).arg(capturedTimeoutMs2));
+                tm.updateSubTask(capturedTaskId2, capturedUnitId2, "TIMEOUT", progress, "TIMEOUT");
+                realPollTimer->stop();
+                realPollTimer->deleteLater();
+            }
+        });
+
+        realPollTimer->start();
+        TaskManager::instance().registerTimer(taskId, realPollTimer);
+
+        TaskManager::TaskEntry *entry2 = TaskManager::instance().getTask(taskId);
+        QJsonObject data2 = entry2 ? entry2->toJson() : QJsonObject();
+        return jsonResponseObj(true, QStringLiteral("task accepted"), data2, httpStatus);
+    }
+
+    // =====================================================================
+    // MCP-IDL: POST /api/task/goto_pose_batch
+    // =====================================================================
+    if (path == QStringLiteral("/api/task/goto_pose_batch") && method == QStringLiteral("POST")) {
+        QJsonObject o;
+        QByteArray errResp;
+        if (!parseJsonObjectBody(body, &o, &errResp, httpStatus))
+            return errResp;
+
+        const QJsonValue targetsVal = o.value(QStringLiteral("targets"));
+        if (!targetsVal.isArray())
+            return jsonResponse(false, QStringLiteral("targets must be an array"), QJsonValue::Null, httpStatus);
+        const QJsonArray targets = targetsVal.toArray();
+
+        double tol = o.value(QStringLiteral("tolerance_m")).toDouble(0.15);
+        int timeoutMs = o.value(QStringLiteral("timeout_ms")).toInt(30000);
+
+        // 参数范围校验
+        if (tol < 0.02 || !qIsFinite(tol)) {
+            QJsonObject rejData;
+            rejData.insert(QStringLiteral("error_code"), QStringLiteral("SAFETY_REJECTED"));
+            return jsonResponseObj(false,
+                QStringLiteral("tolerance_m %1 is below minimum 0.02").arg(tol, 0, 'f', 3),
+                rejData, httpStatus, 400);
+        }
+        if (timeoutMs <= 0 || timeoutMs > 600000) {
+            QJsonObject rejData;
+            rejData.insert(QStringLiteral("error_code"), QStringLiteral("SAFETY_REJECTED"));
+            return jsonResponseObj(false,
+                QStringLiteral("timeout_ms %1 out of range (1..600000)").arg(timeoutMs),
+                rejData, httpStatus, 400);
+        }
+
+        // 安全校验
+        SafetyValidator sv;
+        SafetyValidator::ValidationResult vr = sv.validateGotoPoseBatch(targets);
+        if (!vr.passed) {
+            QJsonObject rejData;
+            rejData.insert(QStringLiteral("error_code"), vr.errorCode);
+            return jsonResponseObj(false, vr.message, rejData, httpStatus, 400);
+        }
+
+        // 创建 batch 任务
+        QStringList unitIds;
+        for (const QJsonValue &v : targets) {
+            QJsonObject t = v.toObject();
+            unitIds.append(t.value("unit_id").toString().trimmed());
+        }
+
+        QJsonObject batchParams;
+        batchParams.insert(QStringLiteral("targets"), targets);
+        batchParams.insert(QStringLiteral("tolerance_m"), tol);
+        batchParams.insert(QStringLiteral("timeout_ms"), timeoutMs);
+
+        QString batchTaskId = TaskManager::instance().createTask(
+            QStringLiteral("goto_pose_batch"), batchParams, unitIds);
+        TaskManager::instance().transitionTask(batchTaskId, QStringLiteral("RUNNING"));
+
+        // 逐一启动子任务 (目前: 对 MOCK 单元调用简易 goto_pose; 真实单元同理)
+        for (const QJsonValue &v : targets) {
+            QJsonObject t = v.toObject();
+            QString uid = t.value("unit_id").toString().trimmed();
+            double tx = t.value("x").toDouble();
+            double ty = t.value("y").toDouble();
+
+            char *sbh = sbhForUid(uid);
+            if (!sbh) {
+                TaskManager::instance().updateSubTask(batchTaskId, uid,
+                    QStringLiteral("FAILED"), 0.0, QStringLiteral("UNIT_NOT_FOUND"),
+                    QStringLiteral("unit %1 not bound").arg(uid));
+                continue;
+            }
+
+            // 为子任务启动独立轮询 (简化: 使用与 goto_pose 相同的轮询逻辑)
+            // MOCK 单元
+            if (MockRobotSimulator::isMockSbh(sbh)) {
+                QTimer *subTimer = new QTimer();
+                subTimer->setInterval(200);
+                QString capturedBatchId = batchTaskId;
+                QString capturedUid = uid;
+                double capturedTx = tx, capturedTy = ty, capturedTol = tol;
+                qint64 startMs = QDateTime::currentMSecsSinceEpoch();
+
+                QObject::connect(subTimer, &QTimer::timeout, [capturedBatchId, capturedUid,
+                                 capturedTx, capturedTy, capturedTol, timeoutMs, startMs, subTimer]() {
+                    TaskManager &tm = TaskManager::instance();
+                    TaskManager::TaskEntry *entry = tm.getTask(capturedBatchId);
+                    if (!entry || (entry->state != "RUNNING" && entry->state != "PENDING"))
+                        return;
+
+                    QJsonObject status = MockRobotSimulator::instance().groundStatusJson(capturedUid);
+                    QJsonObject pose = status.value("pose").toObject();
+                    double cx = pose.value("x").toDouble();
+                    double cy = pose.value("y").toDouble();
+                    double dx = capturedTx - cx;
+                    double dy = capturedTy - cy;
+                    double dist = qSqrt(dx*dx + dy*dy);
+                    double prog = (dist <= capturedTol) ? 100.0
+                        : qMax(0.0, 100.0 * (1.0 - dist / qMax(1.0, qSqrt(capturedTx*capturedTx + capturedTy*capturedTy))));
+
+                    // Mock 运动学: 每 tick 朝目标推进
+                    if (dist > capturedTol && dist > 0.0) {
+                        double step = qMin(dist, 0.06);
+                        MockRobotSimulator::instance().setPose(capturedUid,
+                            cx + (dx/dist)*step, cy + (dy/dist)*step, qAtan2(dy, dx));
+                    }
+
+                    tm.updateSubTask(capturedBatchId, capturedUid, "RUNNING", prog);
+
+                    if (dist <= capturedTol) {
+                        tm.updateSubTask(capturedBatchId, capturedUid, "COMPLETED", 100.0);
+                        tm.appendAudit(capturedBatchId, "SUB_ARRIVED",
+                            QStringLiteral("%1 arrived dist=%2m").arg(capturedUid).arg(dist, 0, 'f', 2));
+                        subTimer->stop();
+                        subTimer->deleteLater();
+                    }
+
+                    qint64 elapsed = QDateTime::currentMSecsSinceEpoch() - startMs;
+                    if (elapsed > timeoutMs) {
+                        tm.updateSubTask(capturedBatchId, capturedUid, "TIMEOUT", prog, "TIMEOUT");
+                        subTimer->stop();
+                        subTimer->deleteLater();
+                    }
+
+                    // 检查全部子任务是否都到达终态
+                    bool allDone = true;
+                    bool anyFailed = false;
+                    bool anyCompleted = false;
+                    for (const auto &st : entry->subTasks) {
+                        if (st.state == "RUNNING" || st.state == "PENDING") {
+                            allDone = false;
+                            break;
+                        }
+                        if (st.state == "COMPLETED") anyCompleted = true;
+                        if (st.state == "FAILED" || st.state == "TIMEOUT") anyFailed = true;
+                    }
+                    if (allDone) {
+                        if (anyFailed && anyCompleted)
+                            tm.transitionTask(capturedBatchId, "PARTIAL_COMPLETED");
+                        else if (anyFailed)
+                            tm.transitionTask(capturedBatchId, "FAILED");
+                        else
+                            tm.transitionTask(capturedBatchId, "COMPLETED");
+                    }
+                });
+
+                subTimer->start();
+                TaskManager::instance().updateSubTask(batchTaskId, uid, "RUNNING", 0.0);
+                TaskManager::instance().appendAudit(batchTaskId, "SUB_STARTED",
+                    QStringLiteral("%1 target=(%2,%3)").arg(uid).arg(tx, 0, 'f', 1).arg(ty, 0, 'f', 1));
+            }
+            // 真实单元: 跳过 (需要 SAU_ENABLE_REAL_RPC=1)
+        }
+
+        TaskManager::TaskEntry *entry = TaskManager::instance().getTask(batchTaskId);
+        QJsonObject data = entry ? entry->toJson() : QJsonObject();
+        return jsonResponseObj(true, QStringLiteral("batch task accepted"), data, httpStatus);
+    }
+
+    // =====================================================================
+    // MCP-IDL: POST /api/formation/execute
+    // =====================================================================
+    if (path == QStringLiteral("/api/formation/execute") && method == QStringLiteral("POST")) {
+        QJsonObject o;
+        QByteArray errResp;
+        if (!parseJsonObjectBody(body, &o, &errResp, httpStatus))
+            return errResp;
+
+        QString ftype = o.value(QStringLiteral("formation_type")).toString().trimmed().toLower();
+        if (ftype.isEmpty())
+            return jsonResponse(false, QStringLiteral("missing formation_type (line|triangle|column)"),
+                                QJsonValue::Null, httpStatus);
+
+        // 安全校验
+        SafetyValidator sv;
+        SafetyValidator::ValidationResult vr = sv.validateFormation(o);
+        if (!vr.passed) {
+            QJsonObject rejData;
+            rejData.insert(QStringLiteral("error_code"), vr.errorCode);
+            return jsonResponseObj(false, vr.message, rejData, httpStatus, 400);
+        }
+
+        QJsonArray unitIdsArr = o.value(QStringLiteral("unit_ids")).toArray();
+        double spacing = o.value(QStringLiteral("spacing_m")).toDouble(1.0);
+
+        // 计算编队目标点 (简化: 行编队 + 三角形编队)
+        QJsonArray targets;
+        if (ftype == "line") {
+            // 行编队: 沿 x 轴等间距排列 (以 anchor 或第一个单元当前位置为起点)
+            for (int i = 0; i < unitIdsArr.size(); ++i) {
+                QJsonObject t;
+                t.insert(QStringLiteral("unit_id"), unitIdsArr[i].toString());
+                t.insert(QStringLiteral("x"), i * spacing);
+                t.insert(QStringLiteral("y"), 0.0);
+                targets.append(t);
+            }
+        } else if (ftype == "triangle") {
+            // 三角形编队: 等边三角形
+            double h = spacing * qSqrt(3.0) / 2.0; // 高
+            QJsonObject t0; t0.insert("unit_id", unitIdsArr[0].toString()); t0.insert("x", 0.0); t0.insert("y", 0.0); targets.append(t0);
+            QJsonObject t1; t1.insert("unit_id", unitIdsArr[1].toString()); t1.insert("x", spacing); t1.insert("y", 0.0); targets.append(t1);
+            if (unitIdsArr.size() >= 3) {
+                QJsonObject t2; t2.insert("unit_id", unitIdsArr[2].toString()); t2.insert("x", spacing/2.0); t2.insert("y", h); targets.append(t2);
+            }
+        } else {
+            // column: 沿 y 轴排列
+            for (int i = 0; i < unitIdsArr.size(); ++i) {
+                QJsonObject t;
+                t.insert(QStringLiteral("unit_id"), unitIdsArr[i].toString());
+                t.insert(QStringLiteral("x"), 0.0);
+                t.insert(QStringLiteral("y"), i * spacing);
+                targets.append(t);
+            }
+        }
+
+        // 创建 formation 任务 (内部调用 goto_pose_batch 逻辑)
+        double tol = o.value(QStringLiteral("tolerance_m")).toDouble(0.15);
+        int timeoutMs = o.value(QStringLiteral("timeout_ms")).toInt(30000);
+
+        // 参数范围校验
+        if (tol < 0.02 || !qIsFinite(tol)) {
+            QJsonObject rejData;
+            rejData.insert(QStringLiteral("error_code"), QStringLiteral("SAFETY_REJECTED"));
+            return jsonResponseObj(false,
+                QStringLiteral("tolerance_m %1 is below minimum 0.02").arg(tol, 0, 'f', 3),
+                rejData, httpStatus, 400);
+        }
+        if (timeoutMs <= 0 || timeoutMs > 600000) {
+            QJsonObject rejData;
+            rejData.insert(QStringLiteral("error_code"), QStringLiteral("SAFETY_REJECTED"));
+            return jsonResponseObj(false,
+                QStringLiteral("timeout_ms %1 out of range (1..600000)").arg(timeoutMs),
+                rejData, httpStatus, 400);
+        }
+
+        QStringList unitIds;
+        for (const QJsonValue &v : targets)
+            unitIds.append(v.toObject().value("unit_id").toString());
+
+        QJsonObject formParams;
+        formParams.insert(QStringLiteral("formation_type"), ftype);
+        formParams.insert(QStringLiteral("targets"), targets);
+        formParams.insert(QStringLiteral("tolerance_m"), tol);
+        formParams.insert(QStringLiteral("timeout_ms"), timeoutMs);
+
+        QString formTaskId = TaskManager::instance().createTask(
+            QStringLiteral("execute_formation"), formParams, unitIds);
+        TaskManager::instance().transitionTask(formTaskId, QStringLiteral("RUNNING"));
+
+        // 启动各单元导航 (与 goto_pose_batch 相同轮询逻辑)
+        for (const QJsonValue &v : targets) {
+            QJsonObject t = v.toObject();
+            QString uid = t.value("unit_id").toString().trimmed();
+            double tx = t.value("x").toDouble();
+            double ty = t.value("y").toDouble();
+
+            char *sbh = sbhForUid(uid);
+            if (!sbh) {
+                TaskManager::instance().updateSubTask(formTaskId, uid,
+                    "FAILED", 0.0, "UNIT_NOT_FOUND");
+                continue;
+            }
+
+            if (MockRobotSimulator::isMockSbh(sbh)) {
+                QTimer *subTimer = new QTimer();
+                subTimer->setInterval(200);
+                QString capturedFid = formTaskId;
+                QString capturedUid = uid;
+                double capturedTx = tx, capturedTy = ty, capturedTol = tol;
+                qint64 startMs = QDateTime::currentMSecsSinceEpoch();
+
+                QObject::connect(subTimer, &QTimer::timeout, [capturedFid, capturedUid,
+                                 capturedTx, capturedTy, capturedTol, timeoutMs, startMs, subTimer]() {
+                    TaskManager &tm = TaskManager::instance();
+                    TaskManager::TaskEntry *entry = tm.getTask(capturedFid);
+                    if (!entry || (entry->state != "RUNNING" && entry->state != "PENDING"))
+                        return;
+
+                    QJsonObject status = MockRobotSimulator::instance().groundStatusJson(capturedUid);
+                    QJsonObject pose = status.value("pose").toObject();
+                    double cx = pose.value("x").toDouble();
+                    double cy = pose.value("y").toDouble();
+                    double dx = capturedTx - cx;
+                    double dy = capturedTy - cy;
+                    double dist = qSqrt(dx*dx + dy*dy);
+                    double prog = (dist <= capturedTol) ? 100.0
+                        : qMax(0.0, 100.0 * (1.0 - dist / qMax(1.0, qSqrt(capturedTx*capturedTx + capturedTy*capturedTy))));
+
+                    // Mock 运动学: 每 tick 朝目标推进
+                    if (dist > capturedTol && dist > 0.0) {
+                        double step = qMin(dist, 0.06);
+                        MockRobotSimulator::instance().setPose(capturedUid,
+                            cx + (dx/dist)*step, cy + (dy/dist)*step, qAtan2(dy, dx));
+                    }
+
+                    tm.updateSubTask(capturedFid, capturedUid, "RUNNING", prog);
+
+                    if (dist <= capturedTol) {
+                        tm.updateSubTask(capturedFid, capturedUid, "COMPLETED", 100.0);
+                        tm.appendAudit(capturedFid, "SUB_ARRIVED",
+                            QStringLiteral("%1 arrived dist=%2m").arg(capturedUid).arg(dist, 0, 'f', 2));
+                        subTimer->stop();
+                        subTimer->deleteLater();
+                    }
+
+                    qint64 elapsed = QDateTime::currentMSecsSinceEpoch() - startMs;
+                    if (elapsed > timeoutMs) {
+                        tm.updateSubTask(capturedFid, capturedUid, "TIMEOUT", prog, "TIMEOUT");
+                        subTimer->stop();
+                        subTimer->deleteLater();
+                    }
+
+                    // 检查全部完成
+                    bool allDone = true, anyFailed = false, anyCompleted = false;
+                    for (const auto &st : entry->subTasks) {
+                        if (st.state == "RUNNING" || st.state == "PENDING") { allDone = false; break; }
+                        if (st.state == "COMPLETED") anyCompleted = true;
+                        if (st.state == "FAILED" || st.state == "TIMEOUT") anyFailed = true;
+                    }
+                    if (allDone) {
+                        if (anyFailed && anyCompleted)
+                            tm.transitionTask(capturedFid, "PARTIAL_COMPLETED");
+                        else if (anyFailed)
+                            tm.transitionTask(capturedFid, "FAILED");
+                        else
+                            tm.transitionTask(capturedFid, "COMPLETED");
+                    }
+                });
+
+                subTimer->start();
+                TaskManager::instance().updateSubTask(formTaskId, uid, "RUNNING", 0.0);
+                TaskManager::instance().appendAudit(formTaskId, "SUB_STARTED",
+                    QStringLiteral("%1 target=(%2,%3)").arg(uid).arg(tx, 0, 'f', 1).arg(ty, 0, 'f', 1));
+            }
+        }
+
+        if (st)
+            emit st->infoAppended(
+                QStringLiteral("[MCP-IDL] execute_formation task=%1 type=%2 units=%3")
+                    .arg(formTaskId).arg(ftype).arg(unitIds.join(',')));
+
+        TaskManager::TaskEntry *entry = TaskManager::instance().getTask(formTaskId);
+        QJsonObject data = entry ? entry->toJson() : QJsonObject();
+        data.insert(QStringLiteral("formation_type"), ftype);
+        return jsonResponseObj(true, QStringLiteral("formation task accepted"), data, httpStatus);
+    }
+
+    // =====================================================================
+    // MCP-IDL: GET /api/task/status + POST /api/task/cancel
+    // =====================================================================
+    if (path == QStringLiteral("/api/task/status") && method == QStringLiteral("GET")) {
+        QUrlQuery q(query);
+        QString tid = q.queryItemValue(QStringLiteral("task_id"), QUrl::FullyDecoded);
+        if (tid.isEmpty())
+            return jsonResponse(false, QStringLiteral("missing task_id"), QJsonValue::Null, httpStatus);
+
+        TaskManager::TaskEntry *entry = TaskManager::instance().getTask(tid);
+        if (!entry)
+            return jsonResponse(false, QStringLiteral("task not found"), QJsonValue::Null, httpStatus, 404);
+
+        QJsonObject data = entry->toJson();
+        data.insert(QStringLiteral("audit_log"), entry->auditLog);
+        return jsonResponseObj(true, QStringLiteral("ok"), data, httpStatus);
+    }
+
+    if (path == QStringLiteral("/api/task/cancel") && method == QStringLiteral("POST")) {
+        QJsonObject o;
+        QByteArray errResp;
+        if (!parseJsonObjectBody(body, &o, &errResp, httpStatus))
+            return errResp;
+
+        QString tid = o.value(QStringLiteral("task_id")).toString().trimmed();
+        if (tid.isEmpty())
+            return jsonResponse(false, QStringLiteral("missing task_id"), QJsonValue::Null, httpStatus);
+
+        QString err = TaskManager::instance().cancelTask(tid);
+        if (!err.isEmpty()) {
+            QJsonObject errData;
+            errData.insert(QStringLiteral("error_code"), err);
+            return jsonResponseObj(false, err, errData, httpStatus, 400);
+        }
+
+        TaskManager::TaskEntry *entry = TaskManager::instance().getTask(tid);
+        QJsonObject data = entry ? entry->toJson() : QJsonObject();
+        return jsonResponseObj(true, QStringLiteral("task cancelled"), data, httpStatus);
     }
 
     return jsonResponse(false, QStringLiteral("not found"), QJsonValue::Null, httpStatus, 404);

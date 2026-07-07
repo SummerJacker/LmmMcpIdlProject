@@ -282,6 +282,132 @@ def create_app() -> FastMCP:
 
         return await adapter.plan_triangle_targets(robot_ids_csv=robot_ids_csv, side_length_m=side_length_m)
 
+    # =====================================================================
+    # MCP-IDL Task-Level Tools (mcp_swarm_task.idl SwarmTaskControl)
+    # =====================================================================
+
+    @mcp.tool
+    async def goto_pose(
+        robot_id: str,
+        x: float,
+        y: float,
+        yaw: float = 0.0,
+        linear_speed_m_s: float = 0.3,
+        angular_speed_rad_s: float = 0.6,
+        tolerance_m: float = 0.15,
+        timeout_ms: int = 30000,
+    ) -> str:
+        """
+        令指定智能体自主导航到目标点位 (x, y)。
+
+        系统内部调用 setTaskPoint 指令，智能体自主导航至目标点。
+        返回 task_id，使用 get_task_status 轮询进度直到到达。
+
+        @param robot_id: 智能体标识，如 GV1、robot_1、或别名
+        @param x: 目标 x 坐标（米）
+        @param y: 目标 y 坐标（米）
+        @param yaw: 目标朝向（弧度，0=不关心）
+        @param linear_speed_m_s: 最大线速度（默认 0.3 m/s）
+        @param angular_speed_rad_s: 最大角速度（默认 0.6 rad/s）
+        @param tolerance_m: 到达容差（默认 0.15m）
+        @param timeout_ms: 超时（默认 30s）
+        @returns: JSON，data.task_id 用于查询进度
+        """
+        return await adapter.goto_pose(
+            robot_id=robot_id, x=x, y=y, yaw=yaw,
+            linear_speed_m_s=linear_speed_m_s,
+            angular_speed_rad_s=angular_speed_rad_s,
+            tolerance_m=tolerance_m, timeout_ms=timeout_ms,
+        )
+
+    @mcp.tool
+    async def goto_pose_batch(
+        targets_json: str,
+        tolerance_m: float = 0.15,
+        timeout_ms: int = 30000,
+    ) -> str:
+        """
+        多智能体并发导航到各自目标点。
+
+        @param targets_json: JSON 数组，每项 {"robot_id":"GV1","x":3,"y":5}
+        @param tolerance_m: 到达容差
+        @param timeout_ms: 超时
+        @returns: JSON，data.task_id 用于查询 batch 进度
+        """
+        return await adapter.goto_pose_batch(
+            targets_json=targets_json,
+            tolerance_m=tolerance_m, timeout_ms=timeout_ms,
+        )
+
+    @mcp.tool
+    async def execute_formation(
+        formation_type: str,
+        unit_ids_csv: str = "",
+        spacing_m: float = 1.0,
+        anchor_json: str = "",
+        heading_rad: float = 0.0,
+        tolerance_m: float = 0.15,
+        timeout_ms: int = 30000,
+    ) -> str:
+        """
+        执行编队任务（语义化参数，大模型友好）。
+
+        编队类型支持:
+        - "line": 直线编队（>=2台）
+        - "triangle": 正三角形编队（>=3台）
+        - "column": 纵队（>=2台）
+
+        内部自动完成: 规划目标点 → 并发导航 → 到达确认。
+
+        @param formation_type: "line" | "triangle" | "column"
+        @param unit_ids_csv: 逗号分隔的 unit_id，如 "GV1,GV2,GV3"
+        @param spacing_m: 间距（米），默认 1.0
+        @param anchor_json: 锚点 {"x":0,"y":0,"yaw":0}，空=自动计算
+        @param heading_rad: 编队朝向，默认 0.0
+        @param tolerance_m: 到达容差
+        @param timeout_ms: 超时
+        @returns: JSON，data.task_id 用于查询进度
+        """
+        return await adapter.execute_formation(
+            formation_type=formation_type,
+            unit_ids_csv=unit_ids_csv,
+            spacing_m=spacing_m,
+            anchor_json=anchor_json,
+            heading_rad=heading_rad,
+            tolerance_m=tolerance_m,
+            timeout_ms=timeout_ms,
+        )
+
+    @mcp.tool
+    async def get_task_status(task_id: str) -> str:
+        """
+        查询异步任务（goto_pose / goto_pose_batch / execute_formation）的执行进度。
+
+        返回完整的 TaskResult：
+        - state: PENDING | RUNNING | COMPLETED | FAILED | PARTIAL_COMPLETED | TIMEOUT | CANCELLED | REJECTED
+        - progress_pct: 0-100
+        - unit_results: 每个 unit 的子状态
+        - error_code: MCP-IDL 统一错误码（空=无错误）
+
+        大模型应轮询此接口直到 state 为终态。
+
+        @param task_id: goto_pose 等返回的 task_id
+        @returns: JSON
+        """
+        return await adapter.get_task_status(task_id=task_id)
+
+    @mcp.tool
+    async def cancel_task(task_id: str) -> str:
+        """
+        取消运行中的任务。所有相关智能体会立即停止。
+
+        已完成/已取消的任务不可重复取消。
+
+        @param task_id: 要取消的任务 ID
+        @returns: JSON
+        """
+        return await adapter.cancel_task(task_id=task_id)
+
     return mcp
 
 

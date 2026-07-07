@@ -99,6 +99,13 @@ QT_AGENT_STATUS_PATH: str = "/api/agent/status"
 QT_AGENT_ALIAS_SET_PATH: str = "/api/agent/alias/set"
 QT_AGENT_ALIAS_CLEAR_PATH: str = "/api/agent/alias/clear"
 
+# --- MCP-IDL Task-Level API (mcp_swarm_task.idl) ---
+QT_GOTO_POSE_PATH: str = "/api/task/goto_pose"
+QT_GOTO_POSE_BATCH_PATH: str = "/api/task/goto_pose_batch"
+QT_FORMATION_EXECUTE_PATH: str = "/api/formation/execute"
+QT_TASK_STATUS_PATH: str = "/api/task/status"
+QT_TASK_CANCEL_PATH: str = "/api/task/cancel"
+
 # --- 线速度 / 角速度 demo 安全范围 ---
 LINEAR_VELOCITY_MAX_ABS_M_S: float = 5.0
 ANGULAR_VELOCITY_MAX_ABS_RAD_S: float = 10.0
