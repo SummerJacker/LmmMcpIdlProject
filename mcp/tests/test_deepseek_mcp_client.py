@@ -93,24 +93,32 @@ def test_is_speed_out_of_bounds_message():
     assert is_speed_out_of_bounds_message("speed_out_of_bounds: linear_velocity abs=100.0 exceeds max_safe=5.0 m/s")
     assert not is_speed_out_of_bounds_message("accepted")
 
+class MockSession:
+    """Mock requests.Session that bypasses proxy and returns canned responses."""
+    trust_env = False
+
+    def __init__(self, response):
+        self._response = response
+
+    def post(self, *args, **kwargs):
+        return self._response
+
+
 def test_call_llm_json_parsing(monkeypatch):
-    def mock_post(*args, **kwargs):
-        return MockResponse('```json\n{"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}\n```')
-        
+    mock_resp = MockResponse('```json\n{"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}\n```')
     import requests
-    monkeypatch.setattr(requests, "post", mock_post)
-    
+    monkeypatch.setattr(requests, "Session", lambda: MockSession(mock_resp))
+
     res = call_llm([], "dummy_key", "dummy_model")
     assert isinstance(res, dict)
     assert res.get("tool") == "get_fleet_status"
 
+
 def test_call_llm_done_parsing(monkeypatch):
-    def mock_post(*args, **kwargs):
-        return MockResponse('{"done": true, "message": "OK"}')
-        
+    mock_resp = MockResponse('{"done": true, "message": "OK"}')
     import requests
-    monkeypatch.setattr(requests, "post", mock_post)
-    
+    monkeypatch.setattr(requests, "Session", lambda: MockSession(mock_resp))
+
     res = call_llm([], "dummy_key", "dummy_model")
     assert isinstance(res, dict)
     assert res.get("done") is True

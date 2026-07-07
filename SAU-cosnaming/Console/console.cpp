@@ -1,4 +1,4 @@
-﻿//$Id: console.cpp,v 1.7 2025/07/17 04:50:35 cvswxc Exp $
+//$Id: console.cpp,v 1.7 2025/07/17 04:50:35 cvswxc Exp $
 
 //#include "iluchdrs.h"
 
@@ -154,7 +154,7 @@ void backupCosNamingInfoToLocalFile(){
     while (ilu_hash_Next(&he, &uid, &sbh))
         fprintf(backupFile, "%s %s\n", uid, sbh);
     fclose(backupFile);
-    qDebug()<<QStringLiteral("已将Cos信息备份到本地文件");
+    qDebug()<<QString::fromUtf8("已将Cos信息备份到本地文件");
 }
 
 bool isSkippedAutoHostAddress(const QHostAddress& ip, const QNetworkInterface& iface) {
@@ -568,7 +568,7 @@ ilu_boolean loadCosInfoFromBackupCosServer(){
     char *newsbh, *newuid;
     ilu_boolean flag;
 
-    qDebug() <<QStringLiteral("准备从Leader CosNaming中载入信息");
+    qDebug() <<QString::fromUtf8("准备从Leader CosNaming中载入信息");
     if (Units_Hash_Table != NULL)
         ilu_hash_FreeHashTable(Units_Hash_Table, ilu_free, ilu_free);
     Units_Hash_Table = ilu_hash_MakeNewTable(MAX_UNIT_NUM, ilu_hash_HashString, ilu_hash_StringCompare);
@@ -576,11 +576,11 @@ ilu_boolean loadCosInfoFromBackupCosServer(){
     if (backupCosObj != NULL) {
         newSeq = Console_rpc_getCosNamingInfo(backupCosObj, &ev);
         if (!ILU_C_SUCCESSFUL(&ev)) {
-            qDebug() <<QStringLiteral("无法联系到Leader");//是否要删除Cos对象和文件？
+            qDebug() <<QString::fromUtf8("无法联系到Leader");//是否要删除Cos对象和文件？
             return ilu_FALSE;
         }
     } else {
-        qDebug() <<QStringLiteral("backupCosObj为NULL，无法从Leader恢复");
+        qDebug() <<QString::fromUtf8("backupCosObj为NULL，无法从Leader恢复");
         return ilu_FALSE;
     }
     
@@ -628,7 +628,7 @@ ilu_boolean loadTrapsFromLeader() {
         traps = nullptr;
     }
     else {
-        qDebug() << QStringLiteral("未设置任何 Leader，无法获取陷阱点");
+        qDebug() << QString::fromUtf8("未设置任何 Leader，无法获取陷阱点");
         return ilu_FALSE;
     }
 
@@ -642,13 +642,13 @@ ilu_boolean loadTrapsFromLeader() {
     }
 
     if (!ILU_C_SUCCESSFUL(&ev) || len == 0) {
-        qDebug() << QStringLiteral("无法联系 Leader 对象或无陷阱点: %1").arg(ev.returnCode);
+        qDebug() << QString::fromUtf8("无法联系 Leader 对象或无陷阱点: %1").arg(ev.returnCode);
         return ilu_FALSE;
     }
 
-    qDebug() << QStringLiteral("收到的陷阱长度:%1").arg(len);
+    qDebug() << QString::fromUtf8("收到的陷阱长度:%1").arg(len);
     if (len > MAX_TRAP_POINT_NUM) {
-        qDebug() << QStringLiteral("陷阱点数量超限: %1").arg(len);
+        qDebug() << QString::fromUtf8("陷阱点数量超限: %1").arg(len);
         return ilu_FALSE;
     }
 
@@ -675,13 +675,13 @@ ilu_boolean loadTrapsFromLeader() {
 
     // 检查调用是否成功
     if (!ILU_C_SUCCESSFUL(&ev) || traps == nullptr) {
-        qDebug() << QStringLiteral("无法联系 Leader 对象: %1").arg(ev.returnCode);
+        qDebug() << QString::fromUtf8("无法联系 Leader 对象: %1").arg(ev.returnCode);
         return ilu_FALSE;
     }
 
-    qDebug() << QStringLiteral("收到的陷阱长度:%1").arg(traps->_length);
+    qDebug() << QString::fromUtf8("收到的陷阱长度:%1").arg(traps->_length);
     if (traps->_length > MAX_TRAP_POINT_NUM) {
-        qDebug() << QStringLiteral("陷阱点数量超限: %1").arg(traps->_length);
+        qDebug() << QString::fromUtf8("陷阱点数量超限: %1").arg(traps->_length);
         return ilu_FALSE;
     }
 
@@ -690,7 +690,7 @@ ilu_boolean loadTrapsFromLeader() {
     remove(backupTrapsFileName);
     trapsBackupFile = fopen(backupTrapsFileName, "w+");
     if (!trapsBackupFile) {
-        qDebug() << QStringLiteral("打开陷阱备份文件失败");
+        qDebug() << QString::fromUtf8("打开陷阱备份文件失败");
         return ilu_FALSE;
     }
 
@@ -704,7 +704,7 @@ ilu_boolean loadTrapsFromLeader() {
                     tp->_u.trapPoint2D.point.x,
                     tp->_u.trapPoint2D.point.y,
                     tp->_u.trapPoint2D.radius);
-            qDebug() << QStringLiteral("导入地面陷阱点(%1,%2) 半径%3")
+            qDebug() << QString::fromUtf8("导入地面陷阱点(%1,%2) 半径%3")
                         .arg(tp->_u.trapPoint2D.point.x)
                         .arg(tp->_u.trapPoint2D.point.y)
                         .arg(tp->_u.trapPoint2D.radius);
@@ -715,7 +715,7 @@ ilu_boolean loadTrapsFromLeader() {
                     tp->_u.trapPoint3D.point.y,
                     tp->_u.trapPoint3D.point.z,
                     tp->_u.trapPoint3D.radius);
-            qDebug() << QStringLiteral("导入空中陷阱点(%1,%2,%3) 半径%4")
+            qDebug() << QString::fromUtf8("导入空中陷阱点(%1,%2,%3) 半径%4")
                         .arg(tp->_u.trapPoint3D.point.x)
                         .arg(tp->_u.trapPoint3D.point.y)
                         .arg(tp->_u.trapPoint3D.point.z)
@@ -726,14 +726,14 @@ ilu_boolean loadTrapsFromLeader() {
     }
     fclose(trapsBackupFile);
 
-    qDebug() << QStringLiteral("当前陷阱数量:%1").arg(currentTrapPointsNum);
-    qDebug() << QStringLiteral("已将陷阱信息备份到本地文件");
+    qDebug() << QString::fromUtf8("当前陷阱数量:%1").arg(currentTrapPointsNum);
+    qDebug() << QString::fromUtf8("已将陷阱信息备份到本地文件");
     return ilu_TRUE;
 }
 
 // 从本地文件生成 Hash 表
 ilu_boolean loadCosInfoFromLocalFile() {
-    qDebug() << QStringLiteral("准备从备份文件中载入 CosNaming 信息");
+    qDebug() << QString::fromUtf8("准备从备份文件中载入 CosNaming 信息");
 
     // 1. 释放旧表，重建新表
     if (Units_Hash_Table != nullptr) {
@@ -766,10 +766,10 @@ ilu_boolean loadCosInfoFromLocalFile() {
         fclose(backupFile);
     }
     else {
-        qDebug() << QStringLiteral("无备份文件");
+        qDebug() << QString::fromUtf8("无备份文件");
     }
 
-    qDebug() << QStringLiteral("地面单元数: %1, 空中单元数: %2").arg(currentGUVNum).arg(currentAUVNum);
+    qDebug() << QString::fromUtf8("地面单元数: %1, 空中单元数: %2").arg(currentGUVNum).arg(currentAUVNum);
     return ilu_TRUE;
 }
 
@@ -886,15 +886,15 @@ ilu_boolean init() {
             fclose(backupCosFile);
             
             if (result == 5) {
-                qDebug() << QStringLiteral("已从备份文件读取Leader信息");
+                qDebug() << QString::fromUtf8("已从备份文件读取Leader信息");
             } else {
-                qDebug() << QStringLiteral("备份文件格式错误，将使用默认值");
+                qDebug() << QString::fromUtf8("备份文件格式错误，将使用默认值");
                 // 设置默认值
                 currentMode = Unit_UM_None;
                 currentMinorMode = Unit_UMM_None;
             }
         } else {
-            qDebug() << QStringLiteral("未找到备份文件，将使用默认值");
+            qDebug() << QString::fromUtf8("未找到备份文件，将使用默认值");
             // 设置默认值
             currentMode = Unit_UM_None;
             currentMinorMode = Unit_UMM_None;
@@ -906,7 +906,7 @@ ilu_boolean init() {
         // 0.3) 如果无法从Leader恢复,则从本地备份文件恢复
         if (!cosInitFlag) {
             if (!loadCosInfoFromLocalFile()) {
-                qDebug() << QStringLiteral("Cos哈希表初始化失败，但服务器仍可正常启动");
+                qDebug() << QString::fromUtf8("Cos哈希表初始化失败，但服务器仍可正常启动");
                 // 不返回失败，让服务器继续启动
             }
         }
@@ -950,21 +950,21 @@ ilu_boolean getUnitObject(Unit_UnitID uid) {
     sbh = (char*)ilu_hash_FindInTable(Units_Hash_Table, uid);
     
     if (sbh == ILU_NIL) {
-        qDebug() << QStringLiteral("未注册的单元ID: %1").arg(uid);
+        qDebug() << QString::fromUtf8("未注册的单元ID: %1").arg(uid);
         return ilu_FALSE;
     }
     
     // 检查是否是同一个单元，如果是则直接返回
     if (currentUID != NULL && strcmp(currentUID, uid) == 0) {
-        qDebug() << QStringLiteral("单元%1已经是当前控制单元").arg(uid);
+        qDebug() << QString::fromUtf8("单元%1已经是当前控制单元").arg(uid);
         return ilu_TRUE;
     }
     
-    qDebug() << QStringLiteral("正在切换到单元: %1, SBH: %2").arg(uid).arg(sbh);
+    qDebug() << QString::fromUtf8("正在切换到单元: %1, SBH: %2").arg(uid).arg(sbh);
     
     // 先释放旧对象再创建新对象，避免对象缓存问题
     if (currentUnitObj != NULL) {
-        qDebug() << QStringLiteral("释放旧单元对象: %1, 地址: %2").arg(currentUID != NULL ? currentUID : "NULL").arg((quintptr)currentUnitObj, 0, 16);
+        qDebug() << QString::fromUtf8("释放旧单元对象: %1, 地址: %2").arg(currentUID != NULL ? currentUID : "NULL").arg((quintptr)currentUnitObj, 0, 16);
         Unit_rpc__Free(&currentUnitObj);
         currentUnitObj = NULL;
     }
@@ -978,24 +978,24 @@ ilu_boolean getUnitObject(Unit_UnitID uid) {
     if (uid[0] == 'G') {
         tmp = (Unit_rpc)ILU_C_SBHToObject(sbh, Ground_Unit_rpc__MSType, &ev);
         if (!ILU_C_SUCCESSFUL(&ev)) {
-            qDebug() << QStringLiteral("无法创建地面单元对象: %1, 错误: %2").arg(uid).arg(ev.returnCode);
+            qDebug() << QString::fromUtf8("无法创建地面单元对象: %1, 错误: %2").arg(uid).arg(ev.returnCode);
             ILU_C_EXCEPTION_FREE(&ev);
             return ilu_FALSE;
         }
-        qDebug() << QStringLiteral("创建地面单元对象成功，新地址: %1").arg((quintptr)tmp, 0, 16);
+        qDebug() << QString::fromUtf8("创建地面单元对象成功，新地址: %1").arg((quintptr)tmp, 0, 16);
     }
     //空中单元
     else if (uid[0] == 'A') {
         tmp = (Unit_rpc)ILU_C_SBHToObject(sbh, Air_Unit_rpc__MSType, &ev);
         if (!ILU_C_SUCCESSFUL(&ev)) {
-            qDebug() << QStringLiteral("无法创建空中单元对象: %1, 错误: %2").arg(uid).arg(ev.returnCode);
+            qDebug() << QString::fromUtf8("无法创建空中单元对象: %1, 错误: %2").arg(uid).arg(ev.returnCode);
             ILU_C_EXCEPTION_FREE(&ev);
             return ilu_FALSE;
         }
-        qDebug() << QStringLiteral("创建空中单元对象成功，新地址: %1").arg((quintptr)tmp, 0, 16);
+        qDebug() << QString::fromUtf8("创建空中单元对象成功，新地址: %1").arg((quintptr)tmp, 0, 16);
     }
     else {
-        qDebug() << QStringLiteral("未知的单元类型: %1").arg(uid);
+        qDebug() << QString::fromUtf8("未知的单元类型: %1").arg(uid);
         return ilu_FALSE;
     }
     
@@ -1004,7 +1004,7 @@ ilu_boolean getUnitObject(Unit_UnitID uid) {
     strcpy(currentUID, uid);
     currentUnitObj = tmp;
     
-    qDebug() << QStringLiteral("成功切换到单元: %1, 对象地址: %2").arg(uid).arg((quintptr)currentUnitObj, 0, 16);
+    qDebug() << QString::fromUtf8("成功切换到单元: %1, 对象地址: %2").arg(uid).arg((quintptr)currentUnitObj, 0, 16);
     return ilu_TRUE;
 }
 
@@ -1259,15 +1259,15 @@ bool setToLeader() {
 //	char ch;
 //	if (currentUnitObj == NULL) {
 
-//        qDebug() <<QStringLiteral("未选定控制单元！");
+//        qDebug() <<QString::fromUtf8("未选定控制单元！");
 //        return false;
 //    }
-//    qDebug() <<QStringLiteral("请输入遥控的线速度：");
+//    qDebug() <<QString::fromUtf8("请输入遥控的线速度：");
 //    scanf("%f", &currentCtrlLinearVelocity);
-//    qDebug() <<QStringLiteral("请输入遥控的角速度：");
+//    qDebug() <<QString::fromUtf8("请输入遥控的角速度：");
 //    scanf("%f", &currentCtrlAngularVelocity);
-//    qDebug() <<QStringLiteral("当前线速度：%1, 当前角速度：%2").arg(currentCtrlLinearVelocity).arg(currentCtrlAngularVelocity);
-//    qDebug() <<QStringLiteral("ʹ使用WASD控制，按下q退出");
+//    qDebug() <<QString::fromUtf8("当前线速度：%1, 当前角速度：%2").arg(currentCtrlLinearVelocity).arg(currentCtrlAngularVelocity);
+//    qDebug() <<QString::fromUtf8("ʹ使用WASD控制，按下q退出");
 //	ch = getch();
 //	while (ch != 81 && ch != 113) {
 //		CORBA_Environment ev;
@@ -1279,7 +1279,7 @@ bool setToLeader() {
 //			action._u.goAheadData.speed = currentCtrlLinearVelocity;
 //            Ground_Unit_rpc_sendMoveAction(currentUnitObj, &action, &ev);
 
-//                qDebug() <<QStringLiteral("Exception: %1").arg(ev.returnCode);
+//                qDebug() <<QString::fromUtf8("Exception: %1").arg(ev.returnCode);
 
 //			break;
 //		case 83:
@@ -1290,7 +1290,7 @@ bool setToLeader() {
 //            Ground_Unit_rpc_sendMoveAction(currentUnitObj, &action, &ev);
 //			if (!ILU_C_SUCCESSFUL(&ev))
 
-//                qDebug() <<QStringLiteral("Exception: %1").arg(ev.returnCode);
+//                qDebug() <<QString::fromUtf8("Exception: %1").arg(ev.returnCode);
 
 //			break;
 //		case 65:
@@ -1301,7 +1301,7 @@ bool setToLeader() {
 //            Ground_Unit_rpc_sendMoveAction(currentUnitObj, &action, &ev);
 //			if (!ILU_C_SUCCESSFUL(&ev))
 
-//                qDebug() <<QStringLiteral("Exception: %1").arg(ev.returnCode);
+//                qDebug() <<QString::fromUtf8("Exception: %1").arg(ev.returnCode);
 
 //			break;
 //		case 68:
@@ -1312,7 +1312,7 @@ bool setToLeader() {
 //            Ground_Unit_rpc_sendMoveAction(currentUnitObj, &action, &ev);
 //			if (!ILU_C_SUCCESSFUL(&ev))
 
-//                qDebug() <<QStringLiteral("Exception: %1").arg(ev.returnCode);
+//                qDebug() <<QString::fromUtf8("Exception: %1").arg(ev.returnCode);
 //			break;
 //		case 88:
 //		case 120:
@@ -1321,7 +1321,7 @@ bool setToLeader() {
 //            Ground_Unit_rpc_sendMoveAction(currentUnitObj, &action, &ev);
 //			if (!ILU_C_SUCCESSFUL(&ev))
 
-//                qDebug() <<QStringLiteral("Exception: %1").arg(ev.returnCode);
+//                qDebug() <<QString::fromUtf8("Exception: %1").arg(ev.returnCode);
 //            break;
 //        default:
 //            break;
@@ -1339,39 +1339,39 @@ void setImitateMode() {
     char uid[20], *sbh = NULL;
     CORBA_boolean succ = ilu_FALSE;
     if (currentUnitObj != NULL) {
-        qDebug() <<QStringLiteral("请输入当前单元跟随的单元ID：");
+        qDebug() <<QString::fromUtf8("请输入当前单元跟随的单元ID：");
         scanf("%s", uid);
         if (strcmp(uid, currentUID) == 0) {
-            qDebug() <<QStringLiteral("与当前控制单元相同！");
+            qDebug() <<QString::fromUtf8("与当前控制单元相同！");
             return;
          }
         sbh = (char*)ilu_hash_FindInTable(Units_Hash_Table, (char*)uid);
         if (sbh == NULL) {
-            qDebug() <<QStringLiteral("未绑定的单元ID！");
+            qDebug() <<QString::fromUtf8("未绑定的单元ID！");
         return;
         }
 
         tmp = ILU_C_SBHToObject(sbh, Ground_Unit_rpc__MSType, &ev);
         if (!ILU_C_SUCCESSFUL(&ev)) {
-            qDebug() <<QStringLiteral("%1: %2").arg(uid).arg(ev.returnCode);
+            qDebug() <<QString::fromUtf8("%1: %2").arg(uid).arg(ev.returnCode);
             ILU_C_EXCEPTION_FREE(&ev);
 //         return;
         }
         Unit_rpc_setMode(tmp, Unit_UM_Imitate, &ev);
         if (!ILU_C_SUCCESSFUL(&ev)) {
-            qDebug() <<QStringLiteral("%1: %2").arg(uid).arg(ev.returnCode);
+            qDebug() <<QString::fromUtf8("%1: %2").arg(uid).arg(ev.returnCode);
             ILU_C_EXCEPTION_FREE(&ev);
 //          return;
       }
        succ = Unit_rpc_setALeader(currentUnitObj, sbh, &ev);
        if (ILU_C_SUCCESSFUL(&ev) && succ){
-            qDebug() <<QStringLiteral("设置成功！");
+            qDebug() <<QString::fromUtf8("设置成功！");
        }else{
-            qDebug() <<QStringLiteral("设置失败！");
+            qDebug() <<QString::fromUtf8("设置失败！");
        }
 //    return;
     }else {
-        qDebug() << QStringLiteral("未选定控制单元!");
+        qDebug() << QString::fromUtf8("未选定控制单元!");
     }
 }
 
@@ -1412,7 +1412,7 @@ bool sendCommandSeq(){
     }
     Unit_rpc_sendMoveActionSeq(currentUnitObj, cmdQ, 1, &ev);
     if (!ILU_C_SUCCESSFUL(&ev)) {
-        qDebug() <<QStringLiteral("%1").arg(ev.returnCode);
+        qDebug() <<QString::fromUtf8("%1").arg(ev.returnCode);
         ILU_C_EXCEPTION_FREE(&ev);
         return false;
     }
@@ -1461,34 +1461,34 @@ static bool configureUnitMode(Unit_rpc unitObj, const char* uid,
 
     // 1. 设置角色
     if (isLeader) {
-        LOG_INFO("setGroupMode", QStringLiteral("[%1] 是Leader，设置Leader角色").arg(uid));
+        LOG_INFO("setGroupMode", QString::fromUtf8("[%1] 是Leader，设置Leader角色").arg(uid));
         // 动态获取控制台SBH，避免硬编码IP
         Unit_rpc_setRole(unitObj, Unit_UR_Leader,
                          (char*)ILU_C_SBHOfObject(serviceObj), &ev);
         if (!ILU_C_SUCCESSFUL(&ev)) {
-            LOG_ERROR("setGroupMode", QStringLiteral("[%1] 设置Leader角色失败: %2").arg(uid).arg(ev.returnCode));
+            LOG_ERROR("setGroupMode", QString::fromUtf8("[%1] 设置Leader角色失败: %2").arg(uid).arg(ev.returnCode));
             ILU_C_EXCEPTION_FREE(&ev);
         } else {
-            LOG_INFO("setGroupMode", QStringLiteral("[%1] Leader角色设置成功").arg(uid));
+            LOG_INFO("setGroupMode", QString::fromUtf8("[%1] Leader角色设置成功").arg(uid));
         }
     } else {
-        LOG_INFO("setGroupMode", QStringLiteral("[%1] 设置为Follower角色").arg(uid));
+        LOG_INFO("setGroupMode", QString::fromUtf8("[%1] 设置为Follower角色").arg(uid));
         Unit_rpc_setRole(unitObj, Unit_UR_Follower, "null", &ev);
         if (!ILU_C_SUCCESSFUL(&ev)) {
-            LOG_ERROR("setGroupMode", QStringLiteral("[%1] 设置Follower角色失败: %2").arg(uid).arg(ev.returnCode));
+            LOG_ERROR("setGroupMode", QString::fromUtf8("[%1] 设置Follower角色失败: %2").arg(uid).arg(ev.returnCode));
             ILU_C_EXCEPTION_FREE(&ev);
         } else {
-            LOG_INFO("setGroupMode", QStringLiteral("[%1] Follower角色设置成功").arg(uid));
+            LOG_INFO("setGroupMode", QString::fromUtf8("[%1] Follower角色设置成功").arg(uid));
         }
 
         // 设置Leader SBH
         if (leaderSBH != NULL) {
             Unit_rpc_setALeader(unitObj, (Unit_UnitSBH)leaderSBH, &ev);
             if (!ILU_C_SUCCESSFUL(&ev)) {
-                LOG_ERROR("setGroupMode", QStringLiteral("[%1] 设置Leader失败: %2").arg(uid).arg(ev.returnCode));
+                LOG_ERROR("setGroupMode", QString::fromUtf8("[%1] 设置Leader失败: %2").arg(uid).arg(ev.returnCode));
                 ILU_C_EXCEPTION_FREE(&ev);
             } else {
-                LOG_INFO("setGroupMode", QStringLiteral("[%1] Leader已设置为 %2").arg(uid).arg(currentLeaderUID));
+                LOG_INFO("setGroupMode", QString::fromUtf8("[%1] Leader已设置为 %2").arg(uid).arg(currentLeaderUID));
             }
         }
     }
@@ -1496,24 +1496,24 @@ static bool configureUnitMode(Unit_rpc unitObj, const char* uid,
     // 2. 设置主模式
     CORBA_boolean flag = Unit_rpc_setMode(unitObj, mode, &ev);
     if (!ILU_C_SUCCESSFUL(&ev)) {
-        LOG_ERROR("setGroupMode", QStringLiteral("[%1] 主模式设置失败: %2").arg(uid).arg(ev.returnCode));
+        LOG_ERROR("setGroupMode", QString::fromUtf8("[%1] 主模式设置失败: %2").arg(uid).arg(ev.returnCode));
         ILU_C_EXCEPTION_FREE(&ev);
     } else {
-        LOG_INFO("setGroupMode", QStringLiteral("[%1] 主模式设置为 %2").arg(uid).arg(mode));
+        LOG_INFO("setGroupMode", QString::fromUtf8("[%1] 主模式设置为 %2").arg(uid).arg(mode));
     }
 
     // 3. 计算并设置次级模式
     // 规则来自 checkValidity：Follow → FW_Object，其余 → None
     Unit_UnitMinorMode minorMode = (mode == Unit_UM_Follow) ? Unit_UMM_FW_Object : Unit_UMM_None;
-    LOG_INFO("setGroupMode", QStringLiteral("[%1] mode=%2，MinorMode=%3").arg(uid).arg(mode).arg((int)minorMode));
+    LOG_INFO("setGroupMode", QString::fromUtf8("[%1] mode=%2，MinorMode=%3").arg(uid).arg(mode).arg((int)minorMode));
 
     flag = Unit_rpc_setMinorMode(unitObj, minorMode, &ev);
     if (!ILU_C_SUCCESSFUL(&ev)) {
-        LOG_ERROR("setGroupMode", QStringLiteral("[%1] 次级模式设置失败: %2").arg(uid).arg(ev.returnCode));
+        LOG_ERROR("setGroupMode", QString::fromUtf8("[%1] 次级模式设置失败: %2").arg(uid).arg(ev.returnCode));
         ILU_C_EXCEPTION_FREE(&ev);
         return false;
     }
-    LOG_INFO("setGroupMode", QStringLiteral("[%1] 次级模式设置成功，值为 %2").arg(uid).arg(minorMode));
+    LOG_INFO("setGroupMode", QString::fromUtf8("[%1] 次级模式设置成功，值为 %2").arg(uid).arg(minorMode));
     return (flag == ilu_TRUE);
 }
 
@@ -1525,15 +1525,15 @@ bool setGroupMode(Unit_UnitMode mode) {
     CORBA_boolean flag = ilu_FALSE;
     char* leaderSBH = NULL;
 
-    qDebug() << QStringLiteral("========== setGroupMode 开始 ==========");
-    qDebug() << QStringLiteral("mode=%1 (0=None,1=Follow,2=Imitate,3=Mate)").arg(mode);
-    qDebug() << QStringLiteral("currentLeaderUID: %1").arg(currentLeaderUID != NULL ? currentLeaderUID : "NULL");
-    qDebug() << QStringLiteral("currentGUVLeaderObj: %1").arg((quintptr)currentGUVLeaderObj, 0, 16);
-    qDebug() << QStringLiteral("currentAUVLeaderObj: %1").arg((quintptr)currentAUVLeaderObj, 0, 16);
+    qDebug() << QString::fromUtf8("========== setGroupMode 开始 ==========");
+    qDebug() << QString::fromUtf8("mode=%1 (0=None,1=Follow,2=Imitate,3=Mate)").arg(mode);
+    qDebug() << QString::fromUtf8("currentLeaderUID: %1").arg(currentLeaderUID != NULL ? currentLeaderUID : "NULL");
+    qDebug() << QString::fromUtf8("currentGUVLeaderObj: %1").arg((quintptr)currentGUVLeaderObj, 0, 16);
+    qDebug() << QString::fromUtf8("currentAUVLeaderObj: %1").arg((quintptr)currentAUVLeaderObj, 0, 16);
 
     if (currentGUVLeaderObj == NULL && currentAUVLeaderObj == NULL) {
-        qDebug() << QStringLiteral("错误：未设置队伍！必须先调用 setToLeader() 设置Leader");
-        qDebug() << QStringLiteral("提示：正确流程是 getUnitObject(leaderUID) → setToLeader() → setGroupMode(mode)");
+        qDebug() << QString::fromUtf8("错误：未设置队伍！必须先调用 setToLeader() 设置Leader");
+        qDebug() << QString::fromUtf8("提示：正确流程是 getUnitObject(leaderUID) → setToLeader() → setGroupMode(mode)");
         return false;
     }
 
@@ -1541,11 +1541,11 @@ bool setGroupMode(Unit_UnitMode mode) {
     if (currentGUVLeaderObj != NULL) {
         leaderSBH = (char*)ilu_malloc(strlen(ILU_C_SBHOfObject(currentGUVLeaderObj)) + 1);
         strcpy(leaderSBH, ILU_C_SBHOfObject(currentGUVLeaderObj));
-        qDebug() << QStringLiteral("地面Leader SBH: %1").arg(leaderSBH);
+        qDebug() << QString::fromUtf8("地面Leader SBH: %1").arg(leaderSBH);
     } else if (currentAUVLeaderObj != NULL) {
         leaderSBH = (char*)ilu_malloc(strlen(ILU_C_SBHOfObject(currentAUVLeaderObj)) + 1);
         strcpy(leaderSBH, ILU_C_SBHOfObject(currentAUVLeaderObj));
-        qDebug() << QStringLiteral("空中Leader SBH: %1").arg(leaderSBH);
+        qDebug() << QString::fromUtf8("空中Leader SBH: %1").arg(leaderSBH);
     }
 
     // 统计处理结果
@@ -1562,19 +1562,19 @@ bool setGroupMode(Unit_UnitMode mode) {
         } else if (unitType == 'A') {
             unitObj = (Unit_rpc)ILU_C_SBHToObject((char*)sbh, Air_Unit_rpc__MSType, &ev);
         } else {
-            LOG_WARN("setGroupMode", QStringLiteral("未知单元类型: %1, 跳过").arg((char*)uid));
+            LOG_WARN("setGroupMode", QString::fromUtf8("未知单元类型: %1, 跳过").arg((char*)uid));
             continue;
         }
 
         if (!ILU_C_SUCCESSFUL(&ev) || unitObj == NULL) {
-            LOG_ERROR("setGroupMode", QStringLiteral("无法创建单元对象 %1: %2").arg((char*)uid).arg(ev.returnCode));
+            LOG_ERROR("setGroupMode", QString::fromUtf8("无法创建单元对象 %1: %2").arg((char*)uid).arg(ev.returnCode));
             ILU_C_EXCEPTION_FREE(&ev);
             continue;
         }
 
         totalCount++;
         bool isLeader = (currentLeaderUID != NULL && strcmp((char*)uid, currentLeaderUID) == 0);
-        LOG_INFO("setGroupMode", QStringLiteral("开始处理单元 %1 (isLeader=%2)").arg((char*)uid).arg(isLeader));
+        LOG_INFO("setGroupMode", QString::fromUtf8("开始处理单元 %1 (isLeader=%2)").arg((char*)uid).arg(isLeader));
 
         // 调用通用配置函数，地面/空中单元走同一套逻辑
         bool ok = configureUnitMode(unitObj, (char*)uid, isLeader, leaderSBH, mode);
@@ -1582,7 +1582,7 @@ bool setGroupMode(Unit_UnitMode mode) {
             totalSuccess++;
             flag = ilu_TRUE;
         } else {
-            LOG_WARN("setGroupMode", QStringLiteral("单元 %1 配置失败，已取消！").arg((char*)uid));
+            LOG_WARN("setGroupMode", QString::fromUtf8("单元 %1 配置失败，已取消！").arg((char*)uid));
             Unit_rpc__Free(&unitObj);
             break;
         }
@@ -1594,8 +1594,8 @@ bool setGroupMode(Unit_UnitMode mode) {
         ilu_free(leaderSBH);
     }
 
-    LOG_INFO("setGroupMode", QStringLiteral("========== setGroupMode 完成 =========="));
-    LOG_INFO("setGroupMode", QStringLiteral("处理统计: 总计 %1 个单元，成功 %2 个")
+    LOG_INFO("setGroupMode", QString::fromUtf8("========== setGroupMode 完成 =========="));
+    LOG_INFO("setGroupMode", QString::fromUtf8("处理统计: 总计 %1 个单元，成功 %2 个")
              .arg(totalCount).arg(totalSuccess));
     
     if (flag){
@@ -1606,7 +1606,7 @@ bool setGroupMode(Unit_UnitMode mode) {
         if (mode == Unit_UM_Follow || mode == Unit_UM_Imitate)
             defaultMinorMode = Unit_UMM_FW_Object;
 
-        LOG_INFO("setGroupMode", QStringLiteral("模式设置成功！"));
+        LOG_INFO("setGroupMode", QString::fromUtf8("模式设置成功！"));
         backupCosFile = fopen(backupCosNamingServerFileName, "r");
         if (backupCosFile != NULL) {
             fscanf(backupCosFile, "%s\n%s\n", backupCosSBH, leaderSBH);
@@ -1625,7 +1625,7 @@ bool setGroupMode(Unit_UnitMode mode) {
         currentMinorMode = defaultMinorMode;
         return true;
     }
-    LOG_WARN("setGroupMode", QStringLiteral("模式设置失败"));
+    LOG_WARN("setGroupMode", QString::fromUtf8("模式设置失败"));
     return false;
 }
 
@@ -1639,11 +1639,11 @@ bool setGroupMinorMode(Unit_UnitMinorMode minorMode)
     CORBA_boolean flag = ilu_FALSE;
     if (currentGUVLeaderObj == NULL) {
 
-        qDebug() <<QStringLiteral("未设置队伍！");
+        qDebug() <<QString::fromUtf8("未设置队伍！");
         return false;
     }
     if (!checkValidity(currentMode, minorMode)){
-        qDebug() <<QStringLiteral("次级模式错误！");
+        qDebug() <<QString::fromUtf8("次级模式错误！");
         return false;
     }
     ilu_hash_BeginEnumeration(Units_Hash_Table, &he);
@@ -1651,16 +1651,16 @@ bool setGroupMinorMode(Unit_UnitMinorMode minorMode)
         if(((char*)uid)[0] != 'G')//仅设置无人车
             continue;
         tmpObj = (Ground_Unit_rpc)ILU_C_SBHToObject((char*)sbh, Ground_Unit_rpc__MSType, &ev);
-        qDebug() <<QStringLiteral("set %1 mode start").arg((char*)uid);
+        qDebug() <<QString::fromUtf8("set %1 mode start").arg((char*)uid);
         flag = Unit_rpc_setMinorMode(tmpObj, minorMode, &ev);//设置模式
         if (!ILU_C_SUCCESSFUL(&ev)) {
 
-            qDebug() <<QStringLiteral("%1: %2").arg((char*)uid).arg(ev.returnCode);
+            qDebug() <<QString::fromUtf8("%1: %2").arg((char*)uid).arg(ev.returnCode);
             ILU_C_EXCEPTION_FREE(&ev);
         }
         Ground_Unit_rpc__Free(&tmpObj);
         if (!flag) {
-            qDebug() <<QStringLiteral("当前无法切换模式，已取消！");
+            qDebug() <<QString::fromUtf8("当前无法切换模式，已取消！");
             break;
         }
     }
@@ -1669,7 +1669,7 @@ bool setGroupMinorMode(Unit_UnitMinorMode minorMode)
         FILE* backupCosFile;
         char* backupCosSBH = (char*)ilu_malloc(MAX_UNITSBH_LENGTH);
         char *leaderSBH = (char*)ilu_malloc(MAX_UNITSBH_LENGTH);
-        qDebug() <<QStringLiteral("模式设置成功！");
+        qDebug() <<QString::fromUtf8("模式设置成功！");
         backupCosFile = fopen(backupCosNamingServerFileName, "r");
         if (backupCosFile != NULL){
             fscanf(backupCosFile, "%s\n%s\n", backupCosSBH, leaderSBH);
@@ -1699,15 +1699,15 @@ bool setGroupMinorMode(Unit_UnitMinorMode minorMode)
 // 例如: "[GV01, AV02, GV03]"
 QString formatUnitIDSeq(const Unit_UnitIDSeq* seq) {
     if (seq == NULL || seq->_length == 0) {
-        return QStringLiteral("[]");
+        return QString::fromUtf8("[]");
     }
-    QString result = QStringLiteral("[");
+    QString result = QString::fromUtf8("[");
     for (unsigned long i = 0; i < seq->_length; i++) {
-        if (i > 0) result += QStringLiteral(", ");
+        if (i > 0) result += QString::fromUtf8(", ");
         const char* uid = seq->_buffer[i];
-        result += (uid != NULL) ? QString::fromUtf8(uid) : QStringLiteral("NULL");
+        result += (uid != NULL) ? QString::fromUtf8(uid) : QString::fromUtf8("NULL");
     }
-    result += QStringLiteral("]");
+    result += QString::fromUtf8("]");
     return result;
 }
 
@@ -1715,14 +1715,14 @@ QString formatUnitIDSeq(const Unit_UnitIDSeq* seq) {
 // 例如: "[0, 0, 1, 2]"
 QString formatShortSeq(const Unit_ShortSeq* seq) {
     if (seq == NULL || seq->_length == 0) {
-        return QStringLiteral("[]");
+        return QString::fromUtf8("[]");
     }
-    QString result = QStringLiteral("[");
+    QString result = QString::fromUtf8("[");
     for (unsigned long i = 0; i < seq->_length; i++) {
-        if (i > 0) result += QStringLiteral(", ");
+        if (i > 0) result += QString::fromUtf8(", ");
         result += QString::number(seq->_buffer[i]);
     }
-    result += QStringLiteral("]");
+    result += QString::fromUtf8("]");
     return result;
 }
 
@@ -1730,14 +1730,14 @@ QString formatShortSeq(const Unit_ShortSeq* seq) {
 // 例如: "[0.00, 1.50, 2.30]"
 QString formatFloatSeq(const Unit_FloatSeq* seq) {
     if (seq == NULL || seq->_length == 0) {
-        return QStringLiteral("[]");
+        return QString::fromUtf8("[]");
     }
-    QString result = QStringLiteral("[");
+    QString result = QString::fromUtf8("[");
     for (unsigned long i = 0; i < seq->_length; i++) {
-        if (i > 0) result += QStringLiteral(", ");
+        if (i > 0) result += QString::fromUtf8(", ");
         result += QString::number((double)seq->_buffer[i], 'f', 2);
     }
-    result += QStringLiteral("]");
+    result += QString::fromUtf8("]");
     return result;
 }
 
@@ -1771,7 +1771,7 @@ static GroupResult _setGroundFormation(Unit_Formation* formation)
     
     const int n_total = (int)formation->robot_ids._length;
     LOG_INFO_S("_setGroundFormation", 
-        QStringLiteral("开始下发地面编队: %1 个单元").arg(n_total));
+        QString::fromUtf8("开始下发地面编队: %1 个单元").arg(n_total));
     
     CORBA_Environment en;
     ilu_Error error;
@@ -1780,7 +1780,7 @@ static GroupResult _setGroundFormation(Unit_Formation* formation)
     Unit_rpc_setFormation(currentGUVLeaderObj, formation, &en);
     if (!ILU_C_SUCCESSFUL(&en)) {
         LOG_ERROR_S("_setGroundFormation", 
-            QStringLiteral("Leader setFormation 失败: %1").arg(en.returnCode));
+            QString::fromUtf8("Leader setFormation 失败: %1").arg(en.returnCode));
         ILU_C_EXCEPTION_FREE(&en);
         
         // 记录 Leader 失败
@@ -1820,7 +1820,7 @@ static GroupResult _setGroundFormation(Unit_Formation* formation)
         char* sbh = (char*)ilu_hash_FindInTable(Units_Hash_Table, (ilu_refany)uid);
         if (sbh == NULL) {
             LOG_ERROR_S("_setGroundFormation", 
-                QStringLiteral("%1: 找不到 SBH").arg(uid));
+                QString::fromUtf8("%1: 找不到 SBH").arg(uid));
             unitResult.success = false;
             unitResult.errorCode = FE_RPC_FAILED;
             strncpy(unitResult.errorMsg, "SBH not found", 255);
@@ -1832,7 +1832,7 @@ static GroupResult _setGroundFormation(Unit_Formation* formation)
         Ground_Unit_rpc grd_tmpObj = (Ground_Unit_rpc)ILU_C_SBHToObject(sbh, Ground_Unit_rpc__MSType, &en);
         if (!ILU_C_SUCCESSFUL(&en) || grd_tmpObj == NULL) {
             LOG_ERROR_S("_setGroundFormation", 
-                QStringLiteral("%1: 创建对象失败: %2").arg(uid).arg(en.returnCode));
+                QString::fromUtf8("%1: 创建对象失败: %2").arg(uid).arg(en.returnCode));
             ILU_C_EXCEPTION_FREE(&en);
             unitResult.success = false;
             unitResult.errorCode = (int)en.returnCode;
@@ -1867,13 +1867,13 @@ static GroupResult _setGroundFormation(Unit_Formation* formation)
         // 最小安全间隔钳制：防止用户输入过小导致碰撞
         if (dist_i < MIN_SAFE_DISTANCE && i > 0) {  // Leader(i=0) 的 distance 可以是 0
             LOG_WARN_S("_setGroundFormation", 
-                QStringLiteral("%1: distance=%2 小于最小安全间隔，已自动调整为 %3")
+                QString::fromUtf8("%1: distance=%2 小于最小安全间隔，已自动调整为 %3")
                     .arg(uid).arg(dist_i, 0, 'f', 2).arg(MIN_SAFE_DISTANCE, 0, 'f', 2));
             dist_i = MIN_SAFE_DISTANCE;
         }
         
         LOG_INFO_S("_setGroundFormation", 
-            QStringLiteral("%1: setRearVehicles(dist=%2, angle=%3, rearCount=%4)")
+            QString::fromUtf8("%1: setRearVehicles(dist=%2, angle=%3, rearCount=%4)")
                 .arg(uid).arg(dist_i, 0, 'f', 2).arg(ang_i, 0, 'f', 2).arg(rearCount));
         
         // 调用 setRearVehicles（核心原则1：每个节点都必须调用，包括叶子节点）
@@ -1882,7 +1882,7 @@ static GroupResult _setGroundFormation(Unit_Formation* formation)
         // 核心原则2：如果失败，尝试"补模式+重试"
         if (flag == ilu_FALSE || !ILU_C_SUCCESSFUL(&en)) {
             LOG_WARN_S("_setGroundFormation", 
-                QStringLiteral("%1: setRearVehicles 首次失败(%2)，尝试补模式+重试...")
+                QString::fromUtf8("%1: setRearVehicles 首次失败(%2)，尝试补模式+重试...")
                     .arg(uid).arg(en.returnCode));
             ILU_C_EXCEPTION_FREE(&en);
             
@@ -1890,18 +1890,18 @@ static GroupResult _setGroundFormation(Unit_Formation* formation)
             Unit_rpc_setMode(grd_tmpObj, Unit_UM_Follow, &en);
             if (!ILU_C_SUCCESSFUL(&en)) {
                 LOG_WARN_S("_setGroundFormation", 
-                    QStringLiteral("%1: setMode(Follow) 失败: %2").arg(uid).arg(en.returnCode));
+                    QString::fromUtf8("%1: setMode(Follow) 失败: %2").arg(uid).arg(en.returnCode));
                 ILU_C_EXCEPTION_FREE(&en);
             } else {
                 LOG_INFO_S("_setGroundFormation", 
-                    QStringLiteral("%1: setMode(Follow) 成功").arg(uid));
+                    QString::fromUtf8("%1: setMode(Follow) 成功").arg(uid));
             }
             
             // 补 MinorMode（如果需要）
             Unit_rpc_setMinorMode(grd_tmpObj, Unit_UMM_FW_Object, &en);
             if (!ILU_C_SUCCESSFUL(&en)) {
                 LOG_WARN_S("_setGroundFormation", 
-                    QStringLiteral("%1: setMinorMode 失败: %2").arg(uid).arg(en.returnCode));
+                    QString::fromUtf8("%1: setMinorMode 失败: %2").arg(uid).arg(en.returnCode));
                 ILU_C_EXCEPTION_FREE(&en);
             }
             
@@ -1910,20 +1910,20 @@ static GroupResult _setGroundFormation(Unit_Formation* formation)
             
             if (flag == ilu_FALSE || !ILU_C_SUCCESSFUL(&en)) {
                 LOG_ERROR_S("_setGroundFormation", 
-                    QStringLiteral("%1: setRearVehicles 重试仍失败: %2").arg(uid).arg(en.returnCode));
+                    QString::fromUtf8("%1: setRearVehicles 重试仍失败: %2").arg(uid).arg(en.returnCode));
                 ILU_C_EXCEPTION_FREE(&en);
                 unitResult.success = false;
                 unitResult.errorCode = (int)en.returnCode;
                 strncpy(unitResult.errorMsg, "setRearVehicles failed after retry", 255);
             } else {
                 LOG_INFO_S("_setGroundFormation", 
-                    QStringLiteral("%1: setRearVehicles 重试成功").arg(uid));
+                    QString::fromUtf8("%1: setRearVehicles 重试成功").arg(uid));
                 unitResult.success = true;
                 unitResult.errorCode = 0;
             }
         } else {
             LOG_INFO_S("_setGroundFormation", 
-                QStringLiteral("%1: setRearVehicles 成功").arg(uid));
+                QString::fromUtf8("%1: setRearVehicles 成功").arg(uid));
             unitResult.success = true;
             unitResult.errorCode = 0;
         }
@@ -1935,7 +1935,7 @@ static GroupResult _setGroundFormation(Unit_Formation* formation)
     
     result.calculateCounts();
     LOG_INFO_S("_setGroundFormation", 
-        QStringLiteral("地面编队下发完成: 成功=%1, 失败=%2")
+        QString::fromUtf8("地面编队下发完成: 成功=%1, 失败=%2")
             .arg(result.successCount).arg(result.failCount));
     
     return result;
@@ -2006,7 +2006,7 @@ static GroupResult _setAirSwarmFormation(Unit_Formation* formation)
     }
 
     LOG_INFO_S("_setAirSwarmFormation", 
-        QStringLiteral("Starting air formation dispatch: %1 units").arg(n_total));
+        QString::fromUtf8("Starting air formation dispatch: %1 units").arg(n_total));
 
     CORBA_Environment en;
     ilu_Error err;
@@ -2016,7 +2016,7 @@ static GroupResult _setAirSwarmFormation(Unit_Formation* formation)
     char* leader_sbh = (char*)ilu_hash_FindInTable(Units_Hash_Table, (ilu_refany)leader_uid);
     if (leader_sbh == NULL) {
         LOG_ERROR_S("_setAirSwarmFormation", 
-            QStringLiteral("Leader SBH not found: %1").arg(leader_uid));
+            QString::fromUtf8("Leader SBH not found: %1").arg(leader_uid));
         UnitResult ur;
         strncpy(ur.uid, leader_uid, MAX_UNITID_LENGTH - 1);
         ur.success = false;
@@ -2030,7 +2030,7 @@ static GroupResult _setAirSwarmFormation(Unit_Formation* formation)
     Air_Unit_rpc leaderObj = (Air_Unit_rpc)ILU_C_SBHToObject(leader_sbh, Air_Unit_rpc__MSType, &en);
     if (!ILU_C_SUCCESSFUL(&en) || leaderObj == NULL) {
         LOG_ERROR_S("_setAirSwarmFormation", 
-            QStringLiteral("Failed to create leader object: %1").arg(en.returnCode));
+            QString::fromUtf8("Failed to create leader object: %1").arg(en.returnCode));
         ILU_C_EXCEPTION_FREE(&en);
         UnitResult ur;
         strncpy(ur.uid, leader_uid, MAX_UNITID_LENGTH - 1);
@@ -2063,7 +2063,7 @@ static GroupResult _setAirSwarmFormation(Unit_Formation* formation)
         
         if (follower_sbh == NULL) {
             LOG_ERROR_S("_setAirSwarmFormation", 
-                QStringLiteral("Follower SBH not found: %1").arg(follower_uid));
+                QString::fromUtf8("Follower SBH not found: %1").arg(follower_uid));
             followerResult.success = false;
             followerResult.errorCode = FE_RPC_FAILED;
             strncpy(followerResult.errorMsg, "Follower SBH not found", 255);
@@ -2080,16 +2080,16 @@ static GroupResult _setAirSwarmFormation(Unit_Formation* formation)
     }
 
     LOG_INFO_S("_setAirSwarmFormation", 
-        QStringLiteral("Calling sendControlledVehicle: %1 followers").arg(followerSBHSeq->_length));
+        QString::fromUtf8("Calling sendControlledVehicle: %1 followers").arg(followerSBHSeq->_length));
     
     // 【测试点1】打印 follower 数量，两机时应该是 1
-    qDebug() << QStringLiteral("========== 空中编队测试点 ==========");
-    qDebug() << QStringLiteral("sendControlledVehicle followers = %1").arg(followerSBHSeq->_length);
+    qDebug() << QString::fromUtf8("========== 空中编队测试点 ==========");
+    qDebug() << QString::fromUtf8("sendControlledVehicle followers = %1").arg(followerSBHSeq->_length);
     
     Air_Unit_rpc_sendControlledVehicle(leaderObj, followerSBHSeq, &en);
     if (!ILU_C_SUCCESSFUL(&en)) {
         LOG_ERROR_S("_setAirSwarmFormation", 
-            QStringLiteral("sendControlledVehicle failed: %1").arg(en.returnCode));
+            QString::fromUtf8("sendControlledVehicle failed: %1").arg(en.returnCode));
         ILU_C_EXCEPTION_FREE(&en);
         Unit_UnitSBHSeq__Free(followerSBHSeq);
         leaderResult.success = false;
@@ -2134,16 +2134,16 @@ static GroupResult _setAirSwarmFormation(Unit_Formation* formation)
     }
 
     // 【测试点2】打印 setFormation 的各序列长度，两机时都应该是 1
-    qDebug() << QStringLiteral("setFormation followerCount = %1").arg(f2.robot_ids._length);
-    qDebug() << QStringLiteral("setFormation distances.length = %1").arg(f2.distances._length);
-    qDebug() << QStringLiteral("setFormation angles.length = %1").arg(f2.angles._length);
-    qDebug() << QStringLiteral("setFormation leader_ids.length = %1").arg(f2.leader_ids._length);
-    qDebug() << QStringLiteral("==========================================");
+    qDebug() << QString::fromUtf8("setFormation followerCount = %1").arg(f2.robot_ids._length);
+    qDebug() << QString::fromUtf8("setFormation distances.length = %1").arg(f2.distances._length);
+    qDebug() << QString::fromUtf8("setFormation angles.length = %1").arg(f2.angles._length);
+    qDebug() << QString::fromUtf8("setFormation leader_ids.length = %1").arg(f2.leader_ids._length);
+    qDebug() << QString::fromUtf8("==========================================");
 
     Unit_rpc_setFormation((Unit_rpc)leaderObj, &f2, &en);
     if (!ILU_C_SUCCESSFUL(&en)) {
         LOG_ERROR_S("_setAirSwarmFormation", 
-            QStringLiteral("Leader setFormation failed: %1").arg(en.returnCode));
+            QString::fromUtf8("Leader setFormation failed: %1").arg(en.returnCode));
         ILU_C_EXCEPTION_FREE(&en);
         Unit_UnitIDSeq__Free(&f2.robot_ids);
         Unit_ShortSeq__Free(&f2.leader_ids);
@@ -2167,7 +2167,7 @@ static GroupResult _setAirSwarmFormation(Unit_Formation* formation)
     result.calculateCounts();
     
     LOG_INFO_S("_setAirSwarmFormation", 
-        QStringLiteral("Air formation dispatch complete: success=%1, fail=%2")
+        QString::fromUtf8("Air formation dispatch complete: success=%1, fail=%2")
             .arg(result.successCount).arg(result.failCount));
     
     return result;
@@ -2181,7 +2181,7 @@ FormationResult setFormationWithResult(Unit_Formation* formation) {
     
     // Step 1: Log entry with full input parameters (Requirements 9.1)
     LOG_INFO_S("setFormation", 
-        QStringLiteral("Entry: robot_ids=%1, leader_ids=%2, distances=%3, angles=%4")
+        QString::fromUtf8("Entry: robot_ids=%1, leader_ids=%2, distances=%3, angles=%4")
             .arg(formatUnitIDSeq(&formation->robot_ids))
             .arg(formatShortSeq(&formation->leader_ids))
             .arg(formatFloatSeq(&formation->distances))
@@ -2205,14 +2205,14 @@ FormationResult setFormationWithResult(Unit_Formation* formation) {
     std::vector<CrossTypeEdge> crossEdges = detectCrossTypeEdges(formation);
     for (const auto& edge : crossEdges) {
         LOG_WARN_S("setFormation", 
-            QStringLiteral("Cross-type edge detected [%1 -> %2], will be ignored")
+            QString::fromUtf8("Cross-type edge detected [%1 -> %2], will be ignored")
                 .arg(edge.fromUid).arg(edge.toUid));
     }
     
     // Step 4: Split formation into air and ground groups (Requirements 6.2, 6.4)
     SplitResult splitResult = splitFormation(formation);
     LOG_INFO_S("setFormation", 
-        QStringLiteral("Split complete: air=%1 units, ground=%2 units")
+        QString::fromUtf8("Split complete: air=%1 units, ground=%2 units")
             .arg(splitResult.airGroup.robot_ids._length)
             .arg(splitResult.groundGroup.robot_ids._length));
     
@@ -2243,7 +2243,7 @@ FormationResult setFormationWithResult(Unit_Formation* formation) {
         normalizeTopology(&splitResult.groundGroup, currentTopologyStrategy);
         QString afterLeaderIds = formatShortSeq(&splitResult.groundGroup.leader_ids);
         LOG_INFO_S("setFormation", 
-            QStringLiteral("Ground topology normalized: %1 -> %2")
+            QString::fromUtf8("Ground topology normalized: %1 -> %2")
                 .arg(beforeLeaderIds).arg(afterLeaderIds));
     }
     
@@ -2272,22 +2272,22 @@ FormationResult setFormationWithResult(Unit_Formation* formation) {
     
     if (overallSuccess) {
         LOG_INFO_S("setFormation", 
-            QStringLiteral("Complete: SUCCESS, total=%1, elapsed=%2ms")
+            QString::fromUtf8("Complete: SUCCESS, total=%1, elapsed=%2ms")
                 .arg(totalSuccess).arg(result.elapsedMs));
     } else if (partialSuccess) {
         LOG_WARN_S("setFormation", 
-            QStringLiteral("Complete: PARTIAL SUCCESS, success=%1, fail=%2, elapsed=%3ms")
+            QString::fromUtf8("Complete: PARTIAL SUCCESS, success=%1, fail=%2, elapsed=%3ms")
                 .arg(totalSuccess).arg(totalFail).arg(result.elapsedMs));
         // Log failed units
         std::vector<UnitResult> failedUnits = result.getAllFailedUnits();
         for (const auto& ur : failedUnits) {
             LOG_ERROR_S("setFormation", 
-                QStringLiteral("Failed unit: %1, error=%2, msg=%3")
+                QString::fromUtf8("Failed unit: %1, error=%2, msg=%3")
                     .arg(ur.uid).arg(ur.errorCode).arg(ur.errorMsg));
         }
     } else {
         LOG_ERROR_S("setFormation", 
-            QStringLiteral("Complete: FAILED, fail=%1, elapsed=%2ms")
+            QString::fromUtf8("Complete: FAILED, fail=%1, elapsed=%2ms")
                 .arg(totalFail).arg(result.elapsedMs));
     }
     
@@ -2313,10 +2313,10 @@ bool setTaskPoint(float x, float y) {
     flag = Ground_Unit_rpc_setTaskPoint(currentUnitObj, &point, &ev);
     if (!flag) {
 
-        qDebug() <<QStringLiteral("当前状态无法设置任务路径，已取消！");
+        qDebug() <<QString::fromUtf8("当前状态无法设置任务路径，已取消！");
         return false;
     }else
-        qDebug() <<QStringLiteral("任务点设置成功！");
+        qDebug() <<QString::fromUtf8("任务点设置成功！");
     return true;
 }
 
@@ -2329,7 +2329,7 @@ bool setTaskPoint(float x, float y) {
 //    Ground_Unit_MoveAction action;
 //    CORBA_Environment ev;
 //    if (currentUnitObj == NULL) {
-//        qDebug() <<QStringLiteral("未选定控制单元！");
+//        qDebug() <<QString::fromUtf8("未选定控制单元！");
 //        return;
 //    }
 //    action._d = Ground_Unit_MA_Stop;
@@ -2338,9 +2338,9 @@ bool setTaskPoint(float x, float y) {
 //    Ground_Unit_rpc_sendMoveAction(currentUnitObj, &action, &ev);
 
 //   if(ILU_C_SUCCESSFUL(&ev)){
-//        qDebug() <<QStringLiteral("指令成功！");
+//        qDebug() <<QString::fromUtf8("指令成功！");
 //    }else{
-//        qDebug() <<QStringLiteral("出现异常%1").arg(ev.returnCode);
+//        qDebug() <<QString::fromUtf8("出现异常%1").arg(ev.returnCode);
 //    }
 //    return;
 //}
@@ -2363,7 +2363,7 @@ void setDefault() {
         tmpObj = (Ground_Unit_rpc)ILU_C_SBHToObject((char*)sbh, Ground_Unit_rpc__MSType, &ev);
         Unit_rpc_setRole(tmpObj, Unit_UR_None, "null", &ev);//设置角色
         if (!ILU_C_SUCCESSFUL(&ev)) {
-            qDebug() << QStringLiteral("%1: %2").arg((char*)uid).arg(ev.returnCode);
+            qDebug() << QString::fromUtf8("%1: %2").arg((char*)uid).arg(ev.returnCode);
             ILU_C_EXCEPTION_FREE(&ev);
         }
         Ground_Unit_rpc__Free(&tmpObj);
@@ -2383,9 +2383,9 @@ void setDefault() {
         backupCosObj = NULL;
     }
     if (!remove(backupCosNamingServerFileName))
-        qDebug() << QStringLiteral("已清除文件%1").arg(backupCosNamingServerFileName);
+        qDebug() << QString::fromUtf8("已清除文件%1").arg(backupCosNamingServerFileName);
     else
-        qDebug() << QStringLiteral("文件%1不存在或正在被使用").arg(backupCosNamingServerFileName);
+        qDebug() << QString::fromUtf8("文件%1不存在或正在被使用").arg(backupCosNamingServerFileName);
 }
 
 bool setTrap(Console_TrapPoint trap){
@@ -2398,7 +2398,7 @@ bool setTrap(Console_TrapPoint trap){
     /*写入备份文件*/
     FILE* trapsBackupFile;
     if (currentTrapPointsNum == MAX_TRAP_POINT_NUM) {
-        qDebug() <<QStringLiteral("[setTrap] traps overflow, opertaion cancelled.");
+        qDebug() <<QString::fromUtf8("[setTrap] traps overflow, opertaion cancelled.");
         return false; }//endif
 
     trapPoints[currentTrapPointsNum] = trap;
@@ -2411,7 +2411,7 @@ bool setTrap(Console_TrapPoint trap){
             tmpGrdObj = (Ground_Unit_rpc)ILU_C_SBHToObject((char*)sbh, Ground_Unit_rpc__MSType, &ev);
          Ground_Unit_rpc_setTrapPoint(tmpGrdObj, &trap._u.trapPoint2D, &ev);
          if (!ILU_C_SUCCESSFUL(&ev)) {
-            qDebug() <<QStringLiteral("%1: %2").arg((char*)uid).arg(ev.returnCode);
+            qDebug() <<QString::fromUtf8("%1: %2").arg((char*)uid).arg(ev.returnCode);
             ILU_C_EXCEPTION_FREE(&ev);}//endif
         if (tmpGrdObj) Ground_Unit_rpc__Free(&tmpGrdObj); } //endif
 
@@ -2419,7 +2419,7 @@ bool setTrap(Console_TrapPoint trap){
             tmpSkyObj = (Air_Unit_rpc)ILU_C_SBHToObject((char*)sbh, Air_Unit_rpc__MSType, &ev);
          Air_Unit_rpc_setTrapPoint(tmpSkyObj, &trap._u.trapPoint3D, &ev);
         if (!ILU_C_SUCCESSFUL(&ev)) {
-            qDebug() <<QStringLiteral("%1: %2").arg((char*)uid).arg(ev.returnCode);
+            qDebug() <<QString::fromUtf8("%1: %2").arg((char*)uid).arg(ev.returnCode);
             ILU_C_EXCEPTION_FREE(&ev);}//endif
         Air_Unit_rpc__Free(&tmpSkyObj); } //endif
     }//end while
@@ -2439,7 +2439,7 @@ bool clearTraps(){
                 tmpGrdObj = (Ground_Unit_rpc)ILU_C_SBHToObject((char*)sbh, Ground_Unit_rpc__MSType, &ev);
                 Ground_Unit_rpc_clearTraps(tmpGrdObj, &ev);
                 if (!ILU_C_SUCCESSFUL(&ev)) {
-                    qDebug() <<QStringLiteral("%1: %2").arg((char*)uid).arg(ev.returnCode);
+                    qDebug() <<QString::fromUtf8("%1: %2").arg((char*)uid).arg(ev.returnCode);
                     ILU_C_EXCEPTION_FREE(&ev);
                } //endif  env
             if (tmpGrdObj) Ground_Unit_rpc__Free(&tmpGrdObj);
@@ -2448,7 +2448,7 @@ bool clearTraps(){
             tmpAirObj = (Air_Unit_rpc)ILU_C_SBHToObject((char*)sbh, Air_Unit_rpc__MSType, &ev);
             Air_Unit_rpc_clearTraps(tmpAirObj, &ev);
             if (!ILU_C_SUCCESSFUL(&ev)) {
-                qDebug() <<QStringLiteral("%1: %2").arg((char*)uid).arg(ev.returnCode);
+                qDebug() <<QString::fromUtf8("%1: %2").arg((char*)uid).arg(ev.returnCode);
                 ILU_C_EXCEPTION_FREE(&ev);
             } //endif  env
                 if (tmpAirObj) Air_Unit_rpc__Free(&tmpAirObj);
@@ -2477,7 +2477,7 @@ void shutDownAllUnit()
         tmpObj = (Unit_rpc)ILU_C_SBHToObject((char*)sbh, Unit_rpc__MSType, &ev);
         Unit_rpc_shutDown(tmpObj, &ev);
         if (!ILU_C_SUCCESSFUL(&ev)) {
-            qDebug() <<QStringLiteral("%1: %2").arg((char*)uid).arg(ev.returnCode);
+            qDebug() <<QString::fromUtf8("%1: %2").arg((char*)uid).arg(ev.returnCode);
             ILU_C_EXCEPTION_FREE(&ev);
         }//end if of ev
 
@@ -2510,20 +2510,20 @@ void shutDownAllUnit()
         currentAirUnitObj = NULL;
     }
     if (!remove(backupFileName))
-        qDebug() <<QStringLiteral("已清除文件%1").arg(backupFileName);
+        qDebug() <<QString::fromUtf8("已清除文件%1").arg(backupFileName);
     else
-        qDebug() <<QStringLiteral("文件%1不存在或正在被使用").arg(backupFileName);
+        qDebug() <<QString::fromUtf8("文件%1不存在或正在被使用").arg(backupFileName);
     if (Units_Hash_Table != NULL){
         ilu_hash_FreeHashTable(Units_Hash_Table, ilu_free, ilu_free);
         Units_Hash_Table = NULL;
     }
     Units_Hash_Table = ilu_hash_MakeNewTable(MAX_UNIT_NUM, ilu_hash_HashString, ilu_hash_StringCompare);
-    qDebug() <<QStringLiteral("已经重置cosnaming表");
+    qDebug() <<QString::fromUtf8("已经重置cosnaming表");
     displayBoundUnit();
 }
 
 void usage(char* prom) {
-    qDebug() <<QStringLiteral("%1用法：\t-host\t服务器主机地址\t-port\t服务器端口地址"
+    qDebug() <<QString::fromUtf8("%1用法：\t-host\t服务器主机地址\t-port\t服务器端口地址"
         "\t-sid\t服务器ID\t-ih\tInstance Handle"
         "\t-trans\t服务器传输层协议\t-protocol\t服务器应用层协议"
         "\t-use_cosnaming\t0|1|true|false\t-naming_sbh\tCosNaming Root SBH"
@@ -2561,11 +2561,11 @@ void registerMockRobotsForTest(const QString &commaSeparatedUnitIds) {
         const bool hasExisting = (existed != ILU_NIL);
         if (hasExisting) {
             ilu_hash_RemoveFromTable(Units_Hash_Table, reinterpret_cast<ilu_refany>(uba.data()));
-            qDebug() << QStringLiteral("[MOCK] override existing uid %1").arg(uid);
+            qDebug() << QString::fromUtf8("[MOCK] override existing uid %1").arg(uid);
         }
         char *uidStr = (char *)ilu_malloc((size_t)uba.size() + 1);
         strcpy(uidStr, uba.constData());
-        const QString sbhQ = QStringLiteral("MOCK:") + uid;
+        const QString sbhQ = QString::fromUtf8("MOCK:") + uid;
         QByteArray sba = sbhQ.toUtf8();
         char *sbhStr = (char *)ilu_malloc((size_t)sba.size() + 1);
         strcpy(sbhStr, sba.constData());
@@ -2578,10 +2578,10 @@ void registerMockRobotsForTest(const QString &commaSeparatedUnitIds) {
         // 同步 AgentDirectory
         if (g_agentDirectory)
             g_agentDirectory->upsertBinding(makeLookupResult(uidStr, sbhStr, BindingOrigin::Mock));
-        qDebug() << QStringLiteral("[MOCK] registered uid=%1 sbh=%2").arg(uid).arg(sbhQ);
+        qDebug() << QString::fromUtf8("[MOCK] registered uid=%1 sbh=%2").arg(uid).arg(sbhQ);
     }
     if (st)
-        emit st->infoAppended(QStringLiteral("[MOCK] 已注册模拟单元（仅 HTTP/MCP 可控制运动学）：%1").arg(csv));
+        emit st->infoAppended(QString::fromUtf8("[MOCK] 已注册模拟单元（仅 HTTP/MCP 可控制运动学）：%1").arg(csv));
 }
 
 ilu_boolean safe_strcpy(char* des, int size, char* from) {
@@ -2685,7 +2685,7 @@ int main(int argc, char** args) {
                 if (tmp.setAddress(QString::fromLocal8Bit(args[i++])))
                     httpBind = tmp;
                 else
-                    qDebug() << QStringLiteral("无效 -httpBind，使用 127.0.0.1");
+                    qDebug() << QString::fromUtf8("无效 -httpBind，使用 127.0.0.1");
             } else
                 usage(args[0]);
         } else if (strcmp(args[i], "-noHttp") == 0) {
@@ -2706,13 +2706,13 @@ int main(int argc, char** args) {
         getLocalIP();
     }
     qDebug() << "[Network] final publish host:" << host;
-    qDebug() <<QStringLiteral("完成参数解析");
+    qDebug() <<QString::fromUtf8("完成参数解析");
     ILU_C_USE_OS_THREADS;
     if (!init()){
         qDebug() << "init failed in main of console";
         return 1;
     }
-    qDebug() <<QStringLiteral("服务器已启动");
+    qDebug() <<QString::fromUtf8("服务器已启动");
     qDebug() << "Console SBH:" << ILU_C_SBHOfObject(serviceObj);
 
     QObject::connect (st,SIGNAL(bindInfoChanged(QString)),UserInter,SLOT(updateBrowser(QString)));
@@ -2724,7 +2724,7 @@ int main(int argc, char** args) {
     {
         g_agentDirectory = new AgentDirectory();
         if (g_agentDirectory->initialize()) {
-            qDebug() << QStringLiteral("[AgentSystem] AliasStore loaded OK");
+            qDebug() << QString::fromUtf8("[AgentSystem] AliasStore loaded OK");
         }
         // 从已加载的哈希表同步初始绑定
         syncAgentDirectoryFromHashTable(BindingOrigin::Restored);
@@ -2761,7 +2761,7 @@ int main(int argc, char** args) {
         // 注入 /api/agent/* 路由处理器
         httpApi->setAgentHttpController(g_agentHttpController);
         if (!httpPlugin->start(quint16(httpPort), httpBind))
-            qDebug() << QStringLiteral("HTTP 插件未启动");
+            qDebug() << QString::fromUtf8("HTTP 插件未启动");
     }
     w.show();
     QTimer::singleShot(1000, []() {
@@ -2773,14 +2773,14 @@ int main(int argc, char** args) {
 
 CORBA_boolean server_Console_rpc_setCosNamingInfo
     (Console_rpc _handle, Unit_UnitInfoSeq* infoSeq, ILU_C_ENVIRONMENT *_status){
-    qDebug() <<QStringLiteral("[setCosNamingInfo]no implement");
+    qDebug() <<QString::fromUtf8("[setCosNamingInfo]no implement");
     Console__BindExceptionValue(_status, ex_CORBA_NO_IMPLEMENT);
     return ilu_FALSE;
 
 }
 
 Unit_UnitInfoSeq* server_Console_rpc_getCosNamingInfo(Console_rpc _handle, ILU_C_ENVIRONMENT *_status){
-    qDebug() <<QStringLiteral("[getCosNamingInfo]no implement");
+    qDebug() <<QString::fromUtf8("[getCosNamingInfo]no implement");
     Console__BindExceptionValue(_status, ex_CORBA_NO_IMPLEMENT);
     return NULL;
 }
@@ -2811,7 +2811,7 @@ CORBA_boolean handleBindOperation(Unit_UnitID uid, Unit_UnitSBH sbh, ILU_C_ENVIR
         // 同步 AgentDirectory
         if (g_agentDirectory)
             g_agentDirectory->upsertBinding(makeLookupResult(uid, sbh, BindingOrigin::Runtime));
-        qDebug() <<QStringLiteral("[handleBindOperation] done.");
+        qDebug() <<QString::fromUtf8("[handleBindOperation] done.");
         return ilu_TRUE;
     }else {
         Console__BindExceptionValue(_status, ex_Console_rpc_AlreadyBind);
@@ -2831,35 +2831,35 @@ CORBA_boolean server_Console_rpc_bind(Console_rpc _handle, Unit_UnitID uid, Unit
         
         if (currentGUVLeaderObj != NULL) {
             if (!ILU_C_SUCCESSFUL(_status)) {
-                qDebug() << QStringLiteral("[bind] %1: %2").arg(uid).arg(_status->returnCode);
+                qDebug() << QString::fromUtf8("[bind] %1: %2").arg(uid).arg(_status->returnCode);
                 ILU_C_EXCEPTION_FREE(_status);
                 return ilu_FALSE;
             }
             
             Unit_rpc_setRole(tmpObj, Unit_UR_Follower, "null", _status);//设置角色
             if (!ILU_C_SUCCESSFUL(_status)) {
-                qDebug() << QStringLiteral("[bind] (setRole) %1: %2").arg(uid).arg(_status->returnCode);
+                qDebug() << QString::fromUtf8("[bind] (setRole) %1: %2").arg(uid).arg(_status->returnCode);
                 ILU_C_EXCEPTION_FREE(_status);
                 return ilu_FALSE;
             }
             
             Unit_rpc_setALeader(tmpObj, ILU_C_SBHOfObject(currentGUVLeaderObj), _status);//设置leader
             if (!ILU_C_SUCCESSFUL(_status)) {
-                qDebug() << QStringLiteral("[bind] (setALeader) %1: %2").arg(uid).arg(_status->returnCode);
+                qDebug() << QString::fromUtf8("[bind] (setALeader) %1: %2").arg(uid).arg(_status->returnCode);
                 ILU_C_EXCEPTION_FREE(_status);
                 return ilu_FALSE;
             }
             
             Unit_rpc_setMode(tmpObj, currentMode, _status);//设置模式
             if (!ILU_C_SUCCESSFUL(_status)) {
-                qDebug() << QStringLiteral("[bind] (setMode) %1: %2").arg(uid).arg(_status->returnCode);
+                qDebug() << QString::fromUtf8("[bind] (setMode) %1: %2").arg(uid).arg(_status->returnCode);
                 ILU_C_EXCEPTION_FREE(_status);
                 return ilu_FALSE;
             }
             
             Unit_rpc_setMinorMode(tmpObj, currentMinorMode, _status);//设置次模式
             if (!ILU_C_SUCCESSFUL(_status)) {
-                qDebug() << QStringLiteral("[bind] (setMinorMode) %1: %2").arg(uid).arg(_status->returnCode);
+                qDebug() << QString::fromUtf8("[bind] (setMinorMode) %1: %2").arg(uid).arg(_status->returnCode);
                 ILU_C_EXCEPTION_FREE(_status);
                 return ilu_FALSE;
             }
@@ -2876,12 +2876,12 @@ CORBA_boolean server_Console_rpc_bind(Console_rpc _handle, Unit_UnitID uid, Unit
         for (int i = 0; i < currentTrapPointsNum; i++) {
             Ground_Unit_rpc_setTrapPoint(tmpObj, &trapPoints[i]._u.trapPoint2D, _status);//设置陷阱点
             if (!ILU_C_SUCCESSFUL(_status)) {
-                qDebug() << QStringLiteral("[bind] (setTrap) %1: %2").arg(uid).arg(_status->returnCode);
+                qDebug() << QString::fromUtf8("[bind] (setTrap) %1: %2").arg(uid).arg(_status->returnCode);
                 ILU_C_EXCEPTION_FREE(_status);
             }
         }
         
-        qDebug() << QStringLiteral("[bind]单元%1已绑定此控制台").arg(uid);
+        qDebug() << QString::fromUtf8("[bind]单元%1已绑定此控制台").arg(uid);
         Unit_rpc__Free(&tmpObj);
         displayBoundUnit();//update
         return ilu_TRUE;
@@ -2910,7 +2910,7 @@ ilu_boolean removeFromBackupFile (Unit_UnitID uid) {
     fclose(tmp);
     if(!removed){
         remove("tmp.txt");
-        qDebug() <<QStringLiteral("item %1 not found in backup file").arg(uid);
+        qDebug() <<QString::fromUtf8("item %1 not found in backup file").arg(uid);
         return ilu_FALSE;
     }
     else {
@@ -2926,7 +2926,7 @@ CORBA_boolean server_Console_rpc_unbind(Console_rpc _handle, Unit_UnitID uid, il
     if (Units_Hash_Table != NULL) {
         if (ilu_hash_FindInTable(Units_Hash_Table, uid) != ILU_NIL) {
             if (currentLeaderUID != NULL && strcmp(uid, currentLeaderUID) == 0) {//清除leader相关数据，车间关系重置
-                qDebug() << QStringLiteral("[unbind] Leader calling unbind!");
+                qDebug() << QString::fromUtf8("[unbind] Leader calling unbind!");
                 //遍历setFollowMode
                 ilu_refany uid, sbh;
                 ilu_HashEnumerator_s he;
@@ -2935,21 +2935,21 @@ CORBA_boolean server_Console_rpc_unbind(Console_rpc _handle, Unit_UnitID uid, il
                 ilu_hash_BeginEnumeration(Units_Hash_Table, &he);
                 while (ilu_hash_Next(&he, &uid, &sbh)) {
                     if (strcmp((char*)uid, currentLeaderUID) != 0) {
-                        qDebug() << QStringLiteral("[unbind] set None role for %1").arg((char*)uid);
+                        qDebug() << QString::fromUtf8("[unbind] set None role for %1").arg((char*)uid);
                         tmpObj = (Ground_Unit_rpc)ILU_C_SBHToObject((char*)sbh, Ground_Unit_rpc__MSType, &ev);
                         Unit_rpc_setRole(tmpObj, Unit_UR_None, "null", &ev);
                         if (!ILU_C_SUCCESSFUL(&ev)) {
-                            qDebug() << QStringLiteral("%1: %2").arg((char*)uid).arg(ev.returnCode);
+                            qDebug() << QString::fromUtf8("%1: %2").arg((char*)uid).arg(ev.returnCode);
                             ILU_C_EXCEPTION_FREE(&ev);
                         }
                         Ground_Unit_rpc__Free(&tmpObj);
                     }
                 }
                 if (currentGUVLeaderObj != NULL) {
-                    qDebug() << QStringLiteral("[unbind] set None role for Learder %1").arg((char*)uid);
+                    qDebug() << QString::fromUtf8("[unbind] set None role for Learder %1").arg((char*)uid);
                     Unit_rpc_setRole(currentGUVLeaderObj, Unit_UR_None, "null", &ev);
                     if (!ILU_C_SUCCESSFUL(&ev)) {
-                        qDebug() << QStringLiteral("%1: %2").arg((char*)uid).arg(ev.returnCode);
+                        qDebug() << QString::fromUtf8("%1: %2").arg((char*)uid).arg(ev.returnCode);
                         ILU_C_EXCEPTION_FREE(&ev);
                     }
                     Ground_Unit_rpc__Free(&currentGUVLeaderObj);
@@ -2984,7 +2984,7 @@ CORBA_boolean server_Console_rpc_unbind(Console_rpc _handle, Unit_UnitID uid, il
                 m._u.unbindInfo.details = details;
                 Console_rpc_sendMsg(backupCosObj, &m, _status);
             }
-            qDebug() << QStringLiteral("[unbind] 单元%1已解除绑定, details = %2").arg(uid).arg(details);
+            qDebug() << QString::fromUtf8("[unbind] 单元%1已解除绑定, details = %2").arg(uid).arg(details);
             return ilu_TRUE;
         }
         else {
@@ -3006,14 +3006,14 @@ CORBA_boolean server_Console_rpc_sendMsg(Console_rpc _handle, Console_Message* m
     switch (m->_d)
     {
     case Console_OP_Bind:
-        qDebug() <<QStringLiteral("[sendMsg] Bind.");
+        qDebug() <<QString::fromUtf8("[sendMsg] Bind.");
         handleBindOperation(m->_u.bindInfo.uid, m->_u.bindInfo.sbh, _status);
-        qDebug() <<QStringLiteral("[sendMsg] 单元%1已绑定此控制台").arg(m->_u.bindInfo.uid);
+        qDebug() <<QString::fromUtf8("[sendMsg] 单元%1已绑定此控制台").arg(m->_u.bindInfo.uid);
         displayBoundUnit();//update
         return ilu_TRUE;
         break;
     case Console_OP_Unbind:
-        qDebug() <<QStringLiteral("[sendMsg] Unbind.");
+        qDebug() <<QString::fromUtf8("[sendMsg] Unbind.");
         if (Units_Hash_Table != NULL) {
             if (ilu_hash_FindInTable(Units_Hash_Table, m->_u.unbindInfo.uid) != ILU_NIL) {
                 ilu_hash_RemoveFromTable(Units_Hash_Table, m->_u.unbindInfo.uid);
@@ -3021,12 +3021,12 @@ CORBA_boolean server_Console_rpc_sendMsg(Console_rpc _handle, Console_Message* m
                     currentGUVNum --;
                 if(m->_u.unbindInfo.uid[0] == 'A')
                     currentAUVNum --;
-                qDebug() <<QStringLiteral("[sendMsg] %1").arg(m->_u.unbindInfo.uid);
+                qDebug() <<QString::fromUtf8("[sendMsg] %1").arg(m->_u.unbindInfo.uid);
                 removeFromBackupFile(m->_u.unbindInfo.uid);
                 // 同步 AgentDirectory（别名记录保留，仅移除绑定）
                 if (g_agentDirectory)
                     g_agentDirectory->removeBinding(QString::fromUtf8(m->_u.unbindInfo.uid));
-                qDebug() <<QStringLiteral("[sendMsg] 单元%1已解除绑定, details = %2").arg(m->_u.unbindInfo.uid).arg(m->_u.unbindInfo.details);
+                qDebug() <<QString::fromUtf8("[sendMsg] 单元%1已解除绑定, details = %2").arg(m->_u.unbindInfo.uid).arg(m->_u.unbindInfo.details);
                 displayBoundUnit();//update
                 return ilu_TRUE;
             }
@@ -3039,9 +3039,9 @@ CORBA_boolean server_Console_rpc_sendMsg(Console_rpc _handle, Console_Message* m
             return ilu_FALSE;
         break;
     case Console_OP_ReportTrap:
-        qDebug() <<QStringLiteral("[sendMsg] report trap start.");
+        qDebug() <<QString::fromUtf8("[sendMsg] report trap start.");
         if (currentTrapPointsNum == MAX_TRAP_POINT_NUM) {
-            qDebug() <<QStringLiteral("[sendMsg] traps overflow, opertaion cancelled.");
+            qDebug() <<QString::fromUtf8("[sendMsg] traps overflow, opertaion cancelled.");
             return ilu_FALSE;
         }
         ilu_hash_BeginEnumeration(Units_Hash_Table, &he);
@@ -3049,18 +3049,18 @@ CORBA_boolean server_Console_rpc_sendMsg(Console_rpc _handle, Console_Message* m
             tmpObj = (Ground_Unit_rpc)ILU_C_SBHToObject((char*)sbh, Ground_Unit_rpc__MSType, &ev);
             Ground_Unit_rpc_setTrapPoint(tmpObj, &m->_u.tp._u.trapPoint2D, &ev);
             if (!ILU_C_SUCCESSFUL(&ev)) {
-                qDebug() <<QStringLiteral("%1: %2").arg((char*)uid).arg(ev.returnCode);
+                qDebug() <<QString::fromUtf8("%1: %2").arg((char*)uid).arg(ev.returnCode);
                 ILU_C_EXCEPTION_FREE(&ev);
             }
             Ground_Unit_rpc__Free(&tmpObj);
         }
-        emit st->infoAppended(QStringLiteral("成功收到汇报的陷阱点(%1,%2)�뾶Ϊ%3��").arg(m->_u.tp._u.trapPoint2D.point.x).arg(m->_u.tp._u.trapPoint2D.point.y).arg(m->_u.tp._u.trapPoint2D.radius));
-        qDebug() <<QStringLiteral("[sendMsg] report trap end.");
+        emit st->infoAppended(QString::fromUtf8("成功收到汇报的陷阱点(%1,%2)�뾶Ϊ%3��").arg(m->_u.tp._u.trapPoint2D.point.x).arg(m->_u.tp._u.trapPoint2D.point.y).arg(m->_u.tp._u.trapPoint2D.radius));
+        qDebug() <<QString::fromUtf8("[sendMsg] report trap end.");
     case Console_OP_AddTrap:
         /*写入备份文件*/
-        qDebug() <<QStringLiteral("[sendMsg] add trap start.");
+        qDebug() <<QString::fromUtf8("[sendMsg] add trap start.");
         if (currentTrapPointsNum == MAX_TRAP_POINT_NUM) {
-            qDebug() <<QStringLiteral("[sendMsg] traps overflow, opertaion cancelled.");
+            qDebug() <<QString::fromUtf8("[sendMsg] traps overflow, opertaion cancelled.");
             return ilu_FALSE;
         }
         trapPoints[currentTrapPointsNum] = m->_u.tp;
@@ -3068,17 +3068,17 @@ CORBA_boolean server_Console_rpc_sendMsg(Console_rpc _handle, Console_Message* m
         trapsBackupFile = fopen(backupTrapsFileName, "a+");
         fprintf(trapsBackupFile, "%f,%f,%f\n", m->_u.tp._u.trapPoint2D.point.x, m->_u.tp._u.trapPoint2D.point.y, m->_u.tp._u.trapPoint2D.radius);
         fclose(trapsBackupFile);
-        qDebug() <<QStringLiteral("[sendMsg] add trap end.");
-        emit st->infoAppended(QStringLiteral("成功添加陷阱点(%1,%2)�뾶Ϊ%3!").arg(m->_u.tp._u.trapPoint2D.point.x).arg(m->_u.tp._u.trapPoint2D.point.y).arg(m->_u.tp._u.trapPoint2D.radius));
+        qDebug() <<QString::fromUtf8("[sendMsg] add trap end.");
+        emit st->infoAppended(QString::fromUtf8("成功添加陷阱点(%1,%2)�뾶Ϊ%3!").arg(m->_u.tp._u.trapPoint2D.point.x).arg(m->_u.tp._u.trapPoint2D.point.y).arg(m->_u.tp._u.trapPoint2D.radius));
         break;
     case Console_OP_SetCosInfo:
         return ilu_FALSE;
         break;
     case Console_OP_Opened:
-        qDebug() <<QStringLiteral("[sendMsg] %1").arg(m->_u.details);
+        qDebug() <<QString::fromUtf8("[sendMsg] %1").arg(m->_u.details);
         break;
     case Console_OP_Closed:
-        qDebug() <<QStringLiteral("[sendMsg] %1").arg(m->_u.details);
+        qDebug() <<QString::fromUtf8("[sendMsg] %1").arg(m->_u.details);
         break;
     }
     return ilu_TRUE;
@@ -3091,7 +3091,7 @@ CORBA_boolean server_Console_rpc_rebind(Console_rpc _handle,
                                         Unit_UnitSBH sbh,
                                         ILU_C_ENVIRONMENT *_status)
 {
-    qDebug() << QStringLiteral("[rebind] 请求: uid=%1 -> %2").arg(uid).arg(sbh);
+    qDebug() << QString::fromUtf8("[rebind] 请求: uid=%1 -> %2").arg(uid).arg(sbh);
 
     // 1) 确保哈希表存在
     if (Units_Hash_Table == NULL) {
@@ -3109,7 +3109,7 @@ CORBA_boolean server_Console_rpc_rebind(Console_rpc _handle,
 
     // 3) 复用已有的绑定逻辑：写入哈希 + 追加到备份文件
     if (!handleBindOperation(uid, sbh, _status)) {
-        qDebug() << QStringLiteral("[rebind] 更新哈希/备份失败");
+        qDebug() << QString::fromUtf8("[rebind] 更新哈希/备份失败");
         return ilu_FALSE;
     }
 
@@ -3270,7 +3270,7 @@ bool validateFormation(const Unit_Formation* formation) {
     // 检查 leader_ids 长度一致性
     if (formation->leader_ids._length != n) {
         LOG_ERROR_S("validateFormation", 
-            QStringLiteral("leader_ids length mismatch: expected %1, got %2")
+            QString::fromUtf8("leader_ids length mismatch: expected %1, got %2")
                 .arg(n).arg(formation->leader_ids._length));
         return false;
     }
@@ -3278,7 +3278,7 @@ bool validateFormation(const Unit_Formation* formation) {
     // 检查 distances 长度一致性
     if (formation->distances._length != n) {
         LOG_ERROR_S("validateFormation", 
-            QStringLiteral("distances length mismatch: expected %1, got %2")
+            QString::fromUtf8("distances length mismatch: expected %1, got %2")
                 .arg(n).arg(formation->distances._length));
         return false;
     }
@@ -3286,7 +3286,7 @@ bool validateFormation(const Unit_Formation* formation) {
     // 检查 angles 长度一致性
     if (formation->angles._length != n) {
         LOG_ERROR_S("validateFormation", 
-            QStringLiteral("angles length mismatch: expected %1, got %2")
+            QString::fromUtf8("angles length mismatch: expected %1, got %2")
                 .arg(n).arg(formation->angles._length));
         return false;
     }
@@ -3297,7 +3297,7 @@ bool validateFormation(const Unit_Formation* formation) {
         CORBA_short leaderIdx = formation->leader_ids._buffer[i];
         if (leaderIdx < 0 || (unsigned long)leaderIdx >= n) {
             LOG_ERROR_S("validateFormation", 
-                QStringLiteral("invalid leader_ids[%1]=%2, valid range is [0, %3)")
+                QString::fromUtf8("invalid leader_ids[%1]=%2, valid range is [0, %3)")
                     .arg(i).arg(leaderIdx).arg(n));
             return false;
         }
@@ -3306,13 +3306,13 @@ bool validateFormation(const Unit_Formation* formation) {
     // 检查第一个节点（Leader）的 leader_ids[0] 必须为 0（自己跟随自己）
     if (formation->leader_ids._buffer[0] != 0) {
         LOG_WARN_S("validateFormation", 
-            QStringLiteral("leader_ids[0]=%1, expected 0 (Leader should follow itself)")
+            QString::fromUtf8("leader_ids[0]=%1, expected 0 (Leader should follow itself)")
                 .arg(formation->leader_ids._buffer[0]));
         // 这是警告，不是错误，允许继续
     }
     
     LOG_INFO_S("validateFormation", 
-        QStringLiteral("validation passed: %1 units").arg(n));
+        QString::fromUtf8("validation passed: %1 units").arg(n));
     return true;
 }
 
@@ -3362,7 +3362,7 @@ std::vector<CrossTypeEdge> detectCrossTypeEdges(const Unit_Formation* formation)
             crossEdges.push_back(edge);
             
             LOG_WARN_S("detectCrossTypeEdges", 
-                QStringLiteral("检测到跨类型边[%1→%2]")
+                QString::fromUtf8("检测到跨类型边[%1→%2]")
                     .arg(currentUid).arg(leaderUid));
         }
     }
@@ -3371,7 +3371,7 @@ std::vector<CrossTypeEdge> detectCrossTypeEdges(const Unit_Formation* formation)
         LOG_INFO_S("detectCrossTypeEdges", "未检测到跨类型边");
     } else {
         LOG_INFO_S("detectCrossTypeEdges", 
-            QStringLiteral("检测到 %1 条跨类型边").arg(crossEdges.size()));
+            QString::fromUtf8("检测到 %1 条跨类型边").arg(crossEdges.size()));
     }
     
     return crossEdges;
@@ -3424,7 +3424,7 @@ SplitResult splitFormation(const Unit_Formation* formation) {
     }
     
     LOG_INFO_S("splitFormation", 
-        QStringLiteral("分类完成: 空中=%1, 地面=%2").arg(airCount).arg(groundCount));
+        QString::fromUtf8("分类完成: 空中=%1, 地面=%2").arg(airCount).arg(groundCount));
     
     // 检测跨类型边
     std::vector<CrossTypeEdge> crossEdges = detectCrossTypeEdges(formation);
@@ -3461,7 +3461,7 @@ SplitResult splitFormation(const Unit_Formation* formation) {
                 // 跨类型边：降级为独立节点（自己跟随自己）
                 newLeaderIdx = (CORBA_short)airIdxMap[i];
                 LOG_WARN_S("splitFormation", 
-                    QStringLiteral("%1 因跨类型边降级为独立节点").arg(uid));
+                    QString::fromUtf8("%1 因跨类型边降级为独立节点").arg(uid));
             } else if (airIdxMap[origLeaderIdx] >= 0) {
                 // Leader 也是空中单元，使用重映射后的索引
                 newLeaderIdx = (CORBA_short)airIdxMap[origLeaderIdx];
@@ -3482,7 +3482,7 @@ SplitResult splitFormation(const Unit_Formation* formation) {
                 // 跨类型边：降级为独立节点
                 newLeaderIdx = (CORBA_short)groundIdxMap[i];
                 LOG_WARN_S("splitFormation", 
-                    QStringLiteral("%1 因跨类型边降级为独立节点").arg(uid));
+                    QString::fromUtf8("%1 因跨类型边降级为独立节点").arg(uid));
             } else if (groundIdxMap[origLeaderIdx] >= 0) {
                 // Leader 也是地面单元，使用重映射后的索引
                 newLeaderIdx = (CORBA_short)groundIdxMap[origLeaderIdx];
@@ -3495,7 +3495,7 @@ SplitResult splitFormation(const Unit_Formation* formation) {
     }
     
     LOG_INFO_S("splitFormation", 
-        QStringLiteral("拆分完成: 空中组=%1个, 地面组=%2个, 跨类型边=%3条")
+        QString::fromUtf8("拆分完成: 空中组=%1个, 地面组=%2个, 跨类型边=%3条")
             .arg(result.airGroup.robot_ids._length)
             .arg(result.groundGroup.robot_ids._length)
             .arg(result.warnings.size()));
@@ -3555,7 +3555,7 @@ void normalizeTopology(Unit_Formation* formation, TopologyStrategy strategy) {
             }
             
             LOG_INFO_S("normalizeTopology", 
-                QStringLiteral("节点%1的%2个后车已串成链式")
+                QString::fromUtf8("节点%1的%2个后车已串成链式")
                     .arg(leaderIdx).arg(followers[leaderIdx].size()));
         }
     }
@@ -3563,7 +3563,7 @@ void normalizeTopology(Unit_Formation* formation, TopologyStrategy strategy) {
     if (modified) {
         QString afterLeaderIds = formatShortSeq(&formation->leader_ids);
         LOG_INFO_S("normalizeTopology", 
-            QStringLiteral("归一化完成: %1 -> %2").arg(beforeLeaderIds).arg(afterLeaderIds));
+            QString::fromUtf8("归一化完成: %1 -> %2").arg(beforeLeaderIds).arg(afterLeaderIds));
     } else {
         LOG_INFO_S("normalizeTopology", "无需归一化，拓扑已是链式");
     }

@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Bash(python -m py_compile mcp/agents/__init__.py)",
+      "Bash(python -m py_compile mcp/agents/agent_api_client.py)",
+      "Bash(python -m py_compile mcp/agents/agent_resolver.py)",
+      "Bash(python -m py_compile mcp/agents/agent_service.py)",
+      "Bash(python -m py_compile mcp/agents/agent_tools.py)",
+      "Bash(python -m py_compile mcp/robot_adapter.py)",
+      "Bash(python -m py_compile mcp/main.py)",
+      "Bash(python -m py_compile mcp/config.py)",
+      "Bash(python -m pytest mcp/tests/test_robot_adapter.py -x -q --tb=short)",
+      "Bash(python -m pytest mcp/tests/agents/test_agent_system.py -v --tb=short)",
+      "Bash(python -c \"import sys; print\\(sys.path[:3]\\); from agents.agent_api_client import AgentApiClient; print\\('OK'\\)\")",
+      "Bash(python -m pytest tests/agents/test_agent_system.py -v --tb=short)",
+      "Bash(python -m pytest tests/agents/test_agent_system.py -v --tb=long)",
+      "Bash(rm -rf tests/agents/__pycache__)",
+      "Bash(python -m pytest tests/agents/test_agent_system.py -v --tb=short --co)",
+      "Bash(qmake console.pro)"
+    ]
+  }
+}

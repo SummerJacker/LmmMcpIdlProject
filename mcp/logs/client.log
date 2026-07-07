@@ -1683,3 +1683,54 @@ requests.exceptions.SSLError: HTTPSConnectionPool(host='api.siliconflow.cn', por
 2026-06-30 12:11:42,626 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
 2026-06-30 12:11:42,627 [INFO] deepseek_mcp_client: Calling LLM...
 2026-06-30 12:11:42,627 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-07 21:41:38,448 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-07 21:41:38,839 [ERROR] deepseek_mcp_client: Agent loop error
+Traceback (most recent call last):
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 489, in main
+    parsed = call_llm(messages, api_key, args.model)
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 393, in call_llm
+    raise RuntimeError(f"API error {resp.status_code}: {resp.text}")
+RuntimeError: API error 401: {"error":{"message":"Authentication Fails, Your api key: ****wcck is invalid","type":"authentication_error","param":null,"code":"invalid_request_error"}}
+2026-07-07 21:42:05,215 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-07 21:42:05,624 [ERROR] deepseek_mcp_client: Agent loop error
+Traceback (most recent call last):
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 489, in main
+    parsed = call_llm(messages, api_key, args.model)
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 393, in call_llm
+    raise RuntimeError(f"API error {resp.status_code}: {resp.text}")
+RuntimeError: API error 401: {"error":{"message":"Authentication Fails, Your api key: ****wcck is invalid","type":"authentication_error","param":null,"code":"invalid_request_error"}}
+2026-07-07 21:52:35,289 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-07 21:52:41,797 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "你好！我是机器人舰队指挥官，随时为您服务。请告诉我您想执行的任务，例如移动机器人或编队。"}
+2026-07-07 21:52:41,798 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-07 22:31:59,167 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-07 22:32:04,515 [INFO] deepseek_mcp_client: LLM Response: {"message": "我是连接MCP工具服务器的智能机器人舰队指挥官，基于GPT模型开发。"}
+2026-07-07 22:32:04,517 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-07 22:32:07,832 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "当前舰队没有可用的机器人。请确认控制台是否已启动并绑定机器人单元，然后重试。"}
+2026-07-07 22:32:07,835 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-07 22:32:32,536 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-07 22:32:33,607 [INFO] deepseek_mcp_client: LLM Response: {"tool": "list_robots", "args": {}}
+2026-07-07 22:32:33,632 [INFO] deepseek_mcp_client: Executing tool: list_robots with args {}
+2026-07-07 22:32:39,233 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-07 22:32:41,452 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "当前有如下3个机器人（均为模拟模式）：\n- robot_1 (unit_id: GV1)\n- robot_2 (unit_id: GV2)\n- robot_3 (unit_id: GV3)"}
+2026-07-07 22:32:41,453 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-07 22:33:06,694 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-07 22:33:09,183 [INFO] deepseek_mcp_client: LLM Response: {"tool": "send_move", "args": {"robot_id": "GV1", "linear_velocity": 0.5, "angular_velocity": 0.0, "duration_ms": 2000}}
+2026-07-07 22:33:09,201 [INFO] deepseek_mcp_client: Executing tool: send_move with args {'robot_id': 'GV1', 'linear_velocity': 0.5, 'angular_velocity': 0.0, 'duration_ms': 2000}
+2026-07-07 22:33:17,886 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-07 22:33:19,578 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "robot_1 (GV1) 已按 0.5m/s 速度前进 2 秒（开环盲动指令已发送并接受）。"}
+2026-07-07 22:33:19,580 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-07 22:33:43,533 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-07 22:33:47,332 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "plan_line_targets", "args": {"robot_ids_csv": "GV1,GV2,GV3", "spacing_m": 1.0}}]
+2026-07-07 22:33:47,350 [INFO] deepseek_mcp_client: Executing tool: plan_line_targets with args {'robot_ids_csv': 'GV1,GV2,GV3', 'spacing_m': 1.0}
+2026-07-07 22:33:52,956 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-07 22:33:55,508 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": "GV1,GV2,GV3"}}
+2026-07-07 22:33:55,535 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': 'GV1,GV2,GV3'}
+2026-07-07 22:34:01,134 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-07 22:34:03,340 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "compute_navigation_hint", "args": {"robot_id": "GV3", "target_x": 2.0, "target_y": 0.0, "max_linear_m_s": 0.5, "max_angular_rad_s": 0.5}}]
+2026-07-07 22:34:03,359 [INFO] deepseek_mcp_client: Executing tool: compute_navigation_hint with args {'robot_id': 'GV3', 'target_x': 2.0, 'target_y': 0.0, 'max_linear_m_s': 0.5, 'max_angular_rad_s': 0.5}
+2026-07-07 22:34:08,914 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-07 22:34:10,983 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "send_move", "args": {"robot_id": "GV3", "linear_velocity": 0.5, "angular_velocity": 0.0, "duration_ms": 4000}}]
+2026-07-07 22:34:11,005 [INFO] deepseek_mcp_client: Executing tool: send_move with args {'robot_id': 'GV3', 'linear_velocity': 0.5, 'angular_velocity': 0.0, 'duration_ms': 4000}
+2026-07-07 22:34:21,595 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-07 22:34:24,283 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "所有机器人已排成一排，间距1米：GV1在(1,0)、GV2在(0,0)、GV3在(2,0)。"}
+2026-07-07 22:34:24,284 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}

@@ -34,8 +34,8 @@ from config import (
 logger = logging.getLogger("deepseek_mcp_client")
 MCP_PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
-SILICONFLOW_CHAT_COMPLETIONS_URL = "https://api.siliconflow.cn/v1/chat/completions"
-DEFAULT_SILICONFLOW_API_KEY = "sk-XXXXXX"
+DEEPSEEK_CHAT_COMPLETIONS_URL = "https://api.deepseek.com/v1/chat/completions"
+DEFAULT_DEEPSEEK_API_KEY = "sk-fc974262c35b4f838ad73d65cfa3a884"
 
 _USER_LINEAR_SPEED_RE = re.compile(
     r"(?P<val>\d+(?:\.\d+)?)\s*(?:m\s*/\s*s|m/s|米/秒|米每秒|ms(?:\s|$))",
@@ -375,7 +375,7 @@ def call_llm(messages: list[dict[str, Any]], api_key: str, model: str) -> dict[s
     调用 LLM 接口，获取 Agent 意图。
     
     @param {list} messages 对话历史
-    @param {str} api_key SiliconFlow API key
+    @param {str} api_key DeepSeek API key
     @param {str} model 模型名称
     @returns {dict|list} 返回解析后的 JSON 字典或列表
     """
@@ -386,7 +386,9 @@ def call_llm(messages: list[dict[str, Any]], api_key: str, model: str) -> dict[s
     }
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     logger.info("Calling LLM...")
-    resp = requests.post(SILICONFLOW_CHAT_COMPLETIONS_URL, headers=headers, json=payload, timeout=60)
+    session = requests.Session()
+    session.trust_env = False  # bypass system proxy to avoid SSL/proxy errors
+    resp = session.post(DEEPSEEK_CHAT_COMPLETIONS_URL, headers=headers, json=payload, timeout=60)
     if resp.status_code >= 400:
         raise RuntimeError(f"API error {resp.status_code}: {resp.text}")
 
@@ -445,11 +447,11 @@ def main() -> int:
     """
     parser = argparse.ArgumentParser(description="Thin DeepSeek MCP client")
     parser.add_argument("--server-spec", default="main.py", help="MCP server spec, default: main.py")
-    parser.add_argument("--model", default="deepseek-ai/DeepSeek-V3.2", help="Model name")
+    parser.add_argument("--model", default="deepseek-v4-flash", help="Model name (deepseek-v4-flash, deepseek-v4-pro)")
     args = parser.parse_args()
 
     setup_client_logging()
-    api_key = os.getenv("SILICONFLOW_API_KEY", DEFAULT_SILICONFLOW_API_KEY)
+    api_key = DEFAULT_DEEPSEEK_API_KEY or os.getenv("DEEPSEEK_API_KEY", "")
     
     print("Thin DeepSeek MCP Client started. Type 'exit' to quit.")
     

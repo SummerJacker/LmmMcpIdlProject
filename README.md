@@ -1,7 +1,7 @@
 # 基于 MCP 与 IDL 的多机器人自然语言控制系统 — 验收交付说明
 
 ## 1. 模块分层
-- L1 交互层：deepseek_mcp_client.py（Agent Loop + LLM）
+- L1 交互层：deepseek_mcp_client.py（Agent Loop + DeepSeek LLM，支持 deepseek-v4-flash / deepseek-v4-pro）
 - L2 协议层：main.py（FastMCP stdio，15+ 个工具）
 - L3 适配层：robot_adapter.py + qt_http_client.py + agents/（别名解析、安全校验）
 - L4 配置：config.py、robots.json、utils/logging_setup.py
@@ -71,7 +71,11 @@ fastmcp call main.py list_robots --json
 │   ├── tests/                单元测试 + 集成测试
 │   │   ├── test_agent_system.py    智能体/别名单元测试
 │   │   ├── test_api_full.py        HTTP API 全量测试
+│   │   ├── test_api_v2.py          HTTP API v2 测试
 │   │   ├── test_mcp_tools.py       MCP 工具层测试
+│   │   ├── test_deepseek_mcp_client.py  Agent Loop 护栏测试
+│   │   ├── test_siliconflow_api.py DeepSeek API 连通性测试
+│   │   ├── test_robot_adapter.py   适配层测试
 │   │   └── demo_nl_control.py      自然语言驱动演示
 │   ├── bench_fast_fail.py    503 快速失败基准（可选）
 │   ├── test_stage_a3.py      TC-04 相关（可选）
@@ -178,14 +182,66 @@ curl "http://127.0.0.1:9001/api/task/status?task_id=goto-xxx"
 curl -X POST http://127.0.0.1:9001/api/task/cancel -H "Content-Type: application/json" -d "{\"task_id\":\"goto-xxx\"}"
 ```
 
-### 5.6 自然语言端到端（需 LLM API）
+### 5.6 自然语言端到端（需 DeepSeek API）
+
+本系统使用 **DeepSeek 官方 API** 作为 LLM 后端，支持以下模型：
+
+| 模型 | 说明 |
+|------|------|
+| `deepseek-v4-flash`（默认） | 快速推理，适合日常联调 |
+| `deepseek-v4-pro` | 更强推理能力，适合复杂编队任务 |
+
+**Step 1: 获取 API Key**
+
+访问 [platform.deepseek.com](https://platform.deepseek.com) 注册并获取 API Key。
+
+**Step 2: 配置密钥（二选一）**
+
+方式一：设置环境变量（推荐）
+```powershell
+setx DEEPSEEK_API_KEY "sk-你的密钥"
+```
+> 注意：`setx` 只对新终端生效。当前终端可先用 `set DEEPSEEK_API_KEY=sk-你的密钥`。
+
+方式二：直接写入代码默认值
+
+编辑 `mcp/deepseek_mcp_client.py` 第 38 行：
+```python
+DEFAULT_DEEPSEEK_API_KEY = "sk-你的密钥"
+```
+
+**Step 3: 启动**
 
 ```powershell
 cd mcp
 
-set SILICONFLOW_API_KEY=你的密钥
+# 使用默认模型 (deepseek-v4-flash)
 python deepseek_mcp_client.py
-python main.py
+
+# 使用更强模型
+python deepseek_mcp_client.py --model deepseek-v4-pro
+```
+
+**Step 4: 测试连通性（可选）**
+
+```powershell
+python tests/test_siliconflow_api.py
+```
+
+**交互示例**：
+
+```
+User> 查看当前有哪些机器人
+[Agent] Calling tool: list_robots({})
+[Agent] 车队运行态: GV1(模拟), GV2(模拟), GV3(模拟)
+
+User> 让所有小车排成一排，间距 1 米
+[Agent] Calling tool: plan_line_targets(robot_ids_csv="GV1,GV2,GV3", spacing_m=1.0)
+...
+
+User> 紧急停止
+[Agent] Calling tool: emergency_stop_all({})
+[Agent] Task Done: 所有车辆已紧急停止
 ```
 
 ---
