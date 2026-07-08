@@ -35,7 +35,7 @@ logger = logging.getLogger("deepseek_mcp_client")
 MCP_PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 DEEPSEEK_CHAT_COMPLETIONS_URL = "https://api.deepseek.com/v1/chat/completions"
-DEFAULT_DEEPSEEK_API_KEY = "sk-fc974262c35b4f838ad73d65cfa3a884"
+DEFAULT_DEEPSEEK_API_KEY = "sk-fc974262。。。。。。。。。。"
 
 _USER_LINEAR_SPEED_RE = re.compile(
     r"(?P<val>\d+(?:\.\d+)?)\s*(?:m\s*/\s*s|m/s|米/秒|米每秒|ms(?:\s|$))",
