@@ -14,6 +14,11 @@
 
 extern ServerThread *st;
 
+// Console 内部全局状态 (console.cpp) — mock 路径需要直接访问
+extern Unit_UnitID currentLeaderUID;
+extern Unit_UnitMode currentMode;
+extern Unit_UnitMinorMode currentMinorMode;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -661,10 +666,26 @@ QByteArray HttpApiExecutor::processRequest(const QString &method, const QString 
 
         QJsonObject data;
         data.insert(QStringLiteral("unit_id"), QJsonValue(unitId));
-        if (MockRobotSimulator::isMockSbh(sbh)) {
+        const bool isMock = MockRobotSimulator::isMockSbh(sbh);
+
+        if (isMock) {
+            // Mock 路径: 直接设置 currentLeaderUID，绕过 CORBA RPC
+            // mock SBH ("MOCK:xxx") 不是有效 CORBA IOR，getUnitObject/setToLeader 会失败
+            if (currentLeaderUID != NULL) {
+                ilu_free(currentLeaderUID);
+                currentLeaderUID = NULL;
+            }
+            QByteArray uidBytes = unitId.toUtf8();
+            currentLeaderUID = (Unit_UnitID)ilu_malloc(strlen(uidBytes.data()) + 1);
+            strcpy(currentLeaderUID, uidBytes.data());
+            qDebug() << "[HttpApi] mock set_leader:" << unitId
+                     << "currentLeaderUID=" << currentLeaderUID;
+
             data.insert(QStringLiteral("mock"), QJsonValue(true));
             return jsonResponseObj(true, QStringLiteral("accepted"), data, httpStatus);
         }
+
+        // Real 路径: 需要 CORBA RPC 连接
         if (!isRealUnitRpcEnabled())
             return realUnitRpcDisabledResponse(httpStatus);
 
@@ -696,10 +717,27 @@ QByteArray HttpApiExecutor::processRequest(const QString &method, const QString 
 
         QJsonObject data = groundFleetData(state);
         data.insert(QStringLiteral("mode"), QJsonValue(mode));
-        if (state.realCount == 0) {
+        const bool allMock = (state.realCount == 0);
+
+        if (allMock) {
+            // Mock 路径: 直接设置 currentMode，绕过 setGroupMode() 的 CORBA RPC
+            // mock 单元没有 CORBA 端点，无法通过 RPC 设置角色/模式
+            if (currentLeaderUID == NULL) {
+                qDebug() << "[HttpApi] mock set_group_mode: leader not set, reject";
+                return jsonResponse(false,
+                    QStringLiteral("mock leader not set - call /api/formation/set_leader first"),
+                    QJsonValue(data), httpStatus);
+            }
+            currentMode = unitMode;
+            qDebug() << "[HttpApi] mock set_group_mode:" << mode
+                     << "currentLeaderUID=" << currentLeaderUID
+                     << "currentMode=" << (int)currentMode;
+
             data.insert(QStringLiteral("mock"), QJsonValue(true));
             return jsonResponseObj(true, QStringLiteral("accepted"), data, httpStatus);
         }
+
+        // Real 路径: 需要 CORBA RPC 连接
         if (!isRealUnitRpcEnabled())
             return realUnitRpcDisabledResponse(httpStatus);
 
@@ -727,10 +765,19 @@ QByteArray HttpApiExecutor::processRequest(const QString &method, const QString 
 
         QJsonObject data = groundFleetData(state);
         data.insert(QStringLiteral("minor_mode"), QJsonValue(mode));
-        if (state.realCount == 0) {
+        const bool allMock = (state.realCount == 0);
+
+        if (allMock) {
+            // Mock 路径: 直接设置 currentMinorMode，绕过 setGroupMinorMode() 的 CORBA RPC
+            currentMinorMode = minorMode;
+            qDebug() << "[HttpApi] mock set_group_minor_mode:" << mode
+                     << "currentMinorMode=" << (int)currentMinorMode;
+
             data.insert(QStringLiteral("mock"), QJsonValue(true));
             return jsonResponseObj(true, QStringLiteral("accepted"), data, httpStatus);
         }
+
+        // Real 路径: 需要 CORBA RPC 连接
         if (!isRealUnitRpcEnabled())
             return realUnitRpcDisabledResponse(httpStatus);
 

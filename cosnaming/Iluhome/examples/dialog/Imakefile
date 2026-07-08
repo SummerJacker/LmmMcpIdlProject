@@ -1,0 +1,11 @@
+/* $Id: Imakefile,v 1.4 2025/08/01 04:58:01 cvswxc Exp $ */
+
+MkdirTarget($(DESTDIR)/examples)
+MkdirTarget($(DESTDIR)/examples/dialog)
+
+InstallRO(Dialog.isl, $(DESTDIR)/examples/dialog)
+InstallRO(dclnt.c dsrv.c, $(DESTDIR)/examples/dialog)
+InstallRO(README, $(DESTDIR)/examples/dialog)
+InstallFileToFile(runImakefile, $(INSTINCFLAGS), $(DESTDIR)/examples/dialog/Imakefile)
+
+

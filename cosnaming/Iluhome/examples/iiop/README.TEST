@@ -1,0 +1,20 @@
+# $Id: README.TEST,v 1.4 2025/08/01 04:56:10 cvswxc Exp $
+
+
+This file describes how to use the tcl scripts in this directory
+to run a canned regression test.
+
+The top-level script testreg.tcl sets some necessary variables
+and establishes the log and bindingdir files for the test in the /tmp
+directory (this selection can be easily changed by modifying testreg.tcl).
+
+testreg.tcl then continues by running the test described in the README
+file in this directory, using single and then multiple repeats of the
+client, and then an explicit specification of IOR by the client.
+The progress of the test is reported online.  When the test is successful,
+the logs are removed. 
+
+To use the script, type the sequence:
+    ilumkmf
+    make
+    make test

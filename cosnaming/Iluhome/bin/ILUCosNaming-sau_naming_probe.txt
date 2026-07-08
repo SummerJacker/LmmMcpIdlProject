@@ -1,0 +1,13 @@
+1 16 sau_naming_probe 4 root
+   5 china 6 domain L 16 sau_naming_probe 1 1 1
+1 16 sau_naming_probe 1 1
+   3 sau 6 domain L 16 sau_naming_probe 1 2 1
+1 16 sau_naming_probe 1 2
+   27 software_defined_laboratory 6 domain L 16 sau_naming_probe 1 3 3
+3 16 sau_naming_probe 1 3
+   6 system 6 domain L 16 sau_naming_probe 1 4 0
+   14 ground_vehicle 6 domain L 16 sau_naming_probe 1 6 0
+   11 air_vehicle 6 domain L 16 sau_naming_probe 1 5 0
+0 16 sau_naming_probe 1 4
+0 16 sau_naming_probe 1 5
+0 16 sau_naming_probe 1 6

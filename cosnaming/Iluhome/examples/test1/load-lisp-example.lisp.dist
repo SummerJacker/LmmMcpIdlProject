@@ -1,0 +1,33 @@
+;; $Id: load-lisp-example.lisp.dist,v 1.4 2025/08/02 10:01:14 cvswxc Exp $
+
+(in-package :user)
+
+; work-around for acl/win 3.0.1
+#+aclpc
+(progn
+  (defvar *saved-default-pathname-defaults* nil)
+  (setf *saved-default-pathname-defaults* *default-pathname-defaults*)
+  (setf *default-pathname-defaults* *load-pathname*))
+
+(if (not (find :pdefsys *features*))
+    (load "ILUHOME/lisp/pdefsys"))
+
+(defun cls (&rest syslist)
+  (dolist (sys syslist)
+    (pdefsys:compile-system sys)
+    (pdefsys:load-system sys)))
+
+(load "ILUHOME/lisp/ilu-sysdcl")
+
+(load "test1-sysdcl")
+(load "test2-sysdcl")
+(load "test3-sysdcl")
+(cls :test1 :test1-server :test2 :test2-server :test3 :test3-server)
+(load (compile-file "server.lisp"))
+(load (compile-file "client.lisp"))
+
+#+aclpc
+(setf *default-pathname-defaults* *saved-default-pathname-defaults*)
+
+#+ilu-batch-compile
+(exit)

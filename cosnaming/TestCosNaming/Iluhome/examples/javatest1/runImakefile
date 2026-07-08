@@ -1,0 +1,22 @@
+/* $Id: runImakefile,v 1.4 2025/08/02 11:45:15 cvswxc Exp $ */
+
+#ifdef ADD_JAVA_LANGUAGE
+
+JAVA_CLASS_DIR = ./classes
+JAVA_STUB_DIR = ./javastubs
+JAVA_STUB_SWITCHES =  
+
+NormalObjectRule()
+
+BuildDir($(JAVA_CLASS_DIR))
+BuildDir($(JAVA_STUB_DIR))
+
+ALL_JAVA_FILES = *.java
+STUB_SOURCES =  $(JAVA_STUB_DIR)/Simple/$(ALL_JAVA_FILES)
+TEST_SOURCES =  Test.java
+
+ILUJavaStubTarget(make.java_has_been_stubbed, Simple.isl,)
+
+ILUJavaCompile2Target(make.java, $(STUB_SOURCES) $(TEST_SOURCES), $(TEST_SOURCES), make.java_has_been_stubbed,)
+
+#endif

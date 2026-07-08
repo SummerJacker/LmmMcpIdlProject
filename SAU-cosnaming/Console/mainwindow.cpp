@@ -337,7 +337,7 @@ void MainWindow::on_pushButton_6_clicked()
         Unit_rpc_sendMoveAction(currentUnitObj, &action, &ev);
         if (!ILU_C_SUCCESSFUL(&ev))
             ui->textBrowser_2->append(QStringLiteral("指令发送失败，出现异常：%1").arg(ev.returnCode));
-        ui->textBrowser_2->append(QStringLiteral("成功向单元%1发送左转指令，角速度为%3！").arg(str.c_str()).arg(action._u.turnLeftData.speed));
+        ui->textBrowser_2->append(QStringLiteral("成功向单元%1发送左转指令，角速度为%2！").arg(str.c_str()).arg(action._u.turnLeftData.speed));
     }
     else
         ui->textBrowser_2->append(QStringLiteral("操作失败，单元%1不存在！").arg(str.c_str()));
@@ -358,7 +358,7 @@ void MainWindow::on_pushButton_7_clicked()
         Unit_rpc_sendMoveAction(currentUnitObj, &action, &ev);
         if (!ILU_C_SUCCESSFUL(&ev))
             ui->textBrowser_2->append(QStringLiteral("指令发送失败，出现异常：%1").arg(ev.returnCode));
-        ui->textBrowser_2->append(QStringLiteral("成功向单元%1发送右转指令，角速度为%3！").arg(str.c_str()).arg(action._u.turnRightData.speed));
+        ui->textBrowser_2->append(QStringLiteral("成功向单元%1发送右转指令，角速度为%2！").arg(str.c_str()).arg(action._u.turnRightData.speed));
     }
     else
         ui->textBrowser_2->append(QStringLiteral("操作失败，单元%1不存在！").arg(str.c_str()));
@@ -1673,4 +1673,3 @@ void MainWindow::on_pushButton_56_clicked()
     else
         ui->textBrowser_2->append(QStringLiteral("操作失败，单元%1不存在！").arg(str.c_str()));
 }
-

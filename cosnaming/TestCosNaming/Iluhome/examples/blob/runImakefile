@@ -1,0 +1,7 @@
+/* $Id: runImakefile,v 1.4 2025/08/01 00:23:01 cvswxc Exp $ */
+
+InterfaceTarget(BlobExample.isl)
+
+ILUPythonTarget(BlobExample.py BlobExample__skel.py, BlobExample.isl)
+
+all:: BlobExample.py BlobExample__skel.py

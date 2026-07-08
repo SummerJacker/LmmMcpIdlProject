@@ -1,0 +1,10 @@
+/* $Id: Imakefile,v 1.4 2025/08/01 00:28:06 cvswxc Exp $ */
+
+MkdirTarget($(DESTDIR)/examples)
+MkdirTarget($(DESTDIR)/examples/excn)
+
+InstallRO(ExcnTest.isl server.c client.c cppserver.cpp cppclient.cpp client.py server.py clientCORBA.py serverCORBA.py README, $(DESTDIR)/examples/excn)
+InstallRO(TestC.py TestPython.py TestCPP.py, $(DESTDIR)/examples/excn)
+InstallFileToFile(runImakefile, $(INSTINCFLAGS), $(DESTDIR)/examples/excn/Imakefile)
+
+

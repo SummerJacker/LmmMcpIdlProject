@@ -1,0 +1,118 @@
+// javastubs/Test1/TheEHelper.java
+// Stubs for "Test1"
+//
+// This file was automatically generated with KISORB (version 2.0beta1) tools
+// at Fri Aug 22 17:23:39 2025 by `沈阳市软件定义智能协同重点实验室'
+// running "D:/Shaun-projects/newstar/Iluhome/bin/java-stubber.exe" of Mon Aug 18 11:47:37 2025
+// on "D:/Shaun-projects/newstar/Iluhome/examples/pickle//Test1.isl" of Fri Aug 01 14:00:48 2025,
+// and "D:/Shaun-projects/newstar/Iluhome/examples/pickle//ilu.isl" of Fri Aug 01 09:16:44 2025//
+// KISORB is Copyright 2006-2056 成都凯斯人工智能研究院, All Rights Reserved.
+// KISORB information: Dr. Wang xcwang89@aliyun.com .
+
+
+
+package Test1;
+
+
+/** 
+ * An ILU helper class.
+ */
+public class TheEHelper implements xerox.ilu.IluIOFunctions  {
+    private final static java.lang.String _id = 
+        "ilut:krAAJGDr0mWg96aGb8cRAqq6LEh";
+    private static xerox.ilu.IluTypeCode _tc = null;
+    static {
+        xerox.ilu.IluPreLoad.checkStubConsistency13("v2 (2.0beta1)");
+        _tc = xerox.ilu.IluTypeCode.newTypeCode(id(), new TheEHelper(), org.omg.CORBA.TCKind.tk_enum);
+    }
+
+    public final static java.lang.String id() {
+        return _id;
+    } //id 
+
+    public final static xerox.ilu.IluTypeCode type() {
+        return _tc;
+    } //type 
+
+    public static void insert(org.omg.CORBA.Any _any, TheE _x) throws org.omg.CORBA.SystemException {
+        xerox.ilu.IluAny _ia = (xerox.ilu.IluAny) _any;
+        _ia.assign(_tc, _x);
+    } //insert 
+
+    public static TheE extract(org.omg.CORBA.Any _any) throws org.omg.CORBA.SystemException {
+        xerox.ilu.IluAny _ia = (xerox.ilu.IluAny) _any;
+        java.lang.Object _ob = _ia.cachedValue();
+        if (_ob == null) {_ob = _ia.value(_tc);}
+        return ((TheE)_ob);
+    } //extract 
+
+    public static xerox.ilu.IluPickle to_pickle(TheE _x) throws org.omg.CORBA.SystemException {
+        int _sz = 0;
+        xerox.ilu.IluCall _call = null;
+        xerox.ilu.IluPickle _pickle = new xerox.ilu.IluPickle();
+        try {
+            _call = _pickle.startToPickle();
+            _sz = _call.szEnum((_x).value());
+            _pickle.midToPickle(_call, _sz, id());
+            _call.outEnum((_x).value());
+        } finally {
+            _pickle.endToPickle(_call);
+        }
+        return _pickle;
+    } //to_pickle 
+
+    public static TheE from_pickle(xerox.ilu.IluPickle _pickle) throws org.omg.CORBA.SystemException {
+        TheE _x = null;
+        xerox.ilu.IluCall _call = null;
+        try {
+            _call = _pickle.startFromPickle(id());
+            _x = TheE.from_int(_call.inEnum());
+        } finally {
+            _pickle.endFromPickle(_call);
+        }
+        return _x;
+    } //from_pickle 
+
+    /** Not public; implements xerox.ilu.IluIOFunctions */
+    public int szFunc(xerox.ilu.IluCall _call, java.lang.Object _x, xerox.ilu.IluTypeCode _tc) throws org.omg.CORBA.SystemException {
+        TheE _xx = ((TheE)_x);
+        return _call.szEnum((_xx).value());
+    } //szFunc 
+
+    /** Not public; implements xerox.ilu.IluIOFunctions */
+    public void outFunc(xerox.ilu.IluCall _call, java.lang.Object _x, xerox.ilu.IluTypeCode _tc) throws org.omg.CORBA.SystemException {
+        TheE _xx = ((TheE)_x);
+        _call.outEnum((_xx).value());
+    } //outFunc 
+
+    /** Not public; implements xerox.ilu.IluIOFunctions */
+    public java.lang.Object inFunc(xerox.ilu.IluCall _call, xerox.ilu.IluTypeCode _tc) throws org.omg.CORBA.SystemException {
+        return TheE.from_int(_call.inEnum());
+    } //inFunc 
+
+    public boolean isAFunc(java.lang.Object _x, xerox.ilu.IluTypeCode _tc) {
+        if (_x == null) return false;
+        return (_x instanceof TheE);
+    } //isAFunc 
+
+    static {
+        Test1._allJavaStubs.load();
+    }
+    static {
+        xerox.ilu.IluTypeRep __t = null;
+        __t = xerox.ilu.IluTypeRep.registerEnumerationType(
+            "TheE", //name
+            "Test1", //islIfName
+            null, //islIfBrand
+            "ilut:krAAJGDr0mWg96aGb8cRAqq6LEh", //uid
+            4 //elCnt
+            );
+        __t.registerEnumerationElement(0, "ev1", TheE._ev1);
+        __t.registerEnumerationElement(1, "ev3", TheE._ev3);
+        __t.registerEnumerationElement(2, "ev5", TheE._ev5);
+        __t.registerEnumerationElement(3, "ev7", TheE._ev7);
+        __t.finish();
+        __t = null;
+    } //static
+}//TheEHelper
+

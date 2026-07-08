@@ -1,0 +1,110 @@
+/* $Id: runImakefile,v 1.4 2025/08/01 06:01:04 cvswxc Exp $ */
+
+NormalObjectRule()
+
+InterfaceTarget(Test1.isl)
+InterfaceTarget(Test2.isl)
+
+#####################################################
+#
+# Python
+#
+
+#ifdef ADD_PYTHON_LANGUAGE
+
+ILUPythonTarget(Test1.py Test1__skel.py, Test1.isl)
+ILUPythonTarget(Test2.py Test2__skel.py, Test2.isl)
+
+all:: Test1.py Test1__skel.py Test2.py Test2__skel.py
+
+PYTHONFILES = Test1.py Test1__skel.py Test2.py Test2__skel.py
+
+#endif
+
+#####################################################
+#
+# C
+#
+
+#ifdef ADD_C_LANGUAGE
+
+ILUCTarget(Test2.h Test2-true.c Test2-surrogate.c Test2-common.c, Test2.isl)
+ObjectTarget(Test2-common.o)
+ObjectTarget(Test2-surrogate.o)
+ObjectTarget(Test2-true.o)
+
+server.o : server.c Test2.h
+ObjectTarget(server.o)
+
+ILUCProgramTarget(server, server.o Test2-common.o Test2-true.o,,)
+
+CFILES = server
+
+#endif
+
+#####################################################
+#
+# C++
+#
+
+#ifdef ADD_CORBA_CPLUSPLUS_LANGUAGE
+
+ILUCPlusPlusTarget(Test2-cpp.hpp Test2-cpp.cpp Test2-cpptrue.hpp Test2-cpptrue.cpp Test2-cppsurrogate.hpp Test2-cppsurrogate.cpp, Test2.isl)
+ObjectTarget(Test2-cpp.o)
+ObjectTarget(Test2-cppsurrogate.o)
+ObjectTarget(Test2-cpptrue.o)
+
+server-cpp.o : server-cpp.cpp Test2-cpp.hpp
+ObjectTarget(server-cpp.o)
+
+ILUCPlusPlusProgramTarget(server-cpp, server-cpp.o Test2-cpp.o Test2-cpptrue.o,,)
+
+CPPFILES = server-cpp
+
+#endif
+
+#####################################################
+#
+# Java
+#
+
+#ifdef ADD_JAVA_LANGUAGE
+JAVA_CLASS_DIR = ./classes
+JAVA_STUB_DIR = ./javastubs
+JAVA_STUB_SWITCHES = 
+
+BuildDir($(JAVA_CLASS_DIR))
+BuildDir($(JAVA_STUB_DIR))
+
+ALL_JAVA_FILES = *java
+STUB_SOURCES = $(JAVA_STUB_DIR)/Test1/$(ALL_JAVA_FILES) $(JAVA_STUB_DIR)/Test2/$(ALL_JAVA_FILES)
+
+APP_SOURCES = JaServ.java
+
+ILUJavaStubTarget(make.java_has_been_stubbed, Test1.isl Test2.isl,)
+
+ILUJavaCompile2Target(make.java_stubs_compiled, $(STUB_SOURCES), , make.java_has_been_stubbed,)
+
+ILUJavaCompile2Target(make.java_sources_compiled, $(APP_SOURCES), $(APP_SOURCES), make.java_stubs_compiled,)
+
+JAVAFILES = $(JAVA_CLASS_DIR) $(JAVA_STUB_DIR) make.java_sources_compiled
+
+#endif
+
+#####################################################
+#
+# Common Lisp
+#
+
+#ifdef ADD_COMMONLISP_LANGUAGE
+
+LISPFILES = test2-basics.lisp test2-server-procs.lisp test2-sysdcl.lisp
+
+ILULispTarget($(LISPFILES), Test2.isl)
+
+all:: $(LISPFILES)
+
+#endif
+
+PythonTestScript(Test.py, $(CFILES) $(PYTHONFILES) $(LISPFILES) $(JAVAFILES) $(CPPFILES))
+

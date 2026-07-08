@@ -1,0 +1,14 @@
+(* $Id: prebuiltISL,v 1.4 2025/08/07 07:38:55 cvswxc Exp $ *)
+
+INTERFACE timeit;
+
+TYPE pageimg = SEQUENCE OF BYTE;
+TYPE pageSeq = SEQUENCE OF pageimg;
+TYPE p = OBJECT OPTIONAL
+	SUPERTYPES ilu.CORBA-Object END TYPEID "IDL:com.xerox.parc.ilu.examples/timeit/p:1.0"
+	METHODS
+		ping1 (p1 : CARDINAL) : CARDINAL,
+		ping2 (p2 : REAL) : REAL,
+		ping3 (p3 : ilu.CString) : ilu.CString,
+		doctest (name : ilu.CString, count : CARDINAL, pagesize : CARDINAL) : pageSeq
+	END;

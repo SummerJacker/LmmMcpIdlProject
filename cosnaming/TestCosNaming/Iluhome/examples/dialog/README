@@ -1,0 +1,28 @@
+README for the "dialog" interface example.
+[$Id: README,v 1.4 2025/08/01 04:58:01 cvswxc Exp $ ]
+
+This simple example pauses for user input everywhere the application gets control.  
+By deliberately breaking network connectivity at one of these pauses, one can test ILU's reaction to network failures.  The example is available only in C.
+
+To build,
+
+% ilumkmf
+% make
+
+To run the server,
+
+% ./server
+SBH = 'ilu:DialogTest-Server/it;ilu%3Dp4NgL1yu-oubkE2nAEl9rLUU6iU;sunrpc_2_0x31000400_2621784198@sunrpcrm=tcp_13.2.116.14_4307'
+
+The full syntax for the server is this:
+
+server [-pt <pinfo> <transport layer>...] ... [-p pinfo] [-t <transport layer>...]
+
+The -p and -t switches affect the RPC protocol and transport stack used in the last port created for the server; each use of the -pt switch causes an additional port to be created.
+
+
+Then run the client
+
+% ./client 'ilu:DialogTest-Server/it;ilu%3Dp4NgL1yu-oubkE2nAEl9rLUU6iU;sunrpc_2_0x31000400_2621784198@sunrpcrm=tcp_13.2.116.14_4307'
+
+passing the host address and port number from the SBH printed by the server.

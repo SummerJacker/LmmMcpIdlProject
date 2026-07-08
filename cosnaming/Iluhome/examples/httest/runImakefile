@@ -1,0 +1,50 @@
+/* $Id: runImakefile,v 1.4 2025/08/07 13:51:07 cvswxc Exp $ */
+
+/* Note:  These following 2 variables may need to be set differently in
+your environment.  They are used to tailor the directories in which
+things are found so that developers can test private versions.
+
+ILUCINCLUDES = -I/jilu/src/runtime/c -I/jilu/src/runtime/kernel
+ILUCLIBS = /jilu/src/runtime/c/libilu-c.a /jilu/src/runtime/kernel/libilu.a
+
+/* You shouldn't need to change anything below this (or above this,
+if you're not a developer. */
+
+NormalObjectRule()
+
+InterfaceTarget(iluhttp.isl)
+InterfaceTarget(httest.isl)
+
+
+#####################################################
+#
+# C
+#
+
+ILUCTarget(iluhttp.h iluhttp-true.c iluhttp-surrogate.c iluhttp-common.c,  $(ILUHOME)/interfaces/iluhttp.isl)
+ObjectTarget(iluhttp-common.o)
+ObjectTarget(iluhttp-surrogate.o)
+ObjectTarget(iluhttp-true.o)
+
+ILUCTarget(httest.h httest-true.c httest-surrogate.c httest-common.c, httest.isl)
+ObjectTarget(httest-common.o)
+ObjectTarget(httest-surrogate.o)
+ObjectTarget(httest-true.o)
+
+ObjectTarget(htclient.o)
+ObjectTarget(htserver.o)
+ObjectTarget(webserver.o)
+ObjectTarget(ilugetbot.o)
+
+htclient.o : htclient.c iluhttp.h httest.h
+htserver.o : htserver.c iluhttp.h httest.h
+webserver.o : webserver.c iluhttp.h
+ilugetbot.o : ilugetbot.c iluhttp.h
+
+ILUCProgramTarget(htclient, htclient.o iluhttp-surrogate.o iluhttp-common.o httest-surrogate.o httest-common.o,,)
+
+ILUCProgramTarget(htserver, htserver.o iluhttp-true.o iluhttp-common.o httest-true.o httest-common.o,,)
+
+ILUCProgramTarget(webserver, webserver.o iluhttp-true.o iluhttp-common.o,,)
+
+ILUCProgramTarget(ilugetbot, ilugetbot.o iluhttp-surrogate.o iluhttp-common.o,,)

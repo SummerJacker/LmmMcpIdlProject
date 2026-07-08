@@ -1,0 +1,10 @@
+/* Id: Imakefile,v 1.3 2023/12/28 07:50:33 cvswxc Exp $ */
+
+MkdirTarget($(DESTDIR)/examples)
+MkdirTarget($(DESTDIR)/examples/cpp2foo)
+
+InstallRO(foo.isl clientmain.cpp servermain.cpp, $(DESTDIR)/examples/cpp2foo)
+InstallRO(README Test.py, $(DESTDIR)/examples/cpp2foo)
+InstallFileToFile(runImakefile, $(INSTINCFLAGS), $(DESTDIR)/examples/cpp2foo/Imakefile)
+
+

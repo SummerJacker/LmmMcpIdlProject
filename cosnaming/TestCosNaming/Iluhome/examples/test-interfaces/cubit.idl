@@ -1,0 +1,40 @@
+// @(#)cubit.idl	2.1 95/03/16
+
+// Copyright 1994-1995 by Sun Microsystems, Inc.
+
+//$Log: cubit.idl,v $
+//Revision 1.4  2025/06/22 08:04:57  cvswxc
+//#681 remove old infor
+//Committed on the Free edition of March Hare Software CVSNT Server.
+//Upgrade to CVS Suite for more features and support:
+//http://march-hare.com/cvsnt/
+//
+
+
+#pragma prefix	"Eng.SUN.COM"
+
+
+interface Cubit {
+    octet	cube_octet (in octet o);
+   
+		 short	cube_short (in short s);
+    
+		long	cube_long (in long l);
+
+    
+		struct Many {
+	
+			octet	o;		// + 3 bytes padding (normally) ...
+
+			long	l;
+	
+			short	s;		// + 2 bytes padding (normally) ...
+    };
+
+    
+		Many	cube_struct (in Many values);
+
+  
+		 oneway void	please_exit ();
+	
+};

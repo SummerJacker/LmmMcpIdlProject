@@ -1,0 +1,25 @@
+/* $Id: runImakefile,v 1.4 2025/08/07 07:38:55 cvswxc Exp $ */
+
+NormalObjectRule()
+
+#if (defined(ADD_IDL_SUPPORT) || defined(ADD_DIRECT_OMG_IDL_SUPPORT))
+InterfaceTarget(timeit.idl)
+ILUCTarget(timeit.h timeit.c timeit-true.c timeit-surrogate.c timeit-common.c, timeit.idl)
+#else
+InterfaceTarget(timeit.isl)
+ILUCTarget(timeit.h timeit.c timeit-true.c timeit-surrogate.c timeit-common.c, timeit.isl)
+#endif /* ADD_IDL_SUPPORT */
+
+ObjectTarget(timeit-common.o)
+ObjectTarget(timeit-surrogate.o)
+ObjectTarget(timeit-true.o)
+
+ObjectTarget(client.o)
+ObjectTarget(server.o)
+
+client.o : timeit.h client.c
+server.o : timeit.h server.c
+
+ILUCProgramTarget(timeit-client, client.o timeit-surrogate.o timeit-common.o,,)
+ILUCProgramTarget(timeit-server, server.o timeit-common.o timeit-true.o,,)
+

@@ -32,3 +32,10 @@
 2026-05-17 12:06:22 [INFO] httpx: HTTP Request: GET https://pypi.org/pypi/fastmcp/json "HTTP/1.1 200 OK"
 2026-05-27 15:37:54 [INFO] httpx: HTTP Request: GET https://pypi.org/pypi/fastmcp/json "HTTP/1.1 200 OK"
 2026-05-28 10:48:59 [INFO] httpx: HTTP Request: GET https://pypi.org/pypi/fastmcp/json "HTTP/1.1 200 OK"
+2026-07-08 15:35:38 [ERROR] mcp.server.lowlevel.server: Received exception from stream: 1 validation error for JSONRPCMessage
+  Invalid JSON: expected value at line 1 column 1 [type=json_invalid, input_value='对集群进行三角形编队\n', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.12/v/json_invalid
+2026-07-08 20:25:15 [INFO] httpx: HTTP Request: GET https://pypi.org/pypi/fastmcp/json "HTTP/1.1 200 OK"
+2026-07-08 20:25:37 [ERROR] mcp.server.lowlevel.server: Received exception from stream: 1 validation error for JSONRPCMessage
+  Invalid JSON: expected value at line 1 column 1 [type=json_invalid, input_value='对集群进行三角形编队\n', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.12/v/json_invalid
