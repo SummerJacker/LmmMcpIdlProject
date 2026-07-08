@@ -1,0 +1,72 @@
+[ $Id: READMEMORE,v 1.4 2025/08/02 11:45:15 cvswxc Exp $ ]
+
+
+Instructions for testing Simple.isl with Test.java
+**************************************************
+
+Make sure you have a "classes" subdirectory.
+	Not necessary anymore if you use make
+
+Make sure you have a "ilustubs" subdirectory.
+
+Enable these programs if needed
+enable java
+enable gdb-4.15
+
+Set these environments variables
+
+	Make the native java-ilu library accessible
+	It currently is in ../../runtime/java
+setenv LD_LIBRARY_PATH ../../runtime/java
+
+	Make the java java-ilu library accessible
+	classes are in ../../runtime/java/javaclasses
+setenv CLASSPATH ./classes:../../runtime/java/javaclasses:/project/java/jdk-1.0.2/lib/classes.zip
+
+
+Generate the stubs
+	Not necessary if you use make; as the make file would do that
+../../stubbers/java/java-stubber Simple.isl
+
+
+Compile all the java stubs
+	Not necessary if you use make; as the make file would do that
+javac -d classes javastubs/Simple/*java
+
+Compile your java test program
+	Not necessary anymore; the make file will do that
+javac -d classes Test.java
+
+
+Run the server side before running the client side;
+Run the server side bare:
+java xerox.ilu.test1.Test server
+java -Dilu.debug.init=4 -Dilu.debug.default=4 xerox.ilu.test1.Test server
+
+
+Run the client side bare
+java xerox.ilu.test1.Test client
+
+
+
+If you want Ilu debug output
+setenv ILU_DEBUG MOST
+
+
+
+Run the server side with gdb and trace logs enabled
+	The -D flag introduces debugging parameters
+dbx /project/java/jdk-1.0.2/bin/sparc/java
+ignore POLL
+run -Dilu.debug.default=4 xerox.ilu.test1.Test server 
+
+java -Dilu.debug.default=4 xerox.ilu.test1.Test server
+
+
+Run the client side with gdb
+gdb /project/java/jdk-1.0.2/bin/sparc/java
+run xerox.ilu.test1.Test client 
+
+
+
+

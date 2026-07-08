@@ -1,0 +1,30 @@
+# $Id: testload.tcl.sbfile,v 1.4 2025/08/02 10:01:34 cvswxc Exp $ 
+
+set testlog [format "/tmp/testlog%d" [pid]]
+set serverlog [format "%s%s" $testlog "-server"]
+set clientlog [format "%s%s" $testlog "-client"]
+set sblog [format "%s%s" $testlog "-sblog"]
+set ilusb [format "%s%s" $testlog "-ilusb"]
+
+set iluhome $env(ILUHOME)
+if [ catch {set javahome $env(JAVAHOME)} dummy ] {
+}
+
+if [ catch {set lispcmd $env(LISPCMD)} dummy ] { 
+    set lispcmd "franz"
+}
+
+#if ILUTESTWIN not set, assume unix platform
+if [ catch { set x $env(ILUTESTWIN)} dummy ] {
+    set killsignal "-9"
+} else {
+  set killsignal "/f"
+}
+
+set iserror 0
+
+source testprocs.tcl 
+
+if { [get-config-vals] == 0} {
+   exit 1
+}

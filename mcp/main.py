@@ -6,12 +6,35 @@ FastMCP 服务主入口。
 
 from __future__ import annotations
 
+import asyncio as _asyncio
+import json as _json
+
 from fastmcp import FastMCP
 
 from config import DEFAULT_TOOL_TIMEOUT_S, LOG_FILE, QT_HTTP_BASE
 from robot_adapter import RobotAdapter
 from utils.logging_setup import setup_logging
 from agents import AgentApiClient, AgentResolver, AgentService, register_agent_tools
+
+# 任务级编排器
+from orchestrator.formation_mission import (
+    FormationMissionOrchestrator,
+    FormationMissionResult,
+)
+
+# 任务级编队编排器（全局单例，在 create_app 中初始化）
+_formation_orchestrator: FormationMissionOrchestrator | None = None
+from orchestrator.active_formation import (
+    FormationState,
+    active_formation_registry,
+)
+from orchestrator.task_manager import task_manager
+from safety.validator import (
+    validate_formation_mission,
+    validate_move_formation,
+    ERR_FORMATION_NOT_READY,
+    ERR_FORMATION_CONFLICT,
+)
 
 
 def create_app() -> FastMCP:
@@ -31,6 +54,10 @@ def create_app() -> FastMCP:
     register_agent_tools(mcp, agent_service)
     # 注入 AgentResolver 到 RobotAdapter，使所有旧工具支持别名解析
     adapter.set_agent_resolver(agent_resolver)
+
+    # --- 初始化任务级编排器（MCP-Console 融合核心）---
+    global _formation_orchestrator
+    _formation_orchestrator = FormationMissionOrchestrator(adapter.orchestrator_dispatch)
 
     @mcp.tool
     async def send_move(
@@ -407,6 +434,350 @@ def create_app() -> FastMCP:
         @returns: JSON
         """
         return await adapter.cancel_task(task_id=task_id)
+
+    # =====================================================================
+    # MCP-Console 任务级编排工具 (FormationMissionOrchestrator)
+    #
+    # 大模型不应直接调用 set_leader / set_follower / set_formation，
+    # 而应调用以下任务级工具，由编排器自动完成完整工作流。
+    # =====================================================================
+
+    @mcp.tool
+    async def execute_formation_mission(
+        formation_type: str,
+        unit_ids_csv: str = "",
+        leader_id: str = "",
+        spacing_m: float = 1.0,
+        heading_rad: float = 0.0,
+        tolerance_m: float = 0.15,
+        timeout_ms: int = 30000,
+    ) -> str:
+        """
+        【任务级工具】执行完整编队任务流程。
+
+        用户只需输入自然语言（如"对集群进行三角形编队"），LLM 调用此工具，
+        系统自动完成: 状态确认 → 领航者选择 → 跟随关系设置 → 队形下发 → 验证。
+
+        编队类型:
+        - "line": 直线编队 (>=2台)
+        - "triangle": 正三角形编队 (>=3台)
+        - "column": 纵队 (>=2台)
+
+        内部流程:
+        1. 查询集群状态 (get_fleet_status)
+        2. 自动选择最适合的领航者 (或使用 leader_id 指定)
+        3. 设置领航者 (set_leader)
+        4. 设置跟随者关系 (set_group_mode + set_leader per follower)
+        5. 下发队形参数 (execute_formation)
+        6. 验证编队建立成功
+
+        成功后，后续移动请使用 move_active_formation（仅控制领航者，
+        跟随者由 Console 原有编队逻辑自动协同）。
+
+        @param formation_type: "line" | "triangle" | "column"
+        @param unit_ids_csv: 参与智能体，逗号分隔（如 "GV1,GV2,GV3"）；空=自动获取全部在线
+        @param leader_id: 指定领航者 unit_id；空=自动选择最合适的
+        @param spacing_m: 间距（米），默认 1.0
+        @param heading_rad: 编队朝向（弧度），默认 0.0
+        @param tolerance_m: 到达容差（米），默认 0.15
+        @param timeout_ms: 超时（毫秒），默认 30000
+        @returns: JSON，含 leader_id/follower_ids/formation_type/state
+        """
+        # 解析 unit_ids
+        raw_ids = [s.strip() for s in unit_ids_csv.split(",") if s.strip()] if unit_ids_csv.strip() else []
+        unit_ids: list[str] = []
+        for rid in raw_ids:
+            uid = await adapter._resolve_to_unit_id(rid)
+            if uid is None:
+                return _json.dumps({
+                    "success": False,
+                    "message": f'unit_not_bound: "{rid}" 无法解析为已知智能体',
+                    "error_code": "UNIT_NOT_FOUND",
+                }, ensure_ascii=False)
+            unit_ids.append(uid)
+
+        # 如果未指定 unit_ids，自动获取全部在线
+        if not unit_ids:
+            resp = await adapter.get_fleet_status()
+            try:
+                data = _json.loads(resp)
+            except _json.JSONDecodeError:
+                return _json.dumps({
+                    "success": False,
+                    "message": "获取集群状态失败，无法自动选择智能体",
+                    "error_code": "FLEET_STATUS_FAILED",
+                }, ensure_ascii=False)
+            if data.get("success") and data.get("data"):
+                for item in data["data"].get("items", []):
+                    if item.get("success"):
+                        inner = item.get("data") or {}
+                        uid = inner.get("unit_id", "")
+                        if uid:
+                            unit_ids.append(uid)
+            if not unit_ids:
+                return _json.dumps({
+                    "success": False,
+                    "message": "没有可用的在线智能体",
+                    "error_code": "NO_UNITS_AVAILABLE",
+                }, ensure_ascii=False)
+
+        # 解析 leader_id
+        resolved_leader: str | None = None
+        if leader_id.strip():
+            resolved_leader = await adapter._resolve_to_unit_id(leader_id.strip())
+            if resolved_leader is None:
+                return _json.dumps({
+                    "success": False,
+                    "message": f'leader_id "{leader_id}" 无法解析',
+                    "error_code": "LEADER_NOT_FOUND",
+                }, ensure_ascii=False)
+
+        # 安全检查（客户端侧预检）
+        has_active = active_formation_registry.has_active
+        passed, err_code, msg = validate_formation_mission(
+            formation_type=formation_type.strip().lower(),
+            unit_ids=unit_ids,
+            leader_id=resolved_leader,
+            spacing_m=spacing_m,
+            existing_formation=has_active,
+        )
+        if not passed:
+            return _json.dumps({
+                "success": False,
+                "message": msg,
+                "error_code": err_code,
+            }, ensure_ascii=False)
+
+        # 执行编排
+        if _formation_orchestrator is None:
+            return _json.dumps({
+                "success": False,
+                "message": "编队编排器未初始化",
+                "error_code": "ORCHESTRATOR_NOT_READY",
+            }, ensure_ascii=False)
+
+        result: FormationMissionResult = await _formation_orchestrator.execute(
+            formation_type=formation_type.strip().lower(),
+            unit_ids=unit_ids,
+            leader_id=resolved_leader,
+            spacing_m=spacing_m,
+            heading_rad=heading_rad,
+            tolerance_m=tolerance_m,
+            timeout_ms=timeout_ms,
+        )
+        return result.to_json()
+
+    @mcp.tool
+    async def move_active_formation(
+        linear_velocity: float,
+        angular_velocity: float = 0.0,
+        duration_ms: int = 1000,
+    ) -> str:
+        """
+        【任务级工具】移动当前活跃编队（仅控制领航者）。
+
+        编队建立后，使用此工具控制编队移动。系统内部只对领航者 (leader)
+        下发移动指令，跟随者 (followers) 由 Console 原有编队控制逻辑自动协同。
+
+        使用前必须先调用 execute_formation_mission 建立编队。
+
+        @param linear_velocity: 线速度（m/s），正=前进，负=后退
+        @param angular_velocity: 角速度（rad/s），正=左转，负=右转
+        @param duration_ms: 持续时间（毫秒），默认 1000
+        @returns: JSON，含 leader_id / controlled_unit
+        """
+        # 安全检查：是否有活跃且就绪的编队
+        passed, err_code, msg = validate_move_formation(
+            has_active_formation=active_formation_registry.has_active,
+            is_ready=active_formation_registry.is_ready,
+        )
+        if not passed:
+            return _json.dumps({
+                "success": False, "message": msg, "error_code": err_code,
+            }, ensure_ascii=False)
+
+        formation = active_formation_registry.active
+        if formation is None:
+            return _json.dumps({
+                "success": False,
+                "message": "没有活跃编队",
+                "error_code": ERR_FORMATION_NOT_READY,
+            }, ensure_ascii=False)
+
+        leader_id = formation.leader_id
+        all_units = [leader_id] + formation.follower_ids
+
+        # 向编队中所有智能体下发相同的移动指令
+        # （Console 当前无编队自动跟随逻辑，需要 MCP 侧显式控制每个单元）
+        results: dict[str, bool] = {}
+        async def _move_one(uid: str) -> None:
+            resp = await adapter.send_move(
+                robot_id=uid,
+                linear_velocity=linear_velocity,
+                angular_velocity=angular_velocity,
+                duration_ms=duration_ms,
+            )
+            try:
+                d = _json.loads(resp)
+                results[uid] = d.get("success", False)
+            except _json.JSONDecodeError:
+                results[uid] = False
+
+        await _asyncio.gather(*[_move_one(uid) for uid in all_units])
+
+        # 更新编队状态为 MOVING
+        active_formation_registry.update_state(FormationState.MOVING)
+        all_ok = all(results.values())
+
+        # 构建响应
+        return _json.dumps({
+            "success": all_ok,
+            "message": f"编队移动: {'全部成功' if all_ok else '部分失败'} ({sum(1 for v in results.values() if v)}/{len(results)})",
+            "data": {
+                "formation_type": formation.formation_type,
+                "leader_id": leader_id,
+                "follower_ids": formation.follower_ids,
+                "controlled_units": list(results.keys()),
+                "unit_results": results,
+                "move_params": {
+                    "linear_velocity": linear_velocity,
+                    "angular_velocity": angular_velocity,
+                    "duration_ms": duration_ms,
+                },
+            },
+        }, ensure_ascii=False)
+
+    @mcp.tool
+    async def stop_active_formation() -> str:
+        """
+        【任务级工具】停止当前活跃编队的所有智能体。
+
+        向编队中所有成员（领航者+跟随者）并发下发停止指令。
+
+        @returns: JSON
+        """
+        formation = active_formation_registry.active
+        if formation is not None and formation.is_ready:
+            all_units = [formation.leader_id] + formation.follower_ids
+            await _asyncio.gather(*[
+                adapter.stop_robot(robot_id=uid) for uid in all_units
+            ])
+            active_formation_registry.update_state(FormationState.IDLE)
+            return _json.dumps({
+                "success": True,
+                "message": f"编队已停止: {all_units}",
+                "data": {"stopped_units": all_units},
+            }, ensure_ascii=False)
+
+        # 无活跃编队时，全停保险
+        result = await adapter.emergency_stop_all()
+        return result
+
+    @mcp.tool
+    async def get_formation_status() -> str:
+        """
+        【任务级工具】查询当前编队状态。
+
+        返回活跃编队的完整信息：leader、followers、formation_type、
+        编队状态 (IDLE/READY/MOVING/FAILED 等)。
+
+        @returns: JSON，含 formation 状态摘要
+        """
+        status = active_formation_registry.get_status_dict()
+
+        # 如果有活跃编队，附加各智能体的实时状态
+        formation = active_formation_registry.active
+        if formation is not None and formation.is_active:
+            unit_states: list[dict] = []
+            for uid in formation.all_unit_ids:
+                resp = await adapter.get_robot_status(robot_id=uid)
+                try:
+                    sdata = _json.loads(resp)
+                    unit_states.append({
+                        "unit_id": uid,
+                        "role": "leader" if uid == formation.leader_id else "follower",
+                        "online": sdata.get("success", False),
+                        "data": sdata.get("data") if sdata.get("success") else None,
+                    })
+                except _json.JSONDecodeError:
+                    unit_states.append({
+                        "unit_id": uid,
+                        "role": "leader" if uid == formation.leader_id else "follower",
+                        "online": False,
+                    })
+            status["unit_states"] = unit_states
+
+        return _json.dumps({
+            "success": True,
+            "message": "ok",
+            "data": status,
+        }, ensure_ascii=False)
+
+    @mcp.tool
+    async def cancel_formation_mission(task_id: str = "") -> str:
+        """
+        【任务级工具】取消编队任务并回滚配置。
+
+        取消正在执行的编队任务，自动回滚已设置的 leader/follower/formation 配置。
+        如果 task_id 为空，则取消当前活跃编队。
+
+        回滚步骤:
+        1. 重置所有编队关系 (reset_unit_relations)
+        2. 恢复默认编队模式 (set_group_mode=none)
+
+        @param task_id: 要取消的任务 ID；空=取消当前活跃编队
+        @returns: JSON
+        """
+        tid = task_id.strip()
+
+        if tid:
+            # 取消指定任务
+            rec = task_manager.get_task(tid)
+            if rec is None:
+                return _json.dumps({
+                    "success": False,
+                    "message": f"任务 {tid} 不存在",
+                    "error_code": "TASK_NOT_FOUND",
+                }, ensure_ascii=False)
+
+            if _formation_orchestrator is not None:
+                _formation_orchestrator.request_cancel()
+            await adapter.cancel_task(task_id=tid)
+            task_manager.cancel_task(tid, "用户取消编队任务")
+
+            return _json.dumps({
+                "success": True,
+                "message": f"编队任务 {tid} 已取消",
+                "data": {"task_id": tid, "state": "CANCELLED"},
+            }, ensure_ascii=False)
+
+        # 取消当前活跃编队
+        formation = active_formation_registry.active
+        if formation is None or not formation.is_active:
+            return _json.dumps({
+                "success": True,
+                "message": "没有活跃编队需要取消",
+                "data": {"has_active_formation": False},
+            }, ensure_ascii=False)
+
+        ftask_id = formation.task_id
+
+        if _formation_orchestrator is not None:
+            result = await _formation_orchestrator.rollback_current(
+                ftask_id, "用户取消编队任务"
+            )
+            return result.to_json()
+
+        # 兜底：直接重置
+        await adapter.reset_unit_relations()
+        await adapter.set_group_mode(mode="none")
+        active_formation_registry.clear()
+
+        return _json.dumps({
+            "success": True,
+            "message": "编队已取消，集群关系已重置",
+            "data": {"state": "CANCELLED"},
+        }, ensure_ascii=False)
 
     return mcp
 

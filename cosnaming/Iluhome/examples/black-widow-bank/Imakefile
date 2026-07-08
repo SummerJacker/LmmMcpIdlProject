@@ -1,0 +1,10 @@
+/**
+$Id: Imakefile,v 1.4 2025/08/01 00:22:51 cvswxc Exp $ */ 
+
+MkdirTarget($(DESTDIR)/examples)
+MkdirTarget($(DESTDIR)/examples/black-widow-bank)
+
+InstallRO(Bank.isl Bank.idl bankServer.py bankClient.py README ServerVisi.java ClientVisi.java, $(DESTDIR)/examples/black-widow-bank)
+InstallFileToFile(runImakefile, $(INSTINCFLAGS), $(DESTDIR)/examples/black-widow-bank/Imakefile)
+
+

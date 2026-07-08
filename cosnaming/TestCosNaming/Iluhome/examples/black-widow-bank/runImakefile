@@ -1,0 +1,7 @@
+/* $Id: runImakefile,v 1.4 2025/08/01 00:22:51 cvswxc Exp $ */
+
+InterfaceTarget(Bank.isl)
+
+ILUPythonTarget(Bank.py Bank__skel.py, Bank.isl)
+
+all:: Bank.py Bank__skel.py

@@ -361,6 +361,64 @@ class RobotAdapter:
         """注入 AgentResolver，使所有工具支持 Qt 别名和动态智能体解析。"""
         self._agent_resolver = resolver
 
+    async def orchestrator_dispatch(self, op_name: str, **kwargs: Any) -> str:
+        """
+        编排器统一调用入口。
+
+        将操作名映射到对应的 adapter 方法，使 FormationMissionOrchestrator
+        等编排器无需直接依赖各个方法签名。
+
+        @param op_name: 操作名 (如 "get_fleet_status", "set_leader", ...)
+        @param kwargs: 操作参数
+        @returns: 统一 JSON 字符串
+        """
+        dispatch_map: dict[str, Any] = {
+            "get_fleet_status": lambda: self.get_fleet_status(
+                robot_ids_csv=kwargs.get("robot_ids_csv", ""),
+            ),
+            "get_robot_status": lambda: self.get_robot_status(
+                robot_id=str(kwargs.get("robot_id", "")),
+            ),
+            "list_robots": lambda: self.list_robots(),
+            "set_leader": lambda: self.set_leader(
+                robot_id=str(kwargs.get("robot_id", "")),
+            ),
+            "set_group_mode": lambda: self.set_group_mode(
+                mode=str(kwargs.get("mode", "none")),
+            ),
+            "set_group_minor_mode": lambda: self.set_group_minor_mode(
+                mode=str(kwargs.get("mode", "none")),
+            ),
+            "execute_formation": lambda: self.execute_formation(
+                formation_type=str(kwargs.get("formation_type", "")),
+                unit_ids_csv=str(kwargs.get("unit_ids_csv", "")),
+                spacing_m=float(kwargs.get("spacing_m", 1.0)),
+                heading_rad=float(kwargs.get("heading_rad", 0.0)),
+                tolerance_m=float(kwargs.get("tolerance_m", 0.15)),
+                timeout_ms=int(kwargs.get("timeout_ms", 30000)),
+            ),
+            "reset_unit_relations": lambda: self.reset_unit_relations(),
+            "stop_robot": lambda: self.stop_robot(
+                robot_id=str(kwargs.get("robot_id", "")),
+            ),
+            "emergency_stop_all": lambda: self.emergency_stop_all(),
+            "send_move": lambda: self.send_move(
+                robot_id=str(kwargs.get("robot_id", "")),
+                linear_velocity=float(kwargs.get("linear_velocity", 0.0)),
+                angular_velocity=float(kwargs.get("angular_velocity", 0.0)),
+                duration_ms=int(kwargs.get("duration_ms", 1000)),
+            ),
+        }
+
+        handler = dispatch_map.get(op_name)
+        if handler is None:
+            return json.dumps({
+                "success": False,
+                "message": f"Unknown orchestrator operation: {op_name}",
+            }, ensure_ascii=False)
+
+        return await handler()
+
     async def _resolve_to_unit_id(self, name: str) -> str | None:
         """解析机器人标识为 unit_id。先查 robots.json，再查 Qt AgentResolver。"""
         # 1. robots.json canonical lookup

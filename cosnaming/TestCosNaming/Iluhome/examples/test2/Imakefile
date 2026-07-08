@@ -1,0 +1,17 @@
+/* $Id: Imakefile,v 1.4 2025/08/01 09:15:00 cvswxc Exp $ */
+
+MkdirTarget($(DESTDIR)/examples)
+MkdirTarget($(DESTDIR)/examples/test2)
+
+InstallRO(Fibber.isl, $(DESTDIR)/examples/test2)
+InstallRO(Batcher.isl, $(DESTDIR)/examples/test2)
+InstallRO(Batcher2.isl, $(DESTDIR)/examples/test2)
+InstallRO(SerialTest.isl, $(DESTDIR)/examples/test2)
+InstallRO(fprog.c, $(DESTDIR)/examples/test2)
+InstallRO(bsvr.c bclnt.c bclntp.c, $(DESTDIR)/examples/test2)
+InstallRO(b2svr.c b2clnt.c, $(DESTDIR)/examples/test2)
+InstallRO(stsrvr.c stclnt.c sptclnt.c, $(DESTDIR)/examples/test2)
+InstallRO(README, $(DESTDIR)/examples/test2)
+InstallFileToFile(runImakefile, $(INSTINCFLAGS), $(DESTDIR)/examples/test2/Imakefile)
+
+

@@ -1,0 +1,8 @@
+/* $Id: Imakefile,v 1.4 2025/08/07 08:37:30 cvswxc Exp $ */
+
+MkdirTarget($(DESTDIR)/examples)
+MkdirTarget($(DESTDIR)/examples/testjavaobv)
+
+InstallRO(testJavaSerialObjects.isl TestReceiving.java TestSending.java FooWhizBangFuzzler.java README, $(DESTDIR)/examples/testjavaobv)
+InstallFileToFile(runImakefile, $(INSTINCFLAGS), $(DESTDIR)/examples/testjavaobv/Imakefile)
+

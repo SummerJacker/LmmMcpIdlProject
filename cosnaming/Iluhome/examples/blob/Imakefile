@@ -1,0 +1,9 @@
+/* $Id: Imakefile,v 1.4 2025/08/01 00:23:01 cvswxc Exp $ */
+
+MkdirTarget($(DESTDIR)/examples)
+MkdirTarget($(DESTDIR)/examples/blob)
+
+InstallRO(BlobExample.isl blobServer.py blobClient.py README, $(DESTDIR)/examples/blob)
+InstallFileToFile(runImakefile, $(INSTINCFLAGS), $(DESTDIR)/examples/blob/Imakefile)
+
+

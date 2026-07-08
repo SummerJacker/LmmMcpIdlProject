@@ -1,0 +1,69 @@
+# Microsoft Developer Studio Generated Dependency File, included by ILUCosNaming.mak
+# $LOG$ 
+.\NamingImpl.c : \
+	"..\..\gss\kernel\gssapi.h"\
+	"..\..\gss\kernel\ilugsswin_conf.h"\
+	"..\..\runtime\c\iluchdrs.h"\
+	"..\..\runtime\c\ilucstub.h"\
+	"..\..\runtime\kernel\ilubasic.h"\
+	"..\..\runtime\kernel\iluerror.h"\
+	"..\..\runtime\kernel\iluerrs.h"\
+	"..\..\runtime\kernel\iluhash.h"\
+	"..\..\runtime\kernel\ilutpcod.h"\
+	"..\..\runtime\kernel\ilutypes.h"\
+	"..\..\runtime\kernel\iluwin.h"\
+	"..\..\runtime\kernel\iluxport.h"\
+	".\CosNaming.h"\
+	
+
+".\CosNaming-common.c" : \
+	"..\..\gss\kernel\gssapi.h"\
+	"..\..\gss\kernel\ilugsswin_conf.h"\
+	"..\..\runtime\c\iluchdrs.h"\
+	"..\..\runtime\c\ilucstub.h"\
+	"..\..\runtime\kernel\ilubasic.h"\
+	"..\..\runtime\kernel\iluerror.h"\
+	"..\..\runtime\kernel\iluerrs.h"\
+	"..\..\runtime\kernel\iluhash.h"\
+	"..\..\runtime\kernel\ilutpcod.h"\
+	"..\..\runtime\kernel\ilutypes.h"\
+	"..\..\runtime\kernel\iluwin.h"\
+	"..\..\runtime\kernel\iluxport.h"\
+	".\CosNaming.h"\
+	
+
+".\CosNaming-surrogate.c" : \
+	"..\..\gss\kernel\gssapi.h"\
+	"..\..\gss\kernel\ilugsswin_conf.h"\
+	"..\..\runtime\c\iluchdrs.h"\
+	"..\..\runtime\c\ilucstub.h"\
+	"..\..\runtime\kernel\ilubasic.h"\
+	"..\..\runtime\kernel\iluerror.h"\
+	"..\..\runtime\kernel\iluerrs.h"\
+	"..\..\runtime\kernel\iluhash.h"\
+	"..\..\runtime\kernel\ilutpcod.h"\
+	"..\..\runtime\kernel\ilutypes.h"\
+	"..\..\runtime\kernel\iluwin.h"\
+	"..\..\runtime\kernel\iluxport.h"\
+	".\CosNaming.h"\
+	
+
+".\CosNaming-true.c" : \
+	"..\..\gss\kernel\gssapi.h"\
+	"..\..\gss\kernel\ilugsswin_conf.h"\
+	"..\..\runtime\c\iluchdrs.h"\
+	"..\..\runtime\c\ilucstub.h"\
+	"..\..\runtime\kernel\ilubasic.h"\
+	"..\..\runtime\kernel\iludebug.h"\
+	"..\..\runtime\kernel\iluerror.h"\
+	"..\..\runtime\kernel\iluerrs.h"\
+	"..\..\runtime\kernel\iluhash.h"\
+	"..\..\runtime\kernel\iluntrnl.h"\
+	"..\..\runtime\kernel\ilutpcod.h"\
+	"..\..\runtime\kernel\ilutransport.h"\
+	"..\..\runtime\kernel\ilutypes.h"\
+	"..\..\runtime\kernel\iluvector.h"\
+	"..\..\runtime\kernel\iluwin.h"\
+	"..\..\runtime\kernel\iluxport.h"\
+	".\CosNaming.h"\
+	

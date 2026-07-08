@@ -1,0 +1,19 @@
+/**
+$Id: Bank.idl,v 1.4 2025/06/22 08:04:57 cvswxc Exp $
+$Log: Bank.idl,v $
+Revision 1.4  2025/06/22 08:04:57  cvswxc
+#681 remove old infor
+Committed on the Free edition of March Hare Software CVSNT Server.
+Upgrade to CVS Suite for more features and support:
+http://march-hare.com/cvsnt/
+ 
+ */
+
+module Bank {
+  interface Account {
+    float balance();
+  };
+  interface AccountManager {
+    Account open(in string name);
+  };
+};

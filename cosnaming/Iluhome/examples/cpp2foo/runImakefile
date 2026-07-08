@@ -1,0 +1,22 @@
+/* $Id: runImakefile,v 1.4 2025/07/30 04:59:25 cvswxc Exp $ */
+
+NormalObjectRule()
+
+InterfaceTarget(foo.isl)
+
+ILUCPlusPlusTarget(foo-cpp.hpp foo-cpp.cpp foo-cpptrue.hpp foo-cpptrue.cpp foo-cppsurrogate.hpp foo-cppsurrogate.cpp, foo.isl)
+
+ObjectTarget(foo-cpp.o)
+ObjectTarget(foo-cppsurrogate.o)
+ObjectTarget(foo-cpptrue.o)
+
+ObjectTarget(clientmain.o)
+ObjectTarget(servermain.o)
+
+clientmain.o : foo-cpp.hpp foo-cppsurrogate.hpp clientmain.cpp
+servermain.o : foo-cpp.hpp foo-cpptrue.hpp servermain.cpp
+
+ILUCPlusPlusProgramTarget(fooclient, clientmain.o foo-cpp.o foo-cppsurrogate.o,,)
+ILUCPlusPlusProgramTarget(fooserver, servermain.o foo-cpp.o foo-cpptrue.o,,)
+
+PythonTestScript(Test.py, fooclient fooserver)

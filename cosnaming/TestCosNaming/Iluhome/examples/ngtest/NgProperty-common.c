@@ -1,0 +1,1065 @@
+/*
+ * This file was automatically generated with KISORB (version 2.0beta1) tools
+ * at Wed Aug 20 14:48:01 2025 by `沈阳市软件定义智能协同重点实验室'
+ * running "D:/Shaun-projects/newstar/Iluhome/bin/c-stubber.exe" of Mon Aug 18 11:47:22 2025
+ * on "D:/Shaun-projects/newstar/Iluhome/examples/ngtest/NgProperty.isl" of Fri Aug 01 13:29:37 2025,
+ * and "ngbasic.isl" of Fri Aug 01 13:29:37 2025,
+ * and "D:/Shaun-projects/newstar/Iluhome/interfaces/ilu.isl" of Fri Aug 01 09:16:44 2025 *
+ * KISORB is Copyright 2006-2056 成都凯斯人工智能研究院, All Rights Reserved.
+ * KISORB information: Dr. Wang xcwang89@aliyun.com .
+ */
+
+#include <stdio.h>
+#include <string.h> /* used for error statements */
+#include "NgProperty.h"
+
+ilu_Class _NgProperty_PutablePropertySet__ILUType = NULL;
+ilu_Class _NgProperty_PropertySet__ILUType = NULL;
+struct _ILU_C_IoFnsRegistration_s _NgProperty_PutablePropertySet__IoFns = { ilu_object_tk, "ilut:mIJlovLYXEbzp3BXqb3LeTk5ufK", { 0 }, 0, 0, 0, 0, 0 };
+struct _ILU_C_IoFnsRegistration_s _NgProperty_PropertyModificationSequence__IoFns = { ilu_sequence_tk, "ilut:pmpcRjoiedKh3CkhMOURXOZKPI3", { sizeof(NgProperty_PropertyModificationSequence) }, ILU_NIL, 0, 0, 0, 0 };
+struct _ILU_C_IoFnsRegistration_s _NgProperty_PropertyModification__IoFns = { ilu_record_tk, "ilut:nnwt4Viafgm2l8JnpPYS6k437hX", { sizeof(NgProperty_PropertyModification) }, ILU_NIL, 0, 0, 0, 0 };
+struct _ILU_C_IoFnsRegistration_s _NgProperty_PropertyModificationKind__IoFns = { ilu_enumeration_tk, "ilut:gj0WyW0GwrUU8wY89Mpap7p1Vh6", { 0 }, ILU_NIL, _ILU_C_Enumeration__SizeOf, _ILU_C_Enumeration__Output, _ILU_C_Enumeration__Input, 0 };
+struct _ILU_C_IoFnsRegistration_s _NgProperty_PropertySet__IoFns = { ilu_object_tk, "ilut:m44lJUWvllZBHhWqMT4E2uCqKds", { 0 }, 0, 0, 0, 0, 0 };
+struct _ILU_C_IoFnsRegistration_s _NgProperty_PropertySequence__IoFns = { ilu_sequence_tk, "ilut:mTOEgnV7d3PoGRSTp993OO-S1d+", { sizeof(NgProperty_PropertySequence) }, ILU_NIL, 0, 0, 0, 0 };
+
+
+ILU_C_Class NgProperty_PutablePropertySet__MakeClass(
+  void (*NgProperty_PutablePropertySet_PutProperties__Impl)
+     (NgProperty_PutablePropertySet _handle, NgProperty_PropertyModificationSequence* propertiesToSet, ILU_C_ENVIRONMENT *_status),
+  NgProperty_PropertySequence* (*NgProperty_PropertySet_GetProperties__Impl)
+     (NgProperty_PutablePropertySet _handle, NgProperty_PropertyNames* propertiesToGet, ILU_C_ENVIRONMENT *_status),
+  NgBasic_String (*NgBasic_NgObject_GetInterfaceDefinitionSource__Impl)
+     (NgProperty_PutablePropertySet _handle, ILU_C_ENVIRONMENT *_status),
+  ILU_C_FinalizationProc _finalize)
+{
+  ILU_C_Class ans = ilu_malloc(sizeof(*ans));
+  _ILU_C_Method *method_block;
+  int i, done=0;
+  if (!ans) return ans;
+  ans->ilucc_finalize = _finalize;
+  ans->ilucc_sections = ilu_malloc(4 * sizeof(ans->ilucc_sections[0]));
+  if (!ans->ilucc_sections)
+    goto fale0;
+
+  ans->ilucc_sections[done].ilucdts_introType = _NgProperty_PutablePropertySet__ILUType;
+  method_block = ilu_malloc(1 * sizeof(_ILU_C_Method));
+  if (method_block == ILU_NIL)
+    goto fale1;
+  ans->ilucc_sections[done++].ilucdts_methods = method_block;
+  method_block[0] = (_ILU_C_Method) NgProperty_PutablePropertySet_PutProperties__Impl;
+
+  ans->ilucc_sections[done].ilucdts_introType = _NgProperty_PropertySet__ILUType;
+  method_block = ilu_malloc(1 * sizeof(_ILU_C_Method));
+  if (method_block == ILU_NIL)
+    goto fale1;
+  ans->ilucc_sections[done++].ilucdts_methods = method_block;
+  method_block[0] = (_ILU_C_Method) NgProperty_PropertySet_GetProperties__Impl;
+
+  ans->ilucc_sections[done].ilucdts_introType = _NgBasic_NgObject__ILUType;
+  method_block = ilu_malloc(1 * sizeof(_ILU_C_Method));
+  if (method_block == ILU_NIL)
+    goto fale1;
+  ans->ilucc_sections[done++].ilucdts_methods = method_block;
+  method_block[0] = (_ILU_C_Method) NgBasic_NgObject_GetInterfaceDefinitionSource__Impl;
+  ans->ilucc_sections[done].ilucdts_introType = ILU_NIL;
+  ans->ilucc_sections[done].ilucdts_methods = ILU_NIL;
+  return ans;
+fale1:
+  for (i=0; i<done; i++) 
+    ilu_free(ans->ilucc_sections[i].ilucdts_methods);
+fale0:
+  ilu_free(ans);
+  return ILU_NIL;
+}
+ILU_C_Class NgProperty_PropertySet__MakeClass(
+  NgProperty_PropertySequence* (*NgProperty_PropertySet_GetProperties__Impl)
+     (NgProperty_PropertySet _handle, NgProperty_PropertyNames* propertiesToGet, ILU_C_ENVIRONMENT *_status),
+  NgBasic_String (*NgBasic_NgObject_GetInterfaceDefinitionSource__Impl)
+     (NgProperty_PropertySet _handle, ILU_C_ENVIRONMENT *_status),
+  ILU_C_FinalizationProc _finalize)
+{
+  ILU_C_Class ans = ilu_malloc(sizeof(*ans));
+  _ILU_C_Method *method_block;
+  int i, done=0;
+  if (!ans) return ans;
+  ans->ilucc_finalize = _finalize;
+  ans->ilucc_sections = ilu_malloc(3 * sizeof(ans->ilucc_sections[0]));
+  if (!ans->ilucc_sections)
+    goto fale0;
+
+  ans->ilucc_sections[done].ilucdts_introType = _NgProperty_PropertySet__ILUType;
+  method_block = ilu_malloc(1 * sizeof(_ILU_C_Method));
+  if (method_block == ILU_NIL)
+    goto fale1;
+  ans->ilucc_sections[done++].ilucdts_methods = method_block;
+  method_block[0] = (_ILU_C_Method) NgProperty_PropertySet_GetProperties__Impl;
+
+  ans->ilucc_sections[done].ilucdts_introType = _NgBasic_NgObject__ILUType;
+  method_block = ilu_malloc(1 * sizeof(_ILU_C_Method));
+  if (method_block == ILU_NIL)
+    goto fale1;
+  ans->ilucc_sections[done++].ilucdts_methods = method_block;
+  method_block[0] = (_ILU_C_Method) NgBasic_NgObject_GetInterfaceDefinitionSource__Impl;
+  ans->ilucc_sections[done].ilucdts_introType = ILU_NIL;
+  ans->ilucc_sections[done].ilucdts_methods = ILU_NIL;
+  return ans;
+fale1:
+  for (i=0; i<done; i++) 
+    ilu_free(ans->ilucc_sections[i].ilucdts_methods);
+fale0:
+  ilu_free(ans);
+  return ILU_NIL;
+}
+void NgProperty_PutablePropertySet_PutProperties (NgProperty_PutablePropertySet _handle, NgProperty_PropertyModificationSequence* propertiesToSet, ILU_C_ENVIRONMENT *_status)
+{
+  void (*_f)(NgProperty_PutablePropertySet, NgProperty_PropertyModificationSequence*, ILU_C_ENVIRONMENT *);
+  if (!_handle) {
+    ILU_C_RAISE_SYSTEM(_status, BAD_PARAM, ilu_bpm_nil, NO);
+    return;
+  }
+  _f = (void (*)(NgProperty_PutablePropertySet, NgProperty_PropertyModificationSequence*, ILU_C_ENVIRONMENT *)) _ILU_C_FindMethod (_handle, _NgProperty_PutablePropertySet__ILUType, 0);
+  _status->_major = ILU_C_NO_EXCEPTION;
+  _status->ptr = ILU_NIL;
+  _status->freeRoutine = (void(*)(void *)) 0;
+  _status->returnCode = (ilu_Exception) 0;
+  (*_f)(_handle, propertiesToSet, _status);
+}
+
+NgProperty_PropertySequence* NgProperty_PropertySet_GetProperties (NgProperty_PropertySet _handle, NgProperty_PropertyNames* propertiesToGet, ILU_C_ENVIRONMENT *_status)
+{
+  NgProperty_PropertySequence* (*_f)(NgProperty_PropertySet, NgProperty_PropertyNames*, ILU_C_ENVIRONMENT *);
+  if (!_handle) {
+    NgProperty_PropertySequence* _ret = {0};
+    ILU_C_RAISE_SYSTEM(_status, BAD_PARAM, ilu_bpm_nil, NO);
+    return _ret;
+  }
+  _f = (NgProperty_PropertySequence* (*)(NgProperty_PropertySet, NgProperty_PropertyNames*, ILU_C_ENVIRONMENT *)) _ILU_C_FindMethod (_handle, _NgProperty_PropertySet__ILUType, 0);
+  _status->_major = ILU_C_NO_EXCEPTION;
+  _status->ptr = ILU_NIL;
+  _status->freeRoutine = (void(*)(void *)) 0;
+  _status->returnCode = (ilu_Exception) 0;
+  return ((*_f)(_handle, propertiesToGet, _status));
+}
+
+void NgProperty_PutablePropertySet__SetUserData (NgProperty_PutablePropertySet self, void *userData)
+{
+  ((ILU_C_Object *) self)->instanceData = userData;
+}
+
+void *NgProperty_PutablePropertySet__GetUserData (NgProperty_PutablePropertySet self)
+{
+  return(((ILU_C_Object *) self)->instanceData);
+}
+
+void NgProperty_PropertySet__SetUserData (NgProperty_PropertySet self, void *userData)
+{
+  ((ILU_C_Object *) self)->instanceData = userData;
+}
+
+void *NgProperty_PropertySet__GetUserData (NgProperty_PropertySet self)
+{
+  return(((ILU_C_Object *) self)->instanceData);
+}
+
+ILU_C_ExceptionCode _NgProperty__Exception_UnknownPropertyNames = ILU_NIL;
+#include <stdarg.h>
+
+void NgProperty__BindExceptionValue (ILU_C_ENVIRONMENT *stat, ilu_Exception exception, ...)
+{
+  va_list ap;
+  va_start (ap, exception);
+  stat->_major = ILU_C_USER_EXCEPTION;
+  stat->returnCode = exception;
+  if (exception == NULL)
+    /* no exception */;
+  else if (stat->returnCode == ex_NgProperty_UnknownPropertyNames) {
+    stat->ptr = (void *) ilu_must_malloc (sizeof (NgBasic_NameSequence));
+    *(NgBasic_NameSequence*)stat->ptr = *va_arg (ap, NgBasic_NameSequence*);
+    stat->freeRoutine = (void (*) (void *)) NgBasic_NameSequence__Free;
+  }
+  else if (stat->returnCode == ex_NgBasic_WouldBlock) {
+    stat->ptr = (void *) ilu_must_malloc (sizeof (NgBasic_ExceptionInformation));
+    *(NgBasic_ExceptionInformation*)stat->ptr = *va_arg (ap, NgBasic_ExceptionInformation*);
+    stat->freeRoutine = (void (*) (void *)) NgBasic_ExceptionInformation__Free;
+  }
+  else if (stat->returnCode == ex_NgBasic_ObjectNotExist) {
+    stat->ptr = (void *) ilu_must_malloc (sizeof (NgBasic_ExceptionInformation));
+    *(NgBasic_ExceptionInformation*)stat->ptr = *va_arg (ap, NgBasic_ExceptionInformation*);
+    stat->freeRoutine = (void (*) (void *)) NgBasic_ExceptionInformation__Free;
+  }
+  else if (stat->returnCode == ex_NgBasic_Conflict) {
+    stat->ptr = (void *) ilu_must_malloc (sizeof (NgBasic_ExceptionInformation));
+    *(NgBasic_ExceptionInformation*)stat->ptr = *va_arg (ap, NgBasic_ExceptionInformation*);
+    stat->freeRoutine = (void (*) (void *)) NgBasic_ExceptionInformation__Free;
+  }
+  else
+    _ilu_Assert(0, "bad exn given to NgProperty__BindExceptionValue");
+  va_end (ap);
+}
+
+void NgProperty_PutablePropertySet__Free (NgProperty_PutablePropertySet* _val)
+{
+  /* What you put in the freeRoutine member of a CORBA_Environment for an exception parameterized by a NgProperty_PutablePropertySet */
+  /* frees allocated storage inside _val (if any), but does not free(_val) */
+  CORBA_Environment env = {0};
+  if ((_val == ILU_NIL) || (*_val == ILU_NIL)) return;
+  CORBA_Object_release(*_val, &env);
+  *_val = 0;
+}
+
+NgProperty_PutablePropertySet *CORBA_sequence_NgProperty_PutablePropertySet_allocbuf (CORBA_unsigned_long _count)
+{
+  NgProperty_PutablePropertySet *_p;
+  CORBA_unsigned_long _size = sizeof(NgProperty_PutablePropertySet) * _count;
+
+  if ((_p = (NgProperty_PutablePropertySet *) ilu_malloc(_size)) == ILU_NIL)
+    { _ILU_C_MallocFailure(_size); return 0; }
+  else
+    { memset((void *) _p, 0, _size);  return _p; }
+}
+
+NgProperty_PropertyModificationSequence* _NgProperty_PropertyModificationSequence__Input (ilu_Call _call, NgProperty_PropertyModificationSequence* _ref, ilu_Error *_err)
+{
+  NgProperty_PropertyModificationSequence* _val = _ref;
+
+  ilu_cardinal _count=0, _index=0;
+  NgProperty_PropertyModification _tmp;
+#if defined(ADD_TYPE_REGISTRATION_SUPPORT)
+  ilu_boolean blockmove = ilu_FALSE;
+  ilu_cardinal aligncode,size;
+  ilu_bytes* nec;
+  _ILU_C_AlignmentProc alignproc;
+#endif
+
+  if (_ref == ILU_NIL) {
+    _val = (NgProperty_PropertyModificationSequence*) ilu_MallocE(sizeof (NgProperty_PropertyModificationSequence), _err);
+    if (_val == ILU_NIL)  goto marshalError;
+  };
+  NgProperty_PropertyModificationSequence_Init(_val, 0, NULL);
+  ilu_InputSequence (_call, &_count, 0, ILU_C_KERNEL_TYPE(NgProperty_PropertyModificationSequence), _err);
+  if (ILU_ERRNOK(*_err)) goto marshalError;
+#if defined(ADD_TYPE_REGISTRATION_SUPPORT)
+    blockmove = _ILU_C_CanMoveAsBlock (_call, ILU_C_KERNEL_TYPE(NgProperty_PropertyModification), _count, &aligncode, &alignproc, _err);
+    if (ILU_ERRNOK(*_err)) goto marshalError;
+    if (blockmove) {
+      if (alignproc != ((_ILU_C_AlignmentProc)0)) {
+        size = (*alignproc) (_call, aligncode, _err);
+        if (ILU_ERRNOK(*_err)) goto marshalError;
+        nec = (ilu_byte*)malloc(size);
+        ilu_InputOpaque(_call, &nec, size, _err);
+        free(nec);
+        if (ILU_ERRNOK(*_err)) goto marshalError;
+      };
+      ilu_InputOpaque (_call, (ilu_bytes *) &_val->_buffer, _count * sizeof(NgProperty_PropertyModification), _err);
+      if (ILU_ERRNOK(*_err)) goto marshalError;
+      if (_val->_maximum < _count) _val->_maximum = _count;
+      _val->_length = _count;
+    } else
+#endif
+    for (_index = 0;  _index < _count;  _index++) {
+      (void) _NgProperty_PropertyModification__Input (_call, &_tmp,  _err); if (ILU_ERRNOK(*_err)) goto marshalError;
+      if (ILU_ERRNOK(*_err))
+         goto marshalError;
+      NgProperty_PropertyModificationSequence_Append (_val, &_tmp, _err);
+      if (ILU_ERRNOK(*_err)) goto marshalError;
+    }
+  ilu_EndSequence (_call, _err);
+ marshalError:
+  if (ILU_ERROK(*_err)) return _val;
+  if ((_val != ILU_NIL) && (_ref == ILU_NIL))
+    { ilu_free(_val);
+      _val = ILU_NIL;
+     };
+  return _val;
+}
+
+void _NgProperty_PropertyModificationSequence__Output (ilu_Call _call, NgProperty_PropertyModificationSequence* _val, ilu_Error *_err)
+{
+  if (_val == NULL) {
+    ILU_ERR_CONS1(bad_param, _err, minor, ilu_bpm_nil, 0);
+    return;
+  };
+  {
+#if defined(ADD_TYPE_REGISTRATION_SUPPORT)
+    ilu_boolean blockmove = ilu_FALSE;
+    ilu_cardinal aligncode,size;
+    ilu_bytes* nec;
+    _ILU_C_AlignmentProc alignproc;
+#endif
+    ilu_OutputSequence (_call, _val->_length, 0, ILU_C_KERNEL_TYPE(NgProperty_PropertyModificationSequence), _err);
+    if (ILU_ERRNOK(*_err)) return;
+#if defined(ADD_TYPE_REGISTRATION_SUPPORT)
+    blockmove = _ILU_C_CanMoveAsBlock (_call,  ILU_C_KERNEL_TYPE(NgProperty_PropertyModification), _val->_length, &aligncode, &alignproc, _err);
+    if (ILU_ERRNOK(*_err)) goto marshalError;
+    if (blockmove) {
+      if (alignproc != ((_ILU_C_AlignmentProc)0)) {
+        size = (*alignproc) (_call, aligncode, _err);
+        if (ILU_ERRNOK(*_err)) goto marshalError;
+        nec = (ilu_byte*)calloc(size, 1);
+        ilu_OutputOpaque(_call, nec, size, _err);
+        free(nec);
+        if (ILU_ERRNOK(*_err)) goto marshalError;
+      };
+      ilu_OutputOpaque (_call, (ilu_bytes) _val->_buffer, _val->_length * sizeof(NgProperty_PropertyModification), _err);
+      if (ILU_ERRNOK(*_err)) return;
+    } else
+#endif
+    {
+    NgProperty_PropertyModification *p;  unsigned long i;
+
+      for (p = _val->_buffer, i = 0;  i < _val->_length;  p++, i++)
+        {
+        _NgProperty_PropertyModification__Output(_call, p, _err); if (ILU_ERRNOK(*_err)) goto marshalError;
+        }
+    }
+    ilu_EndSequence (_call, _err);
+  }
+ marshalError:
+  return;
+}
+
+ilu_cardinal _NgProperty_PropertyModificationSequence__SizeOf (ilu_Call _call, NgProperty_PropertyModificationSequence* _val, ilu_Error *_err)
+{
+  ilu_cardinal size = 0;
+
+#if defined(ADD_TYPE_REGISTRATION_SUPPORT)
+  ilu_boolean blockmove = ilu_FALSE;
+  ilu_cardinal aligncode;
+  _ILU_C_AlignmentProc alignproc;
+#endif
+
+  size = ilu_SizeOfSequence (_call, _val->_length, 0, ILU_C_KERNEL_TYPE(NgProperty_PropertyModificationSequence), _err);
+  if (ILU_ERRNOK(*_err)) return 0;
+#if defined(ADD_TYPE_REGISTRATION_SUPPORT)
+  blockmove = _ILU_C_CanMoveAsBlock (_call,  ILU_C_KERNEL_TYPE(NgProperty_PropertyModification), _val->_length, &aligncode, &alignproc, _err);
+  if (ILU_ERRNOK(*_err)) return 0;
+  if (blockmove) {
+    if (alignproc != ((_ILU_C_AlignmentProc)0)) {
+      size += (*alignproc) (_call, aligncode, _err);
+      if (ILU_ERRNOK(*_err)) return 0;
+    };
+    size += ilu_SizeOfOpaque (_call, (ilu_bytes) (_val->_buffer), _val->_length * sizeof(NgProperty_PropertyModification), _err);
+    if (ILU_ERRNOK(*_err)) return 0;
+  } else
+#endif
+  {
+    NgProperty_PropertyModification *p;  unsigned long i;
+
+    for (p = _val->_buffer, i = 0;  i < _val->_length;  p++, i++)
+    {
+      size += _NgProperty_PropertyModification__SizeOf (_call, &*p, _err);
+      if (ILU_ERRNOK(*_err)) return 0;
+    }
+  }
+  ilu_EndSequence (_call, _err);
+  if (ILU_ERRNOK(*_err)) return 0;
+  return size;
+}
+
+void NgProperty_PropertyModificationSequence__Free (NgProperty_PropertyModificationSequence* _val)
+{
+  /* What you put in the freeRoutine member of a CORBA_Environment for an exception parameterized by a NgProperty_PropertyModificationSequence */
+  /* frees allocated storage inside _val (if any), but does not free(_val) */
+  if (_val == ILU_NIL) return;
+  /* 更严密的过滤条件使得缺陷对象不被释放，防止野指针导致服务失败  */
+  //if (_val->_buffer != ILU_NIL) ilu_DebugPrintf("\n   _length=%lu _maximum=%lu buffer_size=%lu real_size=%lu\n", _val->_length, _val->_maximum, sizeof(_val->_buffer), ((_val->_length) * sizeof(NgProperty_PropertyModification)));
+  if ((_val->_buffer != ILU_NIL)  && (0 < _val->_length)  &&  
+      (_val->_length <= _val->_maximum) && (_val->_maximum <= (_val->_length+5)) /*  &&  
+      (sizeof(_val->_buffer) >= (_val->_length  * sizeof(NgProperty_PropertyModification)))  &&  
+      (sizeof(_val->_buffer) <= (2 * _val->_maximum * sizeof(NgProperty_PropertyModification))) */ ) {
+    unsigned long i;
+    for (i = 0;  i < _val->_length;  i++)
+    {
+          NgProperty_PropertyModification__Free (&_val->_buffer[i]);
+    }
+    //ilu_DebugPrintf("OK NgProperty_PropertyModificationSequence__Free (NgProperty_PropertyModificationSequence* _val=%p)\n", (unsigned long) _val);
+    ilu_free(_val->_buffer);
+    }
+  _val->_length = 0;
+  _val->_maximum = 0;
+  _val->_buffer = ILU_NIL;
+}
+
+NgProperty_PropertyModificationSequence *CORBA_sequence_NgProperty_PropertyModificationSequence_allocbuf (CORBA_unsigned_long _count)
+{
+  NgProperty_PropertyModificationSequence *_p;
+  CORBA_unsigned_long _size = sizeof(NgProperty_PropertyModificationSequence) * _count;
+
+  if ((_p = (NgProperty_PropertyModificationSequence *) ilu_malloc(_size)) == ILU_NIL)
+    { _ILU_C_MallocFailure(_size); return 0; }
+  else
+    { memset((void *) _p, 0, _size);  return _p; }
+}
+
+NgProperty_PropertyModificationSequence* NgProperty_PropertyModificationSequence__alloc ()
+{
+  return ((NgProperty_PropertyModificationSequence*) CORBA_sequence_NgProperty_PropertyModificationSequence_allocbuf(1));
+}
+
+NgProperty_PropertyModification* _NgProperty_PropertyModification__Input (ilu_Call _call, NgProperty_PropertyModification* _ref, ilu_Error *_err)
+{
+  NgProperty_PropertyModification* _val = _ref;
+
+  _ILU_C_CRInfo s = ILU_NIL;
+  if ((_NgProperty_PropertyModification__IoFns.properties.value_size & 0x80000000) != 0)
+    s = _ILU_C_GetCRInfo(&_NgProperty_PropertyModification__IoFns);
+  if (_ref == ILU_NIL) {
+    if (s == ILU_NIL) {
+      _val = (NgProperty_PropertyModification*) ilu_MallocE (sizeof (NgProperty_PropertyModification), _err);
+      if (ILU_ERRNOK(*_err)) goto marshalError;
+      memset((void*) _val, 0, sizeof(NgProperty_PropertyModification));
+    } else {
+      _val = (NgProperty_PropertyModification*) _ILU_C_CRCreate (s, sizeof(NgProperty_PropertyModification), _err);
+      if (ILU_ERRNOK(*_err)) goto marshalError;
+      if (_val == ILU_NIL) goto marshalError;
+    }
+  };
+  ilu_InputRecord (_call, ILU_C_KERNEL_TYPE(NgProperty_PropertyModification), _err);
+  if (ILU_ERRNOK(*_err)) goto marshalError;
+  (void) _NgBasic_String__Input (_call, &_val->propertyName,  _err); if (ILU_ERRNOK(*_err)) goto marshalError;
+  {
+    ilu_shortcardinal _xxx;
+    ilu_InputEnum (_call, &_xxx, (ilu_Type)ILU_NIL, _err); if (ILU_ERRNOK(*_err)) goto marshalError;
+    *&_val->modification = (NgProperty_PropertyModificationKind) _xxx;
+  };
+  (void) _NgBasic_OptionalPickle__Input (_call, &_val->value,  _err); if (ILU_ERRNOK(*_err)) goto marshalError;
+  ilu_EndRecord (_call, _err);
+  if (ILU_ERRNOK(*_err)) goto marshalError;
+  if (s != ILU_NIL) _ILU_C_CRPostInput (s, _val, _err);
+ marshalError:
+  if (ILU_ERROK(*_err)) return _val;
+  if ((_val != ILU_NIL) && (_ref == ILU_NIL))
+    { ilu_free(_val);
+      _val = ILU_NIL;
+     };
+  return _val;
+}
+
+void _NgProperty_PropertyModification__Output (ilu_Call _call, NgProperty_PropertyModification* _val, ilu_Error *_err)
+{
+  if (_val == NULL) {
+    ILU_ERR_CONS1(bad_param, _err, minor, ilu_bpm_nil, 0);
+    return;
+  };
+  {
+    _ILU_C_CRInfo s = ILU_NIL;
+    if ((_NgProperty_PropertyModification__IoFns.properties.value_size & 0x80000000) != 0)
+      s = _ILU_C_GetCRInfo(&_NgProperty_PropertyModification__IoFns);
+    if (s != ILU_NIL) { _ILU_C_CRPreOutput (s, _val, _err); if (ILU_ERRNOK(*_err)) return; };
+    ilu_OutputRecord (_call, ILU_C_KERNEL_TYPE(NgProperty_PropertyModification), _err);
+    if (ILU_ERRNOK(*_err)) return;
+  _NgBasic_String__Output(_call, (_val->propertyName), _err); if (ILU_ERRNOK(*_err)) goto marshalError;
+  ilu_OutputEnum (_call, (ilu_shortcardinal) (_val->modification), (ilu_Type)ILU_NIL, _err); if (ILU_ERRNOK(*_err)) goto marshalError;
+  _NgBasic_OptionalPickle__Output(_call, (_val->value), _err); if (ILU_ERRNOK(*_err)) goto marshalError;
+    ilu_EndRecord (_call, _err);
+    if (s != ILU_NIL) { _ILU_C_CRPostOutput (s, _val, _err); if (ILU_ERRNOK(*_err)) return; };
+  }
+ marshalError:
+  return;
+}
+
+ilu_cardinal _NgProperty_PropertyModification__SizeOf (ilu_Call _call, NgProperty_PropertyModification* _val, ilu_Error *_err)
+{
+  ilu_cardinal size = 0;
+
+  _ILU_C_CRInfo s = ILU_NIL;
+  if ((_NgProperty_PropertyModification__IoFns.properties.value_size & 0x80000000) != 0)
+    s = _ILU_C_GetCRInfo(&_NgProperty_PropertyModification__IoFns);
+    if (s != ILU_NIL) { _ILU_C_CRPreOutput (s, _val, _err); if (ILU_ERRNOK(*_err)) return 0;}
+  size = ilu_SizeOfRecord (_call, ILU_C_KERNEL_TYPE(NgProperty_PropertyModification), _err);
+  if (ILU_ERRNOK(*_err)) return 0;
+  size += _NgBasic_String__SizeOf (_call, _val->propertyName, _err);
+  if (ILU_ERRNOK(*_err)) return 0;
+  size += ilu_SizeOfEnum(_call, (ilu_shortcardinal) _val->modification, (ilu_Type)ILU_NIL,  _err);
+  if (ILU_ERRNOK(*_err)) return 0;
+  size += _NgBasic_OptionalPickle__SizeOf (_call, _val->value, _err);
+  if (ILU_ERRNOK(*_err)) return 0;
+  ilu_EndRecord (_call, _err);
+  if (ILU_ERRNOK(*_err)) return 0;
+  return size;
+}
+
+void NgProperty_PropertyModification__Free (NgProperty_PropertyModification* _val)
+{
+  /* What you put in the freeRoutine member of a CORBA_Environment for an exception parameterized by a NgProperty_PropertyModification */
+  /* frees allocated storage inside _val (if any), but does not free(_val) */
+  _ILU_C_CRInfo s = ILU_NIL;
+  if (_val == ILU_NIL) return;
+  if ((_NgProperty_PropertyModification__IoFns.properties.value_size & 0x80000000) != 0)
+    s = _ILU_C_GetCRInfo(&_NgProperty_PropertyModification__IoFns);
+  if (s != ILU_NIL) _ILU_C_CRFree (s, _val);
+  NgBasic_String__Free (&_val->propertyName);
+  NgBasic_OptionalPickle__Free (&_val->value);
+}
+
+NgProperty_PropertyModification *CORBA_sequence_NgProperty_PropertyModification_allocbuf (CORBA_unsigned_long _count)
+{
+  NgProperty_PropertyModification *_p;
+  CORBA_unsigned_long _size = sizeof(NgProperty_PropertyModification) * _count;
+
+  if ((_p = (NgProperty_PropertyModification *) ilu_malloc(_size)) == ILU_NIL)
+    { _ILU_C_MallocFailure(_size); return 0; }
+  else
+    { memset((void *) _p, 0, _size);  return _p; }
+}
+
+NgProperty_PropertyModification* NgProperty_PropertyModification__alloc ()
+{
+  return ((NgProperty_PropertyModification*) CORBA_sequence_NgProperty_PropertyModification_allocbuf(1));
+}
+
+NgProperty_PropertyModificationKind *CORBA_sequence_NgProperty_PropertyModificationKind_allocbuf (CORBA_unsigned_long _count)
+{
+  NgProperty_PropertyModificationKind *_p;
+  CORBA_unsigned_long _size = sizeof(NgProperty_PropertyModificationKind) * _count;
+
+  if ((_p = (NgProperty_PropertyModificationKind *) ilu_malloc(_size)) == ILU_NIL)
+    { _ILU_C_MallocFailure(_size); return 0; }
+  else
+    { memset((void *) _p, 0, _size);  return _p; }
+}
+
+void NgProperty_PropertySet__Free (NgProperty_PropertySet* _val)
+{
+  /* What you put in the freeRoutine member of a CORBA_Environment for an exception parameterized by a NgProperty_PropertySet */
+  /* frees allocated storage inside _val (if any), but does not free(_val) */
+  CORBA_Environment env = {0};
+  if ((_val == ILU_NIL) || (*_val == ILU_NIL)) return;
+  CORBA_Object_release(*_val, &env);
+  *_val = 0;
+}
+
+NgProperty_PropertySet *CORBA_sequence_NgProperty_PropertySet_allocbuf (CORBA_unsigned_long _count)
+{
+  NgProperty_PropertySet *_p;
+  CORBA_unsigned_long _size = sizeof(NgProperty_PropertySet) * _count;
+
+  if ((_p = (NgProperty_PropertySet *) ilu_malloc(_size)) == ILU_NIL)
+    { _ILU_C_MallocFailure(_size); return 0; }
+  else
+    { memset((void *) _p, 0, _size);  return _p; }
+}
+
+NgProperty_PropertySequence* _NgProperty_PropertySequence__Input (ilu_Call _call, NgProperty_PropertySequence* _ref, ilu_Error *_err)
+{
+  NgProperty_PropertySequence* _val = _ref;
+
+  ilu_cardinal _count=0, _index=0;
+  NgBasic_NameValuePair _tmp;
+#if defined(ADD_TYPE_REGISTRATION_SUPPORT)
+  ilu_boolean blockmove = ilu_FALSE;
+  ilu_cardinal aligncode,size;
+  ilu_bytes* nec;
+  _ILU_C_AlignmentProc alignproc;
+#endif
+
+  if (_ref == ILU_NIL) {
+    _val = (NgProperty_PropertySequence*) ilu_MallocE(sizeof (NgProperty_PropertySequence), _err);
+    if (_val == ILU_NIL)  goto marshalError;
+  };
+  NgProperty_PropertySequence_Init(_val, 0, NULL);
+  ilu_InputSequence (_call, &_count, 0, ILU_C_KERNEL_TYPE(NgProperty_PropertySequence), _err);
+  if (ILU_ERRNOK(*_err)) goto marshalError;
+#if defined(ADD_TYPE_REGISTRATION_SUPPORT)
+    blockmove = _ILU_C_CanMoveAsBlock (_call, ILU_C_KERNEL_TYPE(NgBasic_NameValuePair), _count, &aligncode, &alignproc, _err);
+    if (ILU_ERRNOK(*_err)) goto marshalError;
+    if (blockmove) {
+      if (alignproc != ((_ILU_C_AlignmentProc)0)) {
+        size = (*alignproc) (_call, aligncode, _err);
+        if (ILU_ERRNOK(*_err)) goto marshalError;
+        nec = (ilu_byte*)malloc(size);
+        ilu_InputOpaque(_call, &nec, size, _err);
+        free(nec);
+        if (ILU_ERRNOK(*_err)) goto marshalError;
+      };
+      ilu_InputOpaque (_call, (ilu_bytes *) &_val->_buffer, _count * sizeof(NgBasic_NameValuePair), _err);
+      if (ILU_ERRNOK(*_err)) goto marshalError;
+      if (_val->_maximum < _count) _val->_maximum = _count;
+      _val->_length = _count;
+    } else
+#endif
+    for (_index = 0;  _index < _count;  _index++) {
+      (void) _NgBasic_NameValuePair__Input (_call, &_tmp,  _err); if (ILU_ERRNOK(*_err)) goto marshalError;
+      if (ILU_ERRNOK(*_err))
+         goto marshalError;
+      NgProperty_PropertySequence_Append (_val, &_tmp, _err);
+      if (ILU_ERRNOK(*_err)) goto marshalError;
+    }
+  ilu_EndSequence (_call, _err);
+ marshalError:
+  if (ILU_ERROK(*_err)) return _val;
+  if ((_val != ILU_NIL) && (_ref == ILU_NIL))
+    { ilu_free(_val);
+      _val = ILU_NIL;
+     };
+  return _val;
+}
+
+void _NgProperty_PropertySequence__Output (ilu_Call _call, NgProperty_PropertySequence* _val, ilu_Error *_err)
+{
+  if (_val == NULL) {
+    ILU_ERR_CONS1(bad_param, _err, minor, ilu_bpm_nil, 0);
+    return;
+  };
+  {
+#if defined(ADD_TYPE_REGISTRATION_SUPPORT)
+    ilu_boolean blockmove = ilu_FALSE;
+    ilu_cardinal aligncode,size;
+    ilu_bytes* nec;
+    _ILU_C_AlignmentProc alignproc;
+#endif
+    ilu_OutputSequence (_call, _val->_length, 0, ILU_C_KERNEL_TYPE(NgProperty_PropertySequence), _err);
+    if (ILU_ERRNOK(*_err)) return;
+#if defined(ADD_TYPE_REGISTRATION_SUPPORT)
+    blockmove = _ILU_C_CanMoveAsBlock (_call,  ILU_C_KERNEL_TYPE(NgBasic_NameValuePair), _val->_length, &aligncode, &alignproc, _err);
+    if (ILU_ERRNOK(*_err)) goto marshalError;
+    if (blockmove) {
+      if (alignproc != ((_ILU_C_AlignmentProc)0)) {
+        size = (*alignproc) (_call, aligncode, _err);
+        if (ILU_ERRNOK(*_err)) goto marshalError;
+        nec = (ilu_byte*)calloc(size, 1);
+        ilu_OutputOpaque(_call, nec, size, _err);
+        free(nec);
+        if (ILU_ERRNOK(*_err)) goto marshalError;
+      };
+      ilu_OutputOpaque (_call, (ilu_bytes) _val->_buffer, _val->_length * sizeof(NgBasic_NameValuePair), _err);
+      if (ILU_ERRNOK(*_err)) return;
+    } else
+#endif
+    {
+    NgBasic_NameValuePair *p;  unsigned long i;
+
+      for (p = _val->_buffer, i = 0;  i < _val->_length;  p++, i++)
+        {
+        _NgBasic_NameValuePair__Output(_call, p, _err); if (ILU_ERRNOK(*_err)) goto marshalError;
+        }
+    }
+    ilu_EndSequence (_call, _err);
+  }
+ marshalError:
+  return;
+}
+
+ilu_cardinal _NgProperty_PropertySequence__SizeOf (ilu_Call _call, NgProperty_PropertySequence* _val, ilu_Error *_err)
+{
+  ilu_cardinal size = 0;
+
+#if defined(ADD_TYPE_REGISTRATION_SUPPORT)
+  ilu_boolean blockmove = ilu_FALSE;
+  ilu_cardinal aligncode;
+  _ILU_C_AlignmentProc alignproc;
+#endif
+
+  size = ilu_SizeOfSequence (_call, _val->_length, 0, ILU_C_KERNEL_TYPE(NgProperty_PropertySequence), _err);
+  if (ILU_ERRNOK(*_err)) return 0;
+#if defined(ADD_TYPE_REGISTRATION_SUPPORT)
+  blockmove = _ILU_C_CanMoveAsBlock (_call,  ILU_C_KERNEL_TYPE(NgBasic_NameValuePair), _val->_length, &aligncode, &alignproc, _err);
+  if (ILU_ERRNOK(*_err)) return 0;
+  if (blockmove) {
+    if (alignproc != ((_ILU_C_AlignmentProc)0)) {
+      size += (*alignproc) (_call, aligncode, _err);
+      if (ILU_ERRNOK(*_err)) return 0;
+    };
+    size += ilu_SizeOfOpaque (_call, (ilu_bytes) (_val->_buffer), _val->_length * sizeof(NgProperty_Property), _err);
+    if (ILU_ERRNOK(*_err)) return 0;
+  } else
+#endif
+  {
+    NgProperty_Property *p;  unsigned long i;
+
+    for (p = _val->_buffer, i = 0;  i < _val->_length;  p++, i++)
+    {
+      size += _NgBasic_NameValuePair__SizeOf (_call, &*p, _err);
+      if (ILU_ERRNOK(*_err)) return 0;
+    }
+  }
+  ilu_EndSequence (_call, _err);
+  if (ILU_ERRNOK(*_err)) return 0;
+  return size;
+}
+
+void NgProperty_PropertySequence__Free (NgProperty_PropertySequence* _val)
+{
+  /* What you put in the freeRoutine member of a CORBA_Environment for an exception parameterized by a NgProperty_PropertySequence */
+  /* frees allocated storage inside _val (if any), but does not free(_val) */
+  if (_val == ILU_NIL) return;
+  /* 更严密的过滤条件使得缺陷对象不被释放，防止野指针导致服务失败  */
+  //if (_val->_buffer != ILU_NIL) ilu_DebugPrintf("\n   _length=%lu _maximum=%lu buffer_size=%lu real_size=%lu\n", _val->_length, _val->_maximum, sizeof(_val->_buffer), ((_val->_length) * sizeof(NgBasic_NameValuePair)));
+  if ((_val->_buffer != ILU_NIL)  && (0 < _val->_length)  &&  
+      (_val->_length <= _val->_maximum) && (_val->_maximum <= (_val->_length+5)) /*  &&  
+      (sizeof(_val->_buffer) >= (_val->_length  * sizeof(NgBasic_NameValuePair)))  &&  
+      (sizeof(_val->_buffer) <= (2 * _val->_maximum * sizeof(NgBasic_NameValuePair))) */ ) {
+    unsigned long i;
+    for (i = 0;  i < _val->_length;  i++)
+    {
+          NgBasic_NameValuePair__Free (&_val->_buffer[i]);
+    }
+    //ilu_DebugPrintf("OK NgProperty_PropertySequence__Free (NgProperty_PropertySequence* _val=%p)\n", (unsigned long) _val);
+    ilu_free(_val->_buffer);
+    }
+  _val->_length = 0;
+  _val->_maximum = 0;
+  _val->_buffer = ILU_NIL;
+}
+
+NgProperty_PropertySequence *CORBA_sequence_NgProperty_PropertySequence_allocbuf (CORBA_unsigned_long _count)
+{
+  NgProperty_PropertySequence *_p;
+  CORBA_unsigned_long _size = sizeof(NgProperty_PropertySequence) * _count;
+
+  if ((_p = (NgProperty_PropertySequence *) ilu_malloc(_size)) == ILU_NIL)
+    { _ILU_C_MallocFailure(_size); return 0; }
+  else
+    { memset((void *) _p, 0, _size);  return _p; }
+}
+
+NgProperty_PropertySequence* NgProperty_PropertySequence__alloc ()
+{
+  return ((NgProperty_PropertySequence*) CORBA_sequence_NgProperty_PropertySequence_allocbuf(1));
+}
+
+void NgProperty_PropertyModificationSequence_Every (NgProperty_PropertyModificationSequence *h, void (*f)(NgProperty_PropertyModification*, void *, ilu_Error *), void * data)
+{
+  _ILU_C_EveryElement ((ILU_C_Sequence) h, (void (*)(void *, void *, ilu_Error *)) f, sizeof(NgProperty_PropertyModification), (void *) data);
+}
+
+void NgProperty_PropertyModificationSequence_Append (NgProperty_PropertyModificationSequence *h, NgProperty_PropertyModification* item, ilu_Error* err)
+{
+  _ILU_C_AppendGeneric ((ILU_C_Sequence) h, (char *) item, sizeof(NgProperty_PropertyModification), err);
+}
+
+void NgProperty_PropertyModificationSequence_Push (NgProperty_PropertyModificationSequence *h, NgProperty_PropertyModification* item)
+{
+  _ILU_C_PushGeneric ((ILU_C_Sequence) h, (char *) item, sizeof(NgProperty_PropertyModification));
+}
+
+void NgProperty_PropertyModificationSequence_Pop (NgProperty_PropertyModificationSequence *h, NgProperty_PropertyModification* item)
+{
+  _ILU_C_PopGeneric ((ILU_C_Sequence) h, (char *) item, sizeof(NgProperty_PropertyModification));
+}
+
+CORBA_unsigned_long NgProperty_PropertyModificationSequence_Length (NgProperty_PropertyModificationSequence *h)
+{
+  if (h == ILU_NIL)
+    return 0;
+  else return h->_length;
+}
+
+NgProperty_PropertyModification * NgProperty_PropertyModificationSequence_Nth (NgProperty_PropertyModificationSequence *h, CORBA_unsigned_long n)
+{
+  if (h == ILU_NIL || (n >= h->_length))
+    return ILU_NIL;
+  else return &(h->_buffer[n]);
+}
+
+NgProperty_PropertyModificationSequence * NgProperty_PropertyModificationSequence_Create (CORBA_unsigned_long sz, NgProperty_PropertyModification* p)
+{
+  NgProperty_PropertyModificationSequence *s;
+  s = (NgProperty_PropertyModificationSequence *) ilu_malloc(sizeof(NgProperty_PropertyModificationSequence));
+  if (s == ILU_NIL) { _ILU_C_MallocFailure(sizeof(NgProperty_PropertyModificationSequence)); return ILU_NIL; };
+  s->_maximum = sz;
+  s->_length = (sz > 0 && p != ILU_NIL) ? sz : 0;
+  s->_buffer = (p != ILU_NIL) ? p : ((sz > 0) ? ((NgProperty_PropertyModification *) ilu_malloc(sz * sizeof(NgProperty_PropertyModification))) : ILU_NIL);
+  if ((s->_buffer == ILU_NIL) && sz > 0 && p == ILU_NIL) {
+    _ILU_C_MallocFailure(sz * sizeof(NgProperty_PropertyModification));  ilu_free(s);  return ILU_NIL; };
+  return s;
+}
+
+void NgProperty_PropertyModificationSequence_Init (NgProperty_PropertyModificationSequence *s, CORBA_unsigned_long sz, NgProperty_PropertyModification* p)
+{
+  if (sz == 0 && p != ILU_NIL)
+    return;
+  if (sz > 0)
+    s->_maximum = sz;
+  else
+    s->_maximum = 0;
+  if (sz > 0 && p != ILU_NIL)
+    s->_length = sz;
+  else
+    s->_length = 0;
+  if (sz > 0 && p == ILU_NIL) {
+    s->_buffer = (NgProperty_PropertyModification *) ilu_malloc (sz * sizeof (NgProperty_PropertyModification));
+    if (s->_buffer == ILU_NIL || s->_buffer == NULL) {
+      s->_length = 0;
+      s->_maximum = 0;
+      _ILU_C_MallocFailure(sz * sizeof(NgProperty_PropertyModification)); }}
+  else
+    s->_buffer = p;
+  return;
+}
+
+void NgProperty_PropertySequence_Every (NgProperty_PropertySequence *h, void (*f)(NgProperty_Property*, void *, ilu_Error *), void * data)
+{
+  _ILU_C_EveryElement ((ILU_C_Sequence) h, (void (*)(void *, void *, ilu_Error *)) f, sizeof(NgProperty_Property), (void *) data);
+}
+
+void NgProperty_PropertySequence_Append (NgProperty_PropertySequence *h, NgProperty_Property* item, ilu_Error* err)
+{
+  _ILU_C_AppendGeneric ((ILU_C_Sequence) h, (char *) item, sizeof(NgProperty_Property), err);
+}
+
+void NgProperty_PropertySequence_Push (NgProperty_PropertySequence *h, NgProperty_Property* item)
+{
+  _ILU_C_PushGeneric ((ILU_C_Sequence) h, (char *) item, sizeof(NgProperty_Property));
+}
+
+void NgProperty_PropertySequence_Pop (NgProperty_PropertySequence *h, NgProperty_Property* item)
+{
+  _ILU_C_PopGeneric ((ILU_C_Sequence) h, (char *) item, sizeof(NgProperty_Property));
+}
+
+CORBA_unsigned_long NgProperty_PropertySequence_Length (NgProperty_PropertySequence *h)
+{
+  if (h == ILU_NIL)
+    return 0;
+  else return h->_length;
+}
+
+NgProperty_Property * NgProperty_PropertySequence_Nth (NgProperty_PropertySequence *h, CORBA_unsigned_long n)
+{
+  if (h == ILU_NIL || (n >= h->_length))
+    return ILU_NIL;
+  else return &(h->_buffer[n]);
+}
+
+NgProperty_PropertySequence * NgProperty_PropertySequence_Create (CORBA_unsigned_long sz, NgProperty_Property* p)
+{
+  NgProperty_PropertySequence *s;
+  s = (NgProperty_PropertySequence *) ilu_malloc(sizeof(NgProperty_PropertySequence));
+  if (s == ILU_NIL) { _ILU_C_MallocFailure(sizeof(NgProperty_PropertySequence)); return ILU_NIL; };
+  s->_maximum = sz;
+  s->_length = (sz > 0 && p != ILU_NIL) ? sz : 0;
+  s->_buffer = (p != ILU_NIL) ? p : ((sz > 0) ? ((NgProperty_Property *) ilu_malloc(sz * sizeof(NgProperty_Property))) : ILU_NIL);
+  if ((s->_buffer == ILU_NIL) && sz > 0 && p == ILU_NIL) {
+    _ILU_C_MallocFailure(sz * sizeof(NgProperty_Property));  ilu_free(s);  return ILU_NIL; };
+  return s;
+}
+
+void NgProperty_PropertySequence_Init (NgProperty_PropertySequence *s, CORBA_unsigned_long sz, NgProperty_Property* p)
+{
+  if (sz == 0 && p != ILU_NIL)
+    return;
+  if (sz > 0)
+    s->_maximum = sz;
+  else
+    s->_maximum = 0;
+  if (sz > 0 && p != ILU_NIL)
+    s->_length = sz;
+  else
+    s->_length = 0;
+  if (sz > 0 && p == ILU_NIL) {
+    s->_buffer = (NgProperty_Property *) ilu_malloc (sz * sizeof (NgProperty_Property));
+    if (s->_buffer == ILU_NIL || s->_buffer == NULL) {
+      s->_length = 0;
+      s->_maximum = 0;
+      _ILU_C_MallocFailure(sz * sizeof(NgProperty_Property)); }}
+  else
+    s->_buffer = p;
+  return;
+}
+
+void _NgProperty__GeneralInitialization (void)
+{
+  static ilu_boolean initialized = ilu_FALSE;
+  ilu_Error lerr = ILU_INIT_NO_ERR;
+  ilu_Class cl = ILU_NIL;
+  ilu_Method m = ILU_NIL;
+  ilu_Mutex otmu = ilu_GetOTMutex();
+  ilu_boolean newreg;
+
+  if (initialized)
+    return;
+  initialized = ilu_TRUE;
+  _ILU_C_InitializeCRuntime();
+  _ILU_C_CheckStubConsistency("NgProperty", "2.0beta1", "v2 (2.0beta1)");
+  _NgBasic__GeneralInitialization();
+  if (!ilu_EnterMutex(otmu, &lerr))
+    goto fail2;
+  _NgProperty__Exception_UnknownPropertyNames = ilu_DefineException("NgProperty", "UnknownPropertyNames", "ilut:jnKRp54g57gOe7fPCulRE7vmvPc", &lerr);
+  if (ILU_ERRNOK(lerr))
+    goto fail1;
+  { ilu_string supers[] = {
+	"ilut:m44lJUWvllZBHhWqMT4E2uCqKds",
+	NULL};
+    cl = ilu_DefineObjectType("NgProperty.PutablePropertySet",	/*name*/
+	NULL,	/*no brand*/
+	"ilut:mIJlovLYXEbzp3BXqb3LeTk5ufK",	/*uid*/
+	NULL,	/*singleton*/
+	ilu_FALSE,	/* optional */
+	ilu_FALSE,	/* collectible */
+	NULL,	/*doc string*/
+	1,	/*n methods*/
+	1,	/*n supers*/
+	supers,	/* supers */
+	&lerr);
+    if (ILU_ERRNOK(lerr))
+      goto fail2;
+    _NgProperty_PutablePropertySet__ILUType = cl;
+  }
+  { ilu_Exception	exns[4];
+    exns[0] = ex_NgProperty_UnknownPropertyNames;
+    exns[1] = ex_NgBasic_WouldBlock;
+    exns[2] = ex_NgBasic_Conflict;
+    exns[3] = ex_NgBasic_ObjectNotExist;
+    m = ilu_DefineMethod(cl, 0,
+	"PutProperties",	/*name*/
+	1,	/*id*/
+	0,	/*functional*/
+	0,	/*asynch*/
+	4,	/*n exns*/
+	exns,	/*exceptions*/
+	1,	/*n args*/
+	ILU_NIL,	/*return type ID*/
+	&lerr);
+    if (ILU_ERRNOK(lerr))
+      goto fail2;
+    ilu_DefineMethodArg (m, 0, "propertiesToSet", ilu_FALSE, ilu_In, "ilut:pmpcRjoiedKh3CkhMOURXOZKPI3", &lerr);
+    if (ILU_ERRNOK(lerr))
+      goto fail2;
+  }
+  { ilu_string supers[] = {
+	"ilut:jXXCK7f4rCxHnfnnFBPnx6xBGD3",
+	NULL};
+    cl = ilu_DefineObjectType("NgProperty.PropertySet",	/*name*/
+	NULL,	/*no brand*/
+	"ilut:m44lJUWvllZBHhWqMT4E2uCqKds",	/*uid*/
+	NULL,	/*singleton*/
+	ilu_FALSE,	/* optional */
+	ilu_FALSE,	/* collectible */
+	NULL,	/*doc string*/
+	1,	/*n methods*/
+	1,	/*n supers*/
+	supers,	/* supers */
+	&lerr);
+    if (ILU_ERRNOK(lerr))
+      goto fail2;
+    _NgProperty_PropertySet__ILUType = cl;
+  }
+  { ilu_Exception	exns[3];
+    exns[0] = ex_NgProperty_UnknownPropertyNames;
+    exns[1] = ex_NgBasic_WouldBlock;
+    exns[2] = ex_NgBasic_ObjectNotExist;
+    m = ilu_DefineMethod(cl, 0,
+	"GetProperties",	/*name*/
+	1,	/*id*/
+	0,	/*functional*/
+	0,	/*asynch*/
+	3,	/*n exns*/
+	exns,	/*exceptions*/
+	1,	/*n args*/
+	"ilut:mTOEgnV7d3PoGRSTp993OO-S1d+",	/*return type ID*/
+	&lerr);
+    if (ILU_ERRNOK(lerr))
+      goto fail2;
+    ilu_DefineMethodArg (m, 0, "propertiesToGet", ilu_FALSE, ilu_In, "ilut:jnKRp54g57gOe7fPCulRE7vmvPc", &lerr);
+    if (ILU_ERRNOK(lerr))
+      goto fail2;
+  }
+#ifdef ADD_TYPE_REGISTRATION_SUPPORT
+{
+  ilu_Type type;
+  _NgProperty_PutablePropertySet__IoFns.kernelType = ilu_RegisterObjectType("PutablePropertySet", "NgProperty", "NG", "ilut:mIJlovLYXEbzp3BXqb3LeTk5ufK",
+    _NgProperty_PutablePropertySet__ILUType, /* object class */
+    &newreg, &lerr);
+  if (ILU_ERRNOK(lerr)) goto fail1;
+  _NgProperty_PropertyModificationSequence__IoFns.kernelType = ilu_RegisterSequenceType("PropertyModificationSequence", "NgProperty", "NG", "ilut:pmpcRjoiedKh3CkhMOURXOZKPI3",
+    "ilut:nnwt4Viafgm2l8JnpPYS6k437hX",	/* base type of sequence */
+    0,		/* limit (0 for no limit) */
+    &newreg, &lerr);
+  if (ILU_ERRNOK(lerr)) goto fail1;
+  _NgProperty_PropertyModification__IoFns.kernelType = type = ilu_RegisterRecordType("PropertyModification", "NgProperty", "NG", "ilut:nnwt4Viafgm2l8JnpPYS6k437hX",
+    3,	/* number of fields in the record */
+    ilu_FALSE,	/* whether or not it is extensible */
+    ILU_NIL,	/* supertype, if any */
+    &newreg, &lerr);
+  if (ILU_ERRNOK(lerr)) goto fail1;
+  if (newreg) {
+    ilu_RegisterRecordField(type, 0, /* which field */
+      "propertyName", /* field name */
+      "ilut:lc80izKSPGeLPcHOWRB6Hquk21x", /* UID of field type */
+      &lerr);
+    if (ILU_ERRNOK(lerr)) goto fail1;
+    ilu_RegisterRecordField(type, 1, /* which field */
+      "modification", /* field name */
+      "ilut:gj0WyW0GwrUU8wY89Mpap7p1Vh6", /* UID of field type */
+      &lerr);
+    if (ILU_ERRNOK(lerr)) goto fail1;
+    ilu_RegisterRecordField(type, 2, /* which field */
+      "value", /* field name */
+      "ilut:on5t6u5LDRoo+AtGkW9ncvntNZw", /* UID of field type */
+      &lerr);
+    if (ILU_ERRNOK(lerr)) goto fail1;
+  };
+  _NgProperty_PropertyModificationKind__IoFns.kernelType = type = ilu_RegisterEnumerationType("PropertyModificationKind", "NgProperty", "NG", "ilut:gj0WyW0GwrUU8wY89Mpap7p1Vh6",
+    3,	/* number of elements in the enum */
+    &newreg, &lerr);
+  if (ILU_ERRNOK(lerr)) goto fail1;
+  if (newreg) {
+    ilu_RegisterEnumerationElement(type, 0, /* which element */
+    "Add", /* element name */
+    0,	/* integer value for element */
+    &lerr);
+    if (ILU_ERRNOK(lerr)) goto fail1;
+    ilu_RegisterEnumerationElement(type, 1, /* which element */
+    "Remove", /* element name */
+    1,	/* integer value for element */
+    &lerr);
+    if (ILU_ERRNOK(lerr)) goto fail1;
+    ilu_RegisterEnumerationElement(type, 2, /* which element */
+    "Change", /* element name */
+    2,	/* integer value for element */
+    &lerr);
+    if (ILU_ERRNOK(lerr)) goto fail1;
+  };
+  _NgProperty_PropertySet__IoFns.kernelType = ilu_RegisterObjectType("PropertySet", "NgProperty", "NG", "ilut:m44lJUWvllZBHhWqMT4E2uCqKds",
+    _NgProperty_PropertySet__ILUType, /* object class */
+    &newreg, &lerr);
+  if (ILU_ERRNOK(lerr)) goto fail1;
+  ilu_RegisterAliasType("PropertyNames", "NgProperty", "NG", "ilut:jnKRp54g57gOe7fPCulRE7vmvPc",
+    "ilut:jnKRp54g57gOe7fPCulRE7vmvPc",	/* base type */
+    &newreg, &lerr);
+  if (ILU_ERRNOK(lerr)) goto fail1;
+  _NgProperty_PropertySequence__IoFns.kernelType = ilu_RegisterSequenceType("PropertySequence", "NgProperty", "NG", "ilut:mTOEgnV7d3PoGRSTp993OO-S1d+",
+    "ilut:llyaclLXkJ5rS7qiIv4Fpupayvw",	/* base type of sequence */
+    0,		/* limit (0 for no limit) */
+    &newreg, &lerr);
+  if (ILU_ERRNOK(lerr)) goto fail1;
+  ilu_RegisterAliasType("Property", "NgProperty", "NG", "ilut:llyaclLXkJ5rS7qiIv4Fpupayvw",
+    "ilut:llyaclLXkJ5rS7qiIv4Fpupayvw",	/* base type */
+    &newreg, &lerr);
+  if (ILU_ERRNOK(lerr)) goto fail1;
+}
+#endif /* def ADD_TYPE_REGISTRATION_SUPPORT */
+fail1:
+  if (!ilu_ExitMutex(otmu, ilu_TRUE, &lerr))
+    goto fail2;
+  _NgProperty_PutablePropertySet__IoFns.properties.object_class = _NgProperty_PutablePropertySet__ILUType;
+  _ILU_C_RegisterIoFns (&_NgProperty_PutablePropertySet__IoFns);
+
+  _NgProperty_PropertyModificationSequence__IoFns.inputFn = (ILU_C_InputFn) _NgProperty_PropertyModificationSequence__Input;
+  _NgProperty_PropertyModificationSequence__IoFns.outFn = (ILU_C_OutputFn) _NgProperty_PropertyModificationSequence__Output;
+  _NgProperty_PropertyModificationSequence__IoFns.sizeFn = (ILU_C_SizeFn) _NgProperty_PropertyModificationSequence__SizeOf;
+  _NgProperty_PropertyModificationSequence__IoFns.freeFn = (ILU_C_FreeFn) NgProperty_PropertyModificationSequence__Free;
+  _ILU_C_RegisterIoFns (&_NgProperty_PropertyModificationSequence__IoFns);
+
+  _NgProperty_PropertyModification__IoFns.inputFn = (ILU_C_InputFn) _NgProperty_PropertyModification__Input;
+  _NgProperty_PropertyModification__IoFns.outFn = (ILU_C_OutputFn) _NgProperty_PropertyModification__Output;
+  _NgProperty_PropertyModification__IoFns.sizeFn = (ILU_C_SizeFn) _NgProperty_PropertyModification__SizeOf;
+  _NgProperty_PropertyModification__IoFns.freeFn = (ILU_C_FreeFn) NgProperty_PropertyModification__Free;
+  _ILU_C_RegisterIoFns (&_NgProperty_PropertyModification__IoFns);
+
+  _ILU_C_RegisterIoFns (&_NgProperty_PropertyModificationKind__IoFns);
+
+  _NgProperty_PropertySet__IoFns.properties.object_class = _NgProperty_PropertySet__ILUType;
+  _ILU_C_RegisterIoFns (&_NgProperty_PropertySet__IoFns);
+
+  _NgProperty_PropertySequence__IoFns.inputFn = (ILU_C_InputFn) _NgProperty_PropertySequence__Input;
+  _NgProperty_PropertySequence__IoFns.outFn = (ILU_C_OutputFn) _NgProperty_PropertySequence__Output;
+  _NgProperty_PropertySequence__IoFns.sizeFn = (ILU_C_SizeFn) _NgProperty_PropertySequence__SizeOf;
+  _NgProperty_PropertySequence__IoFns.freeFn = (ILU_C_FreeFn) NgProperty_PropertySequence__Free;
+  _ILU_C_RegisterIoFns (&_NgProperty_PropertySequence__IoFns);
+
+fail2:
+  ILU_MUST_BE_SUCCESS(lerr);
+}
+

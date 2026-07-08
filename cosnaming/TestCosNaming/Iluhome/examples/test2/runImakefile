@@ -1,0 +1,69 @@
+/* $Id: runImakefile,v 1.4 2025/08/02 10:52:05 cvswxc Exp $ */
+
+NormalObjectRule()
+
+InterfaceTarget(Fibber.isl)
+InterfaceTarget(Batcher2.isl)
+InterfaceTarget(SerialTest.isl)
+
+ILUCTarget(Fibber.h Fibber-true.c Fibber-surrogate.c Fibber-common.c, Fibber.isl)
+ObjectTarget(Fibber-common.o)
+ObjectTarget(Fibber-surrogate.o)
+ObjectTarget(Fibber-true.o)
+
+ILUCTarget(Batcher2.h Batcher2-true.c Batcher2-surrogate.c Batcher2-common.c, Batcher2.isl)
+ObjectTarget(Batcher2-common.o)
+ObjectTarget(Batcher2-surrogate.o)
+ObjectTarget(Batcher2-true.o)
+
+ILUCTarget(SerialTest.h SerialTest-true.c SerialTest-surrogate.c SerialTest-common.c, SerialTest.isl)
+ObjectTarget(SerialTest-common.o)
+ObjectTarget(SerialTest-surrogate.o)
+ObjectTarget(SerialTest-true.o)
+
+fprog.o: fprog.c Fibber.h
+
+ObjectTarget(fprog.o)
+
+ILUCProgramTarget(fp, fprog.o Fibber-true.o Fibber-surrogate.o Fibber-common.o,,)
+
+b2svr.o: b2svr.c Batcher2.h
+b2clnt.o: b2clnt.c Batcher2.h
+
+ObjectTarget(b2svr.o)
+ObjectTarget(b2clnt.o)
+
+ILUCProgramTarget(b2svr, b2svr.o Batcher2-common.o Batcher2-true.o Batcher2-surrogate.o,,)
+ILUCProgramTarget(b2clnt, b2clnt.o Batcher2-common.o Batcher2-true.o Batcher2-surrogate.o,,)
+
+stclnt.o: stclnt.c SerialTest.h
+sptclnt.o: sptclnt.c SerialTest.h
+stsrvr.o: stsrvr.c SerialTest.h
+
+ILUCProgramTarget(sptclnt, sptclnt.o SerialTest-common.o SerialTest-surrogate.o,,)
+ILUCProgramTarget(stclnt, stclnt.o SerialTest-common.o SerialTest-surrogate.o,,)
+ILUCProgramTarget(stsrvr, stsrvr.o SerialTest-common.o SerialTest-true.o,,)
+
+/* OBSOLETE
+
+InterfaceTarget(Batcher.isl)
+
+ILUCTarget(Batcher.h Batcher-true.c Batcher-surrogate.c Batcher-common.c, Batcher.isl)
+ObjectTarget(Batcher-common.o)
+ObjectTarget(Batcher-surrogate.o)
+ObjectTarget(Batcher-true.o)
+
+
+bclnt.o: bclnt.c Batcher.h
+bclntp.o: bclntp.c Batcher.h
+bsvr.o: bsvr.c Batcher.h
+
+ObjectTarget(bclnt.o)
+ObjectTarget(bclntp.o)
+ObjectTarget(bsvr.o)
+
+ILUCProgramTarget(bclnt, bclnt.o Batcher-common.o Batcher-surrogate.o,,)
+ILUCProgramTarget(bclntp, bclntp.o Batcher-common.o Batcher-surrogate.o,,)
+ILUCProgramTarget(bsvr, bsvr.o Batcher-common.o Batcher-true.o,,)
+
+*/

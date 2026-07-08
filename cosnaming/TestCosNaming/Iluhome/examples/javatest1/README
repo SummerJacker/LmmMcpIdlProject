@@ -1,0 +1,59 @@
+README for the "javatest1" example.
+[ $Id: README,v 1.4 2025/08/02 11:45:15 cvswxc Exp $ ]
+
+
+1.  Make sure the "java" interpreter is on your PATH, and that
+"$(ILUHOME)/bin" is on your path.  If you use the literal expression
+"$(ILUHOME)/bin", make sure that the environment variable ILUHOME
+is properly defined.
+
+2.  Make sure "./classes" and "$(ILUHOME)/lib/javaclasses" are on
+your CLASSPATH.
+(or better: use the -classpath commandline arguments; make sure $ILUHOME
+and $JAVAHOME is defined)
+
+3.  Make sure your LD_LIBRARY_PATH has "$(ILUHOME)/lib" on it.
+
+4.  Run "ilumkmf" to create the Makefile.
+
+5.  Run "make" to generate and compile the Java stubs.
+
+6.  Run the server:
+
+    % java -classpath ./classes:$ILUHOME/lib/ilu.jar:$JAVAHOME/lib/classes.zip xerox.ilu.test1.Test server &
+    [1] 5410
+    % < Test start...
+    < iluClass built
+    < server side init
+    < server created
+    < trueOb created
+    < trueOb registered; sbh: ilu:server-for-test-1/test-object-1;ilu%3Aghxmwu1rVZWI9ztJ7udY86rYiR3;sunrpc_2_0x61a79_2544659852@sunrpcrm=tcp_13.1.101.26_53337
+    < sleep and serve requests
+
+    % 
+
+7.  Run the client:
+
+    % java -classpath ./classes:$ILUHOME/lib/ilu.jar:$JAVAHOME/lib/classes.zip xerox.ilu.test1.Test client
+    < Test start...
+    < iluClass built
+    < client side
+    < got remote object ilu_stubs.Simple.TestObject_Stub@ee7011b0
+    < before calling method1
+    < method1 called: arg = 7
+    < will return: ac = 7
+    < method returned: 7
+    < before calling method1
+    < method1 called: arg = 7
+    < will return: ac = 14
+    < method returned: 14
+    < before calling method1 exception case
+    < method1 called: arg = -1
+    < will throw Exc1
+    < caught excpected exception ilu_stubs.Simple.Exc1: ilu.UserException
+    < returned; did it raise the exception? 
+    < done
+    < bye bye
+    % 
+
+8.  Remember to kill the server process after you're finished with it.

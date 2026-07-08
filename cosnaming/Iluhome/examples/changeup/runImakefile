@@ -1,0 +1,49 @@
+/* $Id: runImakefile,v 1.4 2025/08/01 00:23:11 cvswxc Exp $ */ 
+
+/* $Log: runImakefile,v $
+/* Revision 1.4  2025/08/01 00:23:11  cvswxc
+/* #681 remove the big ILU formating infor
+/* Committed on the Free edition of March Hare Software CVSNT Server.
+/* Upgrade to CVS Suite for more features and support:
+/* http://march-hare.com/cvsnt/
+/*
+/* Revision 1.3  2020/06/15 01:01:01  cvswxc
+/* #663 more check in files
+/* */
+/* Note:  These following 2 variables may need to be set differently in 
+your environment.  They are used to tailor the directories in which
+things are found so that developers can test private versions.
+
+ILUCINCLUDES = -I/jilu/src/runtime/c -I/jilu/src/runtime/kernel
+ILUCLIBS = /jilu/src/runtime/c/libilu-c.a /jilu/src/runtime/kernel/libilu.a
+
+/* You shouldn't need to change anything below this (or above this,
+if you're not a developer. */
+
+
+
+NormalObjectRule()
+
+InterfaceTarget(ChgUp.isl)
+
+#####################################################
+#
+# C
+#
+
+ILUCTarget(ChgUp.h ChgUp-true.c ChgUp-surrogate.c ChgUp-common.c, ChgUp.isl)
+ObjectTarget(ChgUp-common.o)
+ObjectTarget(ChgUp-surrogate.o)
+ObjectTarget(ChgUp-true.o)
+
+ObjectTarget(c-clnt.o)
+ObjectTarget(c-srvr.o)
+
+c-clnt.o : ChgUp.h c-clnt.c
+c-srvr.o : ChgUp.h c-srvr.c
+
+ILUCProgramTarget(c-client, c-clnt.o ChgUp-surrogate.o ChgUp-common.o,,)
+
+ILUCProgramTarget(c-server, c-srvr.o ChgUp-true.o ChgUp-common.o,,)
+
+

@@ -1,0 +1,14 @@
+/* $Id: Imakefile,v 1.4 2025/08/07 07:38:55 cvswxc Exp $ */
+
+MkdirTarget($(DESTDIR)/examples)
+MkdirTarget($(DESTDIR)/examples/timeit)
+
+InstallRO(timeit.idl client.c server.c README, $(DESTDIR)/examples/timeit)
+
+#if !(defined(ADD_DIRECT_OMG_IDL_SUPPORT) || defined(ADD_IDL_SUPPORT))
+InstallFileToFile(prebuiltISL, $(INSTINCFLAGS), $(DESTDIR)/examples/timeit/timeit.isl)
+#endif
+
+InstallFileToFile(runImakefile, $(INSTINCFLAGS), $(DESTDIR)/examples/timeit/Imakefile)
+
+

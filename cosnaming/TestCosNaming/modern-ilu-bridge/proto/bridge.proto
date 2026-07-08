@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package modernilu;
+
+message ServiceRecord {
+  string name = 1;
+  string language = 2;
+  string protocol = 3;
+  string interface_name = 4;
+  string endpoint = 5;
+  repeated string methods = 6;
+  string status = 7;
+  map<string, string> metadata = 8;
+  int64 last_seen_unix = 9;
+}
+
+message RegisterServiceRequest {
+  ServiceRecord record = 1;
+}
+
+message RegisterServiceResponse {
+  bool ok = 1;
+  string message = 2;
+  ServiceRecord record = 3;
+}
+
+message DiscoverServiceRequest {
+  string name = 1;
+}
+
+message DiscoverServiceResponse {
+  bool ok = 1;
+  string message = 2;
+  ServiceRecord record = 3;
+}
+
+message ListServicesRequest {
+  string language = 1;
+}
+
+message ListServicesResponse {
+  repeated ServiceRecord records = 1;
+}
+
+message HeartbeatRequest {
+  string name = 1;
+}
+
+message HeartbeatResponse {
+  bool ok = 1;
+  string message = 2;
+  ServiceRecord record = 3;
+}
+
+message DeregisterServiceRequest {
+  string name = 1;
+}
+
+message DeregisterServiceResponse {
+  bool ok = 1;
+  string message = 2;
+}
+
+message InvokeRequest {
+  string service_name = 1;
+  string method = 2;
+  string payload_json = 3;
+}
+
+message InvokeResponse {
+  bool ok = 1;
+  string message = 2;
+  string result_json = 3;
+}
+

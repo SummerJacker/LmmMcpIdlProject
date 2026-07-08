@@ -1,0 +1,57 @@
+/* $Id: runImakefile,v 1.4 2025/08/07 08:37:30 cvswxc Exp $ */
+
+NormalObjectRule()
+
+InterfaceTarget(Test1.isl)
+
+
+#####################################################
+#
+# Java
+#
+
+#ifdef ADD_JAVA_LANGUAGE
+
+
+ILUJAVA_M_CLASSESDIR = ./classes
+JAVA_STUB_DIR = ./javastubs
+SPECIAL_CLASS_DIR = ./hiddenclasses
+
+BuildDir($(ILUJAVA_M_CLASSESDIR))
+BuildDir($(JAVA_STUB_DIR))
+BuildDir($(SPECIAL_CLASS_DIR))
+
+ALL_JAVA_FILES = *java
+STUB_SOURCES = \
+	$(JAVA_STUB_DIR)/testJavaSerialObjects/$(ALL_JAVA_FILES)
+
+SPECIAL_SOURCES = TestSending.java FooWhizBangFuzzler.java
+APP_SOURCES = TestReceiving.java
+
+ILUJavaStubTarget(make.java_has_been_stubbed, testJavaSerialObjects.isl,)
+
+
+/* for compiling java applications */
+#define ILUJavaSpecialCompileTarget(touchtarget,sources,extrapendencies,extraswitches)	@@\
+										@@\
+all:: touchtarget 								@@\
+										@@\
+touchtarget: sources extrapendencies					@@\
+	$(JAVAC) -d $(ILUJAVA_M_CLASSESDIR) -classpath "$(ILUJAVA_M_CLASSESDIR):$(ILUHOME)/lib/ilujavaobv.jar:$(SPECIAL_CLASS_DIR):$(ILUJAVA_M_ILUCLASSES):$(ILUJAVA_M_JAVAHOME)/lib/classes.zip" $(ILUJAVA_M_JAVACOMPILESWITCHES) extraswitches sources 	@@\
+	touch touchtarget							@@\
+										@@\
+clean::									@@\
+	-rm -f touchtarget							@@\
+	-rm -rf $(ILUJAVA_M_CLASSESDIR)*.class
+
+
+
+ILUJAVA_M_U_EXTRACLASSES=:$(ILUHOME)/lib/ilujavaobv.jar
+
+ILUJavaCompile2Target(make.java_stubs_compiled, $(STUB_SOURCES), $(JAVA_STUB_DIR)/testJavaSerialObjects/ObjectGetter.java, make.java_has_been_stubbed,)
+
+ILUJavaCompile2Target(make.java_sources_compiled, $(APP_SOURCES), $(APP_SOURCES), make.java_stubs_compiled,)
+
+ILUJavaSpecialCompileTarget(make.java_special_sources_compiled, $(SPECIAL_SOURCES), make.java_stubs_compiled,)
+
+#endif

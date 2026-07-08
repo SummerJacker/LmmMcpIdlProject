@@ -1,0 +1,9 @@
+/* $Id: Imakefile,v 1.4 2025/08/07 07:27:08 cvswxc Exp $ */
+
+MkdirTarget($(DESTDIR)/examples)
+MkdirTarget($(DESTDIR)/examples/ml2)
+
+InstallRO(test.isl impl.cc impl2.cc README Test.py, $(DESTDIR)/examples/ml2)
+InstallRO(pyGlue.c strlen.py testprog.py, $(DESTDIR)/examples/ml2)
+InstallRO(javaGlue.c strlen.java testprog.java, $(DESTDIR)/examples/ml2)
+InstallFileToFile(runImakefile, $(INSTINCFLAGS), $(DESTDIR)/examples/ml2/Imakefile)

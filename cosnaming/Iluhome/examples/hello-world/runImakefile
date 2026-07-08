@@ -1,0 +1,107 @@
+/** $Id: runImakefile,v 1.4 2025/06/22 07:51:31 cvswxc Exp $
+    $Log: runImakefile,v $
+    Revision 1.4  2025/06/22 07:51:31  cvswxc
+    #681 remove old infor
+    Committed on the Free edition of March Hare Software CVSNT Server.
+    Upgrade to CVS Suite for more features and support:
+    http://march-hare.com/cvsnt/
+
+*/
+/* Chris Jacobi, October 12, 1998 6:18 pm PDT */
+/* Last edited by Mike Spreitzer October 8, 1998 11:01 pm PDT */
+
+NormalObjectRule()
+
+InterfaceTarget(hello-world.isl)
+
+#ifdef ADD_C_LANGUAGE
+
+#####################################################
+#
+# Python
+#
+
+ILUCTarget(hello_world.h hello_world.c hello_world-true.c hello_world-surrogate.c hello_world-common.c, hello-world.isl)
+ObjectTarget(hello_world-common.o)
+ObjectTarget(hello_world-surrogate.o)
+ObjectTarget(hello_world-true.o)
+
+ObjectTarget(server.o)
+ObjectTarget(client.o)
+
+server.o : hello_world.h server.c
+client.o : hello_world.h client.c
+
+ILUCProgramTarget(server, server.o hello_world-common.o hello_world-true.o,,)
+ILUCProgramTarget(client, client.o hello_world-common.o hello_world-surrogate.o,,)
+
+#endif /* def ADD_C_LANGUAGE */
+
+#####################################################
+#
+# Python
+#
+
+#ifdef ADD_PYTHON_LANGUAGE
+
+ILUPythonTarget(hello_world.py hello_world__skel.py, hello-world.isl)
+
+all:: hello_world.py hello_world__skel.py
+
+#endif /* def ADD_PYTHON_LANGUAGE */
+
+
+#####################################################
+#
+# Common Lisp
+#
+
+#ifdef ADD_COMMONLISP_LANGUAGE
+
+all:: lisp-server lisp-client
+
+ILULispTarget(hello-world-basics.lisp hello-world-server-procs.lisp hello-world-sysdcl.lisp, hello-world.isl)
+
+lisp-server lisp-client : server.lisp client.lisp hello-world-basics.lisp
+	${LISP_BATCH_COMMAND} -e '(push :ilu-batch-compile cl:*features*)' <load-lisp-example.lisp
+
+CleanTarget(hello-world-basics.$(LISP_BIN_EXT) hello-world-server-procs.$(LISP_BIN_EXT))
+CleanTarget(lisp-server lisp-client)
+
+#endif
+
+#####################################################
+#
+# Scheme
+#
+
+#ifdef ADD_GUILE_LANGUAGE
+
+ILUSchemeTarget(hello-world.scm hello-world-server-stubs.scm, hello-world.isl)
+
+all:: hello-world.scm hello-world-server-stubs.scm
+
+#endif
+
+#####################################################
+#
+# Java
+#
+
+#ifdef ADD_JAVA_LANGUAGE
+
+JAVA_CLASS_DIR = ./classes
+JAVA_STUB_DIR = ./javastubs
+BuildDir($(JAVA_CLASS_DIR))
+BuildDir($(JAVA_STUB_DIR))
+ALL_JAVA_FILES = *java
+STUB_SOURCES =  $(JAVA_STUB_DIR)/hello_world/$(ALL_JAVA_FILES)
+APP_SOURCES = Client.java Server.java
+
+ILUJavaStubTarget(make.java_has_been_stubbed, hello-world.isl,)
+
+ILUJavaCompile2Target(make.java_stubs_compiled, $(STUB_SOURCES), $(JAVA_STUB_DIR)/hello_world/service.java, make.java_has_been_stubbed,)
+
+ILUJavaCompile2Target(make.java_sources_compiled, $(APP_SOURCES), $(APP_SOURCES), make.java_stubs_compiled,)
+
+#endif

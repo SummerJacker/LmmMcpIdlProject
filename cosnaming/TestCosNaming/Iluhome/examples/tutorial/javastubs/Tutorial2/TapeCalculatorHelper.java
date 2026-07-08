@@ -1,0 +1,108 @@
+// javastubs/Tutorial2/TapeCalculatorHelper.java
+// Stubs for "Tutorial2"
+//
+// This file was automatically generated with KISORB (version 2.0beta1) tools
+// at Fri Aug 22 17:23:33 2025 by `沈阳市软件定义智能协同重点实验室'
+// running "D:/Shaun-projects/newstar/Iluhome/bin/java-stubber.exe" of Mon Aug 18 11:47:37 2025
+// on "D:/Shaun-projects/newstar/Iluhome/examples/tutorial/Tutorial2.isl" of Thu Dec 28 15:50:20 2023,
+// and "D:/Shaun-projects/newstar/Iluhome/examples/tutorial/Tutorial.isl" of Thu Dec 28 15:50:20 2023,
+// and "D:/Shaun-projects/newstar/Iluhome/examples/tutorial/ilu.isl" of Fri Aug 01 09:16:44 2025//
+// KISORB is Copyright 2006-2056 成都凯斯人工智能研究院, All Rights Reserved.
+// KISORB information: Dr. Wang xcwang89@aliyun.com .
+
+
+
+package Tutorial2;
+
+
+/** 
+ * 4 function calculator with register tape
+ * An ILU helper class.
+ */
+public class TapeCalculatorHelper implements xerox.ilu.IluIOFunctions  {
+    private final static java.lang.String _id = 
+        "ilut:o9d432P85uZzy0yd5M9hffcUvdP";
+    private static xerox.ilu.IluTypeCode _tc = null;
+    static {
+        xerox.ilu.IluPreLoad.checkStubConsistency13("v2 (2.0beta1)");
+        _tc = xerox.ilu.IluTypeCode.newTypeCode(id(), new TapeCalculatorHelper(), org.omg.CORBA.TCKind.tk_objref);
+    }
+
+    public final static java.lang.String id() {
+        return _id;
+    } //id 
+
+    public final static xerox.ilu.IluTypeCode type() {
+        return _tc;
+    } //type 
+
+    public static void insert(org.omg.CORBA.Any _any, TapeCalculator _x) throws org.omg.CORBA.SystemException {
+        xerox.ilu.IluAny _ia = (xerox.ilu.IluAny) _any;
+        _ia.assign(_tc, _x);
+    } //insert 
+
+    public static TapeCalculator extract(org.omg.CORBA.Any _any) throws org.omg.CORBA.SystemException {
+        xerox.ilu.IluAny _ia = (xerox.ilu.IluAny) _any;
+        java.lang.Object _ob = _ia.cachedValue();
+        if (_ob == null) {_ob = _ia.value(_tc);}
+        return ((TapeCalculator)_ob);
+    } //extract 
+
+    public static xerox.ilu.IluPickle to_pickle(TapeCalculator _x) throws org.omg.CORBA.SystemException {
+        int _sz = 0;
+        xerox.ilu.IluCall _call = null;
+        xerox.ilu.IluPickle _pickle = new xerox.ilu.IluPickle();
+        try {
+            _call = _pickle.startToPickle();
+            _sz = _call.szObject(_x, false, TapeCalculatorStub.iluClass());
+            _pickle.midToPickle(_call, _sz, id());
+            _call.outObject(_x, false, TapeCalculatorStub.iluClass());
+        } finally {
+            _pickle.endToPickle(_call);
+        }
+        return _pickle;
+    } //to_pickle 
+
+    public static TapeCalculator from_pickle(xerox.ilu.IluPickle _pickle) throws org.omg.CORBA.SystemException {
+        TapeCalculator _x = null;
+        xerox.ilu.IluCall _call = null;
+        try {
+            _call = _pickle.startFromPickle(id());
+            _x = (TapeCalculator) _call.inObject(false, TapeCalculatorStub.iluClass());
+        } finally {
+            _pickle.endFromPickle(_call);
+        }
+        return _x;
+    } //from_pickle 
+
+    /** Not public; implements xerox.ilu.IluIOFunctions */
+    public int szFunc(xerox.ilu.IluCall _call, java.lang.Object _x, xerox.ilu.IluTypeCode _tc) throws org.omg.CORBA.SystemException {
+        TapeCalculator _xx = ((TapeCalculator)_x);
+        return _call.szObject(_xx, false, TapeCalculatorStub.iluClass());
+    } //szFunc 
+
+    /** Not public; implements xerox.ilu.IluIOFunctions */
+    public void outFunc(xerox.ilu.IluCall _call, java.lang.Object _x, xerox.ilu.IluTypeCode _tc) throws org.omg.CORBA.SystemException {
+        TapeCalculator _xx = ((TapeCalculator)_x);
+        _call.outObject(_xx, false, TapeCalculatorStub.iluClass());
+    } //outFunc 
+
+    /** Not public; implements xerox.ilu.IluIOFunctions */
+    public java.lang.Object inFunc(xerox.ilu.IluCall _call, xerox.ilu.IluTypeCode _tc) throws org.omg.CORBA.SystemException {
+        return (TapeCalculator) _call.inObject(false, TapeCalculatorStub.iluClass());
+    } //inFunc 
+
+    public boolean isAFunc(java.lang.Object _x, xerox.ilu.IluTypeCode _tc) {
+        if (_x == null) return false;
+        return (_x instanceof TapeCalculator);
+    } //isAFunc 
+
+    static {
+        Tutorial2._allJavaStubs.load();
+    }
+    public static TapeCalculator narrow(java.lang.Object _x) {
+        return (TapeCalculator) _x;
+    } //narrow 
+
+}//TapeCalculatorHelper
+

@@ -1,0 +1,44 @@
+/** $Id: Imakefile,v 1.4 2025/06/22 07:51:11 cvswxc Exp $
+    $Log: Imakefile,v $
+    Revision 1.4  2025/06/22 07:51:11  cvswxc
+    #681 remove old infor
+    Committed on the Free edition of March Hare Software CVSNT Server.
+    Upgrade to CVS Suite for more features and support:
+    http://march-hare.com/cvsnt/
+ 
+*/
+/* Last edited by Mike Spreitzer October 8, 1998 10:56 pm PDT */
+
+MkdirTarget($(DESTDIR)/examples)
+MkdirTarget($(DESTDIR)/examples/hello-world)
+
+InstallRO(hello-world.isl README, $(DESTDIR)/examples/hello-world)
+InstallFileToFile(runImakefile, $(INSTINCFLAGS), $(DESTDIR)/examples/hello-world/Imakefile)
+
+#ifdef ADD_C_LANGUAGE
+InstallRO(client.c server.c, $(DESTDIR)/examples/hello-world)
+#endif /* def ADD_C_LANGUAGE */
+
+#ifdef ADD_PYTHON_LANGUAGE
+InstallRO(client.py server.py, $(DESTDIR)/examples/hello-world)
+#endif /* def ADD_PYTHON_LANGUAGE */
+
+#ifdef ADD_COMMONLISP_LANGUAGE
+load-lisp-example.lisp : load-lisp-example.lisp.dist
+	-rm -f load-lisp-example.lisp
+	sed 's;ILUHOME;$(ILUHOME);' <load-lisp-example.lisp.dist >load-lisp-example.lisp
+
+all:: load-lisp-example.lisp
+
+InstallRO(client.lisp server.lisp load-lisp-example.lisp, $(DESTDIR)/examples/hello-world)
+CleanTarget(load-lisp-example.lisp)
+#endif
+
+#ifdef ADD_GUILE_LANGUAGE
+InstallRO(client.scm server.scm, $(DESTDIR)/examples/hello-world)
+#endif /* def ADD_GUILE_LANGUAGE */
+
+#ifdef ADD_JAVA_LANGUAGE
+InstallRO(Client.java Server.java, $(DESTDIR)/examples/hello-world)
+#endif /* def ADD_JAVA_LANGUAGE */
+
