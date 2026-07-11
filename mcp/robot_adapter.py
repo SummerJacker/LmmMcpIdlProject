@@ -44,6 +44,9 @@ from config import (
     QT_GOTO_POSE_PATH,
     QT_GOTO_POSE_BATCH_PATH,
     QT_FORMATION_EXECUTE_PATH,
+    QT_FOLLOW_FORMATION_SEND_PATH,
+    QT_FOLLOW_FORMATION_STATUS_PATH,
+    QT_FOLLOW_FORMATION_TARGET_PATH,
     QT_TASK_STATUS_PATH,
     QT_TASK_CANCEL_PATH,
     load_robot_configs,
@@ -726,6 +729,84 @@ class RobotAdapter:
             json_body={"unit_id": unit_id},
             robot_id_for_lock=None,
             op_name="set_leader",
+        )
+
+    async def send_follow_formation(self, *, leader_id: str, followers_json: str) -> str:
+        """按 Console 链式队形语义下发 Leader/Follower 及逐车间距。"""
+
+        leader_unit = await self._resolve_to_unit_id(leader_id)
+        if leader_unit is None:
+            return make_tool_response(success=False, message=_message_unit_not_bound(leader_id))
+
+        try:
+            raw_followers = json.loads(followers_json)
+        except (TypeError, json.JSONDecodeError):
+            return make_tool_response(
+                success=False,
+                message="Validation failed: followers_json must be a JSON array",
+            )
+        if not isinstance(raw_followers, list) or not raw_followers:
+            return make_tool_response(
+                success=False,
+                message="Validation failed: at least one follower is required",
+            )
+
+        followers: list[dict[str, Any]] = []
+        seen = {leader_unit}
+        for item in raw_followers:
+            if not isinstance(item, dict):
+                return make_tool_response(
+                    success=False,
+                    message="Validation failed: each follower must be an object",
+                )
+            robot_id = str(item.get("robot_id", "")).strip()
+            unit_id = await self._resolve_to_unit_id(robot_id)
+            if unit_id is None:
+                return make_tool_response(success=False, message=_message_unit_not_bound(robot_id))
+            ok, distance, error = _finite_float(item.get("distance_m"), "distance_m")
+            if not ok or distance <= 0.0:
+                return make_tool_response(
+                    success=False,
+                    message=error or "Validation failed: distance_m must be positive",
+                )
+            if unit_id in seen:
+                return make_tool_response(
+                    success=False,
+                    message=f"Validation failed: duplicate formation unit {unit_id}",
+                )
+            seen.add(unit_id)
+            followers.append({"unit_id": unit_id, "distance_m": distance})
+
+        return await self._post_qt(
+            path=QT_FOLLOW_FORMATION_SEND_PATH,
+            json_body={"leader_id": leader_unit, "followers": followers},
+            robot_id_for_lock=None,
+            op_name="send_follow_formation",
+        )
+
+    async def get_follow_formation_status(self) -> str:
+        """读取持久运行的 Console 所拥有的跟随编队状态。"""
+
+        return await self._run_http(
+            method="GET",
+            url=qt_url(QT_FOLLOW_FORMATION_STATUS_PATH),
+            json_body=None,
+            robot_id_for_lock=None,
+            op_name="get_follow_formation_status",
+        )
+
+    async def goto_follow_formation(self, *, x: float, y: float) -> str:
+        """只向 Console 当前 Leader 下发目标点。"""
+
+        ok_x, target_x, error_x = _finite_float(x, "x")
+        ok_y, target_y, error_y = _finite_float(y, "y")
+        if not ok_x or not ok_y:
+            return make_tool_response(success=False, message=error_x or error_y)
+        return await self._post_qt(
+            path=QT_FOLLOW_FORMATION_TARGET_PATH,
+            json_body={"x": target_x, "y": target_y},
+            robot_id_for_lock=None,
+            op_name="goto_follow_formation",
         )
 
     async def set_group_mode(self, *, mode: str) -> str:

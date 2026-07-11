@@ -1,2 +1,0 @@
-AV2 ilusbh:aerocraft2/AirVehicle2;IDL%3AAir_Unit%2Frpc%3A1.0;iiop@tcp_127.0.0.1_5000
-AV2 ilusbh:aerocraft2/AirVehicle2;IDL%3AAir_Unit%2Frpc%3A1.0;iiop@tcp_192.168.3.53_5000

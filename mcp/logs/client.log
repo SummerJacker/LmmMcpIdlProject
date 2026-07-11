@@ -1813,3 +1813,692 @@ RuntimeError: LLM output is not JSON: The required side length for the triangle 
 2026-07-08 20:36:52,456 [INFO] deepseek_mcp_client: Calling LLM...
 2026-07-08 20:36:55,999 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "以下是当前所有车辆的状态（正在前进中）：\n\n| 机器人 | 当前位置 (x, y) | 朝向 (yaw) | 当前速度 (m/s) | 角色 |\n|--------|----------------|------------|----------------|------|\n| **GV1** | (2.00, 0.00) | 0.000 rad | 0.2 | 领队 |\n| **GV2** | (2.90, 0.00) | 0.000 rad | 0.2 | 跟随者 |\n| **GV3** | (1.45, 2.51) | 1.047 rad | 0.2 | 跟随者 |\n\n✅ 三角形编队保持良好，所有机器人仍以 0.2m/s 的速度同步向前行驶。"}
 2026-07-08 20:36:56,001 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-10 20:50:41,238 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 20:50:52,105 [INFO] deepseek_mcp_client: LLM Response: {"tool": "set_leader", "args": {"robot_id": "1"}}
+2026-07-10 20:50:52,146 [INFO] deepseek_mcp_client: Executing tool: set_leader with args {'robot_id': '1'}
+2026-07-10 20:51:00,349 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 20:51:04,344 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "list_robots", "args": {}}]
+2026-07-10 20:51:04,369 [INFO] deepseek_mcp_client: Executing tool: list_robots with args {}
+2026-07-10 20:51:10,477 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 20:51:13,227 [INFO] deepseek_mcp_client: LLM Response: {"tool": "set_leader", "args": {"robot_id": "robot_1"}}
+2026-07-10 20:51:13,230 [INFO] deepseek_mcp_client: Executing tool: set_leader with args {'robot_id': 'robot_1'}
+2026-07-10 20:51:19,255 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 20:51:20,515 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "已将 robot_1（GV1）设置为领导者。"}
+2026-07-10 20:51:20,515 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-10 20:52:04,960 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 20:52:09,690 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "send_move", "args": {"robot_id": "robot_1", "linear_velocity": 0.2, "angular_velocity": 0.0, "duration_ms": 1000}}]
+2026-07-10 20:52:09,694 [INFO] deepseek_mcp_client: Executing tool: send_move with args {'robot_id': 'robot_1', 'linear_velocity': 0.2, 'angular_velocity': 0.0, 'duration_ms': 1000}
+2026-07-10 20:52:18,862 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 20:52:20,493 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "已发送指令：robot_1（GV1）以0.2米/秒的速度前进1秒，预计前进20厘米。"}
+2026-07-10 20:52:20,494 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-10 20:52:30,322 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 20:52:32,459 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "send_move", "args": {"robot_id": "robot_2", "linear_velocity": 0.2, "angular_velocity": 0.0, "duration_ms": 1000}}]
+2026-07-10 20:52:32,485 [INFO] deepseek_mcp_client: Executing tool: send_move with args {'robot_id': 'robot_2', 'linear_velocity': 0.2, 'angular_velocity': 0.0, 'duration_ms': 1000}
+2026-07-10 20:52:41,565 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 20:52:43,107 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "已发送指令：robot_2（GV2）以0.2米/秒的速度前进1秒，预计前进20厘米。"}
+2026-07-10 20:52:43,108 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-10 20:52:54,023 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 20:52:55,556 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "send_move", "args": {"robot_id": "robot_3", "linear_velocity": 0.2, "angular_velocity": 0.0, "duration_ms": 1000}}]
+2026-07-10 20:52:55,559 [INFO] deepseek_mcp_client: Executing tool: send_move with args {'robot_id': 'robot_3', 'linear_velocity': 0.2, 'angular_velocity': 0.0, 'duration_ms': 1000}
+2026-07-10 20:53:13,147 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 20:53:15,448 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "已发送指令：robot_3（GV3）以0.2米/秒的速度前进1秒，预计前进20厘米。三台车已全部完成前进20厘米的操作。"}
+2026-07-10 20:53:15,449 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-10 20:59:01,255 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 20:59:10,191 [INFO] deepseek_mcp_client: LLM Response: {"tool": "execute_formation_mission", "args": {"formation_type": "line", "unit_ids_csv": "robot_1,robot_2", "leader_id": "robot_1"}}
+2026-07-10 20:59:10,216 [INFO] deepseek_mcp_client: Executing tool: execute_formation_mission with args {'formation_type': 'line', 'unit_ids_csv': 'robot_1,robot_2', 'leader_id': 'robot_1'}
+2026-07-10 20:59:21,423 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 20:59:23,918 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "get_fleet_status", "args": {"robot_ids_csv": "robot_1,robot_2,robot_3"}}]
+2026-07-10 20:59:24,444 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': 'robot_1,robot_2,robot_3'}
+2026-07-10 20:59:45,398 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 20:59:50,402 [ERROR] deepseek_mcp_client: Agent loop error
+Traceback (most recent call last):
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\urllib3\connectionpool.py", line 464, in _make_request
+    self._validate_conn(conn)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\urllib3\connectionpool.py", line 1093, in _validate_conn
+    conn.connect()
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\urllib3\connection.py", line 790, in connect
+    sock_and_verified = _ssl_wrap_socket_and_match_hostname(
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\urllib3\connection.py", line 969, in _ssl_wrap_socket_and_match_hostname
+    ssl_sock = ssl_wrap_socket(
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\urllib3\util\ssl_.py", line 480, in ssl_wrap_socket
+    ssl_sock = _ssl_wrap_socket_impl(sock, context, tls_in_tls, server_hostname)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\urllib3\util\ssl_.py", line 524, in _ssl_wrap_socket_impl
+    return ssl_context.wrap_socket(sock, server_hostname=server_hostname)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\ssl.py", line 512, in wrap_socket
+    return self.sslsocket_class._create(
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\ssl.py", line 1070, in _create
+    self.do_handshake()
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\ssl.py", line 1341, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLEOFError: EOF occurred in violation of protocol (_ssl.c:997)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\urllib3\connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\urllib3\connectionpool.py", line 488, in _make_request
+    raise new_e
+urllib3.exceptions.SSLError: EOF occurred in violation of protocol (_ssl.c:997)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\requests\adapters.py", line 644, in send
+    resp = conn.urlopen(
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\urllib3\connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\urllib3\util\retry.py", line 519, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /v1/chat/completions (Caused by SSLError(SSLEOFError(8, 'EOF occurred in violation of protocol (_ssl.c:997)')))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 486, in main
+    parsed = call_llm(messages, api_key, args.model)
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 388, in call_llm
+    resp = session.post(DEEPSEEK_CHAT_COMPLETIONS_URL, headers=headers, json=payload, timeout=60)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\requests\sessions.py", line 637, in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\requests\sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\requests\sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\requests\adapters.py", line 675, in send
+    raise SSLError(e, request=request)
+requests.exceptions.SSLError: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /v1/chat/completions (Caused by SSLError(SSLEOFError(8, 'EOF occurred in violation of protocol (_ssl.c:997)')))
+2026-07-10 21:02:45,319 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:04:06,890 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:04:11,906 [ERROR] deepseek_mcp_client: Agent loop error
+Traceback (most recent call last):
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\urllib3\connectionpool.py", line 464, in _make_request
+    self._validate_conn(conn)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\urllib3\connectionpool.py", line 1093, in _validate_conn
+    conn.connect()
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\urllib3\connection.py", line 790, in connect
+    sock_and_verified = _ssl_wrap_socket_and_match_hostname(
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\urllib3\connection.py", line 969, in _ssl_wrap_socket_and_match_hostname
+    ssl_sock = ssl_wrap_socket(
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\urllib3\util\ssl_.py", line 480, in ssl_wrap_socket
+    ssl_sock = _ssl_wrap_socket_impl(sock, context, tls_in_tls, server_hostname)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\urllib3\util\ssl_.py", line 524, in _ssl_wrap_socket_impl
+    return ssl_context.wrap_socket(sock, server_hostname=server_hostname)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\ssl.py", line 512, in wrap_socket
+    return self.sslsocket_class._create(
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\ssl.py", line 1070, in _create
+    self.do_handshake()
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\ssl.py", line 1341, in do_handshake
+    self._sslobj.do_handshake()
+ssl.SSLEOFError: EOF occurred in violation of protocol (_ssl.c:997)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\urllib3\connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\urllib3\connectionpool.py", line 488, in _make_request
+    raise new_e
+urllib3.exceptions.SSLError: EOF occurred in violation of protocol (_ssl.c:997)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\requests\adapters.py", line 644, in send
+    resp = conn.urlopen(
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\urllib3\connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\urllib3\util\retry.py", line 519, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /v1/chat/completions (Caused by SSLError(SSLEOFError(8, 'EOF occurred in violation of protocol (_ssl.c:997)')))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 486, in main
+    parsed = call_llm(messages, api_key, args.model)
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 388, in call_llm
+    resp = session.post(DEEPSEEK_CHAT_COMPLETIONS_URL, headers=headers, json=payload, timeout=60)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\requests\sessions.py", line 637, in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\requests\sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\requests\sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\site-packages\requests\adapters.py", line 675, in send
+    raise SSLError(e, request=request)
+requests.exceptions.SSLError: HTTPSConnectionPool(host='api.deepseek.com', port=443): Max retries exceeded with url: /v1/chat/completions (Caused by SSLError(SSLEOFError(8, 'EOF occurred in violation of protocol (_ssl.c:997)')))
+2026-07-10 21:05:10,429 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:05:17,019 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "send_move", "args": {"robot_id": "1", "linear_velocity": 0.1, "angular_velocity": 0, "duration_ms": 1000}}, {"tool": "send_move", "args": {"robot_id": "2", "linear_velocity": 0.1, "angular_velocity": 0, "duration_ms": 1000}}]
+2026-07-10 21:05:17,042 [INFO] deepseek_mcp_client: Executing tool: send_move with args {'robot_id': '1', 'linear_velocity': 0.1, 'angular_velocity': 0, 'duration_ms': 1000}
+2026-07-10 21:05:23,113 [INFO] deepseek_mcp_client: Executing tool: send_move with args {'robot_id': '2', 'linear_velocity': 0.1, 'angular_velocity': 0, 'duration_ms': 1000}
+2026-07-10 21:05:29,216 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:05:31,258 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "list_robots", "args": {}}]
+2026-07-10 21:05:31,285 [INFO] deepseek_mcp_client: Executing tool: list_robots with args {}
+2026-07-10 21:05:37,343 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:05:41,617 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "send_move", "args": {"robot_id": "GV1", "linear_velocity": 0.1, "angular_velocity": 0.0, "duration_ms": 1000}}, {"tool": "send_move", "args": {"robot_id": "GV2", "linear_velocity": 0.1, "angular_velocity": 0.0, "duration_ms": 1000}}]
+2026-07-10 21:05:41,621 [INFO] deepseek_mcp_client: Executing tool: send_move with args {'robot_id': 'GV1', 'linear_velocity': 0.1, 'angular_velocity': 0.0, 'duration_ms': 1000}
+2026-07-10 21:05:48,750 [INFO] deepseek_mcp_client: Executing tool: send_move with args {'robot_id': 'GV2', 'linear_velocity': 0.1, 'angular_velocity': 0.0, 'duration_ms': 1000}
+2026-07-10 21:05:58,105 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:05:59,656 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "已控制1号车（GV1）和2号车（GV2）前进10厘米。"}
+2026-07-10 21:05:59,657 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-10 21:06:58,947 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:07:15,081 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "execute_formation_mission", "args": {"formation_type": "line", "unit_ids_csv": "GV1,GV2"}}, {"tool": "goto_pose_batch", "args": {"targets_json": "[{\"unit_id\":\"GV1\",\"x\":2,\"y\":5},{\"unit_id\":\"GV2\",\"x\":2,\"y\":5}]"}}]
+2026-07-10 21:07:15,084 [INFO] deepseek_mcp_client: Executing tool: execute_formation_mission with args {'formation_type': 'line', 'unit_ids_csv': 'GV1,GV2'}
+2026-07-10 21:07:26,808 [INFO] deepseek_mcp_client: Executing tool: goto_pose_batch with args {'targets_json': '[{"unit_id":"GV1","x":2,"y":5},{"unit_id":"GV2","x":2,"y":5}]'}
+2026-07-10 21:07:32,736 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:07:37,169 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "get_fleet_status", "args": {"robot_ids_csv": "GV1,GV2"}}]
+2026-07-10 21:07:37,697 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': 'GV1,GV2'}
+2026-07-10 21:07:45,654 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:07:56,488 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "execute_formation_mission", "args": {"formation_type": "line", "unit_ids_csv": "robot_1,robot_2"}}]
+2026-07-10 21:07:56,491 [INFO] deepseek_mcp_client: Executing tool: execute_formation_mission with args {'formation_type': 'line', 'unit_ids_csv': 'robot_1,robot_2'}
+2026-07-10 21:08:07,688 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:08:21,000 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "编队任务由于内部状态检查失败（提示GV1和GV2离线，但实际在线），无法自动完成编队。我已改为分别导航，将两台车移动到(2,5)目标点。"}
+2026-07-10 21:08:21,001 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-10 21:09:17,661 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:09:23,042 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "set_leader", "args": {"robot_id": "GV1"}}]
+2026-07-10 21:09:23,069 [INFO] deepseek_mcp_client: Executing tool: set_leader with args {'robot_id': 'GV1'}
+2026-07-10 21:09:28,978 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:09:33,699 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "execute_formation_mission", "args": {"formation_type": "line", "unit_ids_csv": "GV1,GV2"}}]
+2026-07-10 21:09:33,703 [INFO] deepseek_mcp_client: Executing tool: execute_formation_mission with args {'formation_type': 'line', 'unit_ids_csv': 'GV1,GV2'}
+2026-07-10 21:09:44,873 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:09:51,092 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "set_group_mode", "args": {"mode": "formation"}}, {"tool": "set_group_minor_mode", "args": {"mode": "follower"}}, {"tool": "goto_pose_batch", "args": {"targets_json": "[{\"unit_id\":\"GV1\",\"x\":2,\"y\":5},{\"unit_id\":\"GV2\",\"x\":2,\"y\":5}]"}}]
+2026-07-10 21:09:51,633 [INFO] deepseek_mcp_client: Executing tool: set_group_mode with args {'mode': 'formation'}
+2026-07-10 21:09:58,136 [INFO] deepseek_mcp_client: Executing tool: set_group_minor_mode with args {'mode': 'follower'}
+2026-07-10 21:10:04,146 [INFO] deepseek_mcp_client: Executing tool: goto_pose_batch with args {'targets_json': '[{"unit_id":"GV1","x":2,"y":5},{"unit_id":"GV2","x":2,"y":5}]'}
+2026-07-10 21:10:10,101 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:10:13,123 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "已成功将1号车（GV1）设置为领导者。编队自动创建功能因内部校验限制暂时不可用，已改为分别导航两车前往目标点(2,5)。"}
+2026-07-10 21:10:13,124 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-10 21:10:47,372 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:10:50,829 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "goto_pose", "args": {"robot_id": "GV1", "x": 2.0, "y": 5.0}}]
+2026-07-10 21:10:50,833 [INFO] deepseek_mcp_client: Executing tool: goto_pose with args {'robot_id': 'GV1', 'x': 2.0, 'y': 5.0}
+2026-07-10 21:10:56,830 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:10:58,480 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "已启动1号车（GV1）前往目标点(2,5)的任务，正在执行中。"}
+2026-07-10 21:10:58,481 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-10 21:14:49,491 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:14:53,949 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "emergency_stop_all", "args": {}}]
+2026-07-10 21:14:53,977 [INFO] deepseek_mcp_client: Executing tool: emergency_stop_all with args {}
+2026-07-10 21:15:05,103 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:15:06,761 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "stop_robot", "args": {"robot_id": "GV1"}}, {"tool": "stop_robot", "args": {"robot_id": "GV2"}}]
+2026-07-10 21:15:07,293 [INFO] deepseek_mcp_client: Executing tool: stop_robot with args {'robot_id': 'GV1'}
+2026-07-10 21:15:13,528 [INFO] deepseek_mcp_client: Executing tool: stop_robot with args {'robot_id': 'GV2'}
+2026-07-10 21:15:19,731 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:15:31,304 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "已成功终止所有任务，1号车（GV1）和2号车（GV2）都已停止。"}
+2026-07-10 21:15:31,304 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-10 21:24:44,974 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:24:57,688 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:25:06,540 [INFO] deepseek_mcp_client: LLM Response: [
+  {"tool": "list_robots"},
+  {"tool": "set_leader", "args": {"robot_id": "1"}}
+]
+2026-07-10 21:25:06,546 [INFO] deepseek_mcp_client: Executing tool: list_robots with args {}
+2026-07-10 21:25:12,815 [INFO] deepseek_mcp_client: Executing tool: set_leader with args {'robot_id': '1'}
+2026-07-10 21:25:18,918 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:25:22,362 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "set_leader", "args": {"robot_id": "robot_1"}}]
+2026-07-10 21:25:22,379 [INFO] deepseek_mcp_client: Executing tool: set_leader with args {'robot_id': 'robot_1'}
+2026-07-10 21:25:28,339 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:25:30,016 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "已设置 robot_1 (unit_id: GV1) 为领导者。"}
+2026-07-10 21:25:30,017 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-10 21:26:03,128 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:26:05,236 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "list_robots", "args": {}}]
+2026-07-10 21:26:05,773 [INFO] deepseek_mcp_client: Executing tool: list_robots with args {}
+2026-07-10 21:26:11,944 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:26:13,931 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "当前有3辆车在线（全部为真实模式）：robot_1 (GV1), robot_2 (GV2), robot_3 (GV3)。"}
+2026-07-10 21:26:13,932 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-10 21:27:37,282 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:27:40,518 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "get_robot_status", "args": {"robot_id": "robot_3"}}]
+2026-07-10 21:27:40,541 [INFO] deepseek_mcp_client: Executing tool: get_robot_status with args {'robot_id': 'robot_3'}
+2026-07-10 21:27:51,387 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:27:53,968 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "已确认 robot_3（GV3）超时无响应，实际已离线。当前实际在线车辆为：robot_1（GV1）和 robot_2（GV2），共2辆。"}
+2026-07-10 21:27:53,969 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-10 21:29:25,254 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:29:48,398 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "execute_formation_mission", "args": {"formation_type": "column", "unit_ids_csv": "robot_1,robot_2", "leader_id": "robot_1", "spacing_m": 0.3}}, {"tool": "goto_pose", "args": {"robot_id": "robot_1", "x": 2.0, "y": 5.0}}]
+2026-07-10 21:29:48,901 [INFO] deepseek_mcp_client: Executing tool: execute_formation_mission with args {'formation_type': 'column', 'unit_ids_csv': 'robot_1,robot_2', 'leader_id': 'robot_1', 'spacing_m': 0.3}
+2026-07-10 21:30:00,241 [INFO] deepseek_mcp_client: Executing tool: goto_pose with args {'robot_id': 'robot_1', 'x': 2.0, 'y': 5.0}
+2026-07-10 21:30:11,085 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:30:13,286 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "get_robot_status", "args": {"robot_id": "robot_2"}}]
+2026-07-10 21:30:13,799 [INFO] deepseek_mcp_client: Executing tool: get_robot_status with args {'robot_id': 'robot_2'}
+2026-07-10 21:30:24,598 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:30:27,318 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "抱歉，当前 robot_1（GV1）和 robot_2（GV2）均无法连接（HTTP请求超时），所有车辆实际已离线。无法执行前往目标点和编队跟随任务。请检查网络或设备状态后重试。"}
+2026-07-10 21:30:27,319 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-10 21:30:55,827 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:31:01,631 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "list_robots", "args": {}}]
+2026-07-10 21:31:02,139 [INFO] deepseek_mcp_client: Executing tool: list_robots with args {}
+2026-07-10 21:31:07,976 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:31:11,561 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "get_robot_status", "args": {"robot_id": "robot_1"}}]
+2026-07-10 21:31:11,584 [INFO] deepseek_mcp_client: Executing tool: get_robot_status with args {'robot_id': 'robot_1'}
+2026-07-10 21:31:17,565 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:31:19,283 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "get_robot_status", "args": {"robot_id": "robot_2"}}]
+2026-07-10 21:31:19,288 [INFO] deepseek_mcp_client: Executing tool: get_robot_status with args {'robot_id': 'robot_2'}
+2026-07-10 21:31:25,462 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-10 21:31:43,479 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "execute_formation_mission", "args": {"formation_type": "column", "unit_ids_csv": "robot_1,robot_2", "leader_id": "robot_1", "spacing_m": 0.3}}, {"tool": "goto_pose", "args": {"robot_id": "robot_1", "x": 2.0, "y": 5.0}}]
+2026-07-10 21:31:43,483 [INFO] deepseek_mcp_client: Executing tool: execute_formation_mission with args {'formation_type': 'column', 'unit_ids_csv': 'robot_1,robot_2', 'leader_id': 'robot_1', 'spacing_m': 0.3}
+2026-07-10 21:31:55,040 [INFO] deepseek_mcp_client: Executing tool: goto_pose with args {'robot_id': 'robot_1', 'x': 2.0, 'y': 5.0}
+2026-07-10 21:32:00,905 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 11:29:46,148 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 11:29:49,424 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {}}
+2026-07-11 11:29:49,449 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {}
+2026-07-11 11:29:57,384 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 11:29:59,989 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "当前共有2辆在线仿真车辆：\n- GV1：位置 (2.21, 2.16)，朝向 28.42°\n- GV2：位置 (2.52, 5.45)，朝向 200.59°\n所有车辆运行正常。"}
+2026-07-11 11:29:59,990 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-11 11:31:11,774 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 11:31:13,643 [INFO] deepseek_mcp_client: LLM Response: {"tool": "set_leader", "args": {"robot_id": "GV1"}}
+2026-07-11 11:31:13,658 [INFO] deepseek_mcp_client: Executing tool: set_leader with args {'robot_id': 'GV1'}
+2026-07-11 11:31:19,690 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 11:31:21,392 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "已将 GV1 设置为领导者。"}
+2026-07-11 11:31:21,394 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-11 11:32:05,710 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 11:32:12,021 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "execute_formation_mission", "args": {"formation_type": "line"}}]
+2026-07-11 11:32:12,025 [INFO] deepseek_mcp_client: Executing tool: execute_formation_mission with args {'formation_type': 'line'}
+2026-07-11 11:32:18,312 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 11:32:20,295 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "直线编队已建立成功！领导者为 GV1，跟随者为 GV2，编队状态为 READY。您可以指挥编队移动（如使用 move_active_formation）或查询编队状态。"}
+2026-07-11 11:32:20,296 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-11 11:33:30,659 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 11:33:48,728 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "execute_formation_mission", "args": {"formation_type": "line", "spacing_m": 0.3, "leader_id": "GV1"}}]
+2026-07-11 11:33:48,744 [INFO] deepseek_mcp_client: Executing tool: execute_formation_mission with args {'formation_type': 'line', 'spacing_m': 0.3, 'leader_id': 'GV1'}
+2026-07-11 11:33:54,941 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 11:33:56,409 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "cancel_formation_mission", "args": {"task_id": "task_611ea6af3112"}}, {"tool": "execute_formation_mission", "args": {"formation_type": "line", "spacing_m": 0.3, "leader_id": "GV1"}}]
+2026-07-11 11:33:56,431 [INFO] deepseek_mcp_client: Executing tool: cancel_formation_mission with args {'task_id': 'task_611ea6af3112'}
+2026-07-11 11:34:02,436 [INFO] deepseek_mcp_client: Executing tool: execute_formation_mission with args {'formation_type': 'line', 'spacing_m': 0.3, 'leader_id': 'GV1'}
+2026-07-11 11:34:08,654 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 11:34:10,513 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "stop_active_formation", "args": {}}]
+2026-07-11 11:34:10,528 [INFO] deepseek_mcp_client: Executing tool: stop_active_formation with args {}
+2026-07-11 11:34:16,448 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 11:34:20,648 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "execute_formation_mission", "args": {"formation_type": "line", "spacing_m": 0.3, "leader_id": "GV1"}}]
+2026-07-11 11:34:20,663 [INFO] deepseek_mcp_client: Executing tool: execute_formation_mission with args {'formation_type': 'line', 'spacing_m': 0.3, 'leader_id': 'GV1'}
+2026-07-11 11:34:26,911 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 11:34:28,617 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "set_group_mode", "args": {"mode": "none"}}]
+2026-07-11 11:34:28,644 [INFO] deepseek_mcp_client: Executing tool: set_group_mode with args {'mode': 'none'}
+2026-07-11 11:34:34,640 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 11:34:43,627 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "stop_robot", "args": {"robot_id": "GV1"}}, {"tool": "stop_robot", "args": {"robot_id": "GV2"}}]
+2026-07-11 11:34:43,649 [INFO] deepseek_mcp_client: Executing tool: stop_robot with args {'robot_id': 'GV1'}
+2026-07-11 11:34:49,602 [INFO] deepseek_mcp_client: Executing tool: stop_robot with args {'robot_id': 'GV2'}
+2026-07-11 11:34:55,550 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 11:35:04,022 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "execute_formation_mission", "args": {"formation_type": "line", "spacing_m": 0.3, "leader_id": "GV1"}}]
+2026-07-11 11:35:04,036 [INFO] deepseek_mcp_client: Executing tool: execute_formation_mission with args {'formation_type': 'line', 'spacing_m': 0.3, 'leader_id': 'GV1'}
+2026-07-11 11:35:10,211 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 11:35:11,808 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "get_robot_status", "args": {"robot_id": "GV1"}}]
+2026-07-11 11:35:11,811 [INFO] deepseek_mcp_client: Executing tool: get_robot_status with args {'robot_id': 'GV1'}
+2026-07-11 11:35:17,705 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 11:35:19,537 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "get_formation_status", "args": {}}]
+2026-07-11 11:35:19,541 [INFO] deepseek_mcp_client: Executing tool: get_formation_status with args {}
+2026-07-11 11:35:25,541 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 11:35:28,462 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "当前系统已无活跃编队，GV1已处于空闲状态。但由于之前GV1状态残留，执行编队设置时仍提示繁忙。建议您稍后重试编队设置命令，或指定其他参数重试。需要我现在再尝试一次吗？"}
+2026-07-11 11:35:28,463 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-11 12:25:27,916 [ERROR] deepseek_mcp_client: Agent loop error
+Traceback (most recent call last):
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 621, in main
+    parsed = call_llm(messages, api_key, args.model)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\unittest\mock.py", line 1104, in __call__
+    return self._mock_call(*args, **kwargs)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\unittest\mock.py", line 1108, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\unittest\mock.py", line 1163, in _execute_mock_call
+    raise effect
+AssertionError: LLM must not run before mode selection
+2026-07-11 12:25:28,725 [ERROR] deepseek_mcp_client: Agent loop error
+Traceback (most recent call last):
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 621, in main
+    parsed = call_llm(messages, api_key, args.model)
+  File "E:\MCP-IDL\mcp\tests\test_deepseek_mcp_client.py", line 175, in <lambda>
+    monkeypatch.setattr(client, "call_llm", lambda *args: next(llm_results))
+StopIteration
+2026-07-11 12:25:28,800 [ERROR] deepseek_mcp_client: Agent loop error
+Traceback (most recent call last):
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 621, in main
+    parsed = call_llm(messages, api_key, args.model)
+  File "E:\MCP-IDL\mcp\tests\test_deepseek_mcp_client.py", line 175, in <lambda>
+    monkeypatch.setattr(client, "call_llm", lambda *args: next(llm_results))
+StopIteration
+2026-07-11 12:28:23,896 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 12:28:23,896 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 12:28:23,897 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 12:28:23,898 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 12:28:37,441 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 12:28:37,441 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 12:28:37,443 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 12:28:37,443 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 12:35:42,679 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 12:35:42,680 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 12:35:42,681 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 12:35:42,681 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 12:36:43,739 [ERROR] deepseek_mcp_client: Agent loop error
+Traceback (most recent call last):
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 626, in main
+    parsed = call_llm(messages, api_key, args.model)
+  File "E:\MCP-IDL\mcp\tests\test_deepseek_mcp_client.py", line 273, in fake_llm
+    assert any("已选择 Console 跟随编队" in content for content in contents)
+AssertionError: assert False
+ +  where False = any(<generator object test_mode_selection_is_preserved_in_llm_history.<locals>.fake_llm.<locals>.<genexpr> at 0x000001EB7FA3DF50>)
+2026-07-11 12:38:48,391 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 12:38:48,391 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 12:38:48,393 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 12:38:48,393 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 12:40:36,580 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 12:40:36,580 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 12:40:36,582 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 12:40:36,582 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 12:49:44,330 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 12:49:44,330 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 12:49:44,332 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 12:49:44,333 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 12:52:49,136 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 12:52:49,136 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 12:52:49,138 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 12:52:49,138 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 12:55:04,173 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 12:55:04,174 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 12:55:04,176 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 12:55:04,176 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 12:58:40,721 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 12:58:40,721 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 12:58:40,724 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 12:58:40,724 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 12:59:12,235 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 12:59:12,235 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 12:59:12,236 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 12:59:12,236 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 12:59:19,284 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 12:59:19,284 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 12:59:19,286 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 12:59:19,286 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 13:00:12,645 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:00:12,646 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 13:00:12,647 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:00:12,647 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 13:00:47,160 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:00:47,160 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 13:00:47,162 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:00:47,162 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 13:01:01,412 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:01:01,413 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 13:01:01,414 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:01:01,414 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 13:02:05,018 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:02:05,018 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 13:02:05,020 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:02:05,020 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 13:11:30,786 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:11:37,561 [INFO] deepseek_mcp_client: LLM Response: 请提供以下信息以完成 Console 跟随编队设置：
+
+1. **Leader 机器人 ID**（例如 `robot_1`）  
+2. **Followers 顺序列表**（例如 `robot_2, robot_3, robot_4`）  
+3. **每辆 Follower 的间距**：您刚指定为 `0.5`，请问这个间距适用于所有 Follower 吗？如果是，我会为每个 Follower 设置相同的间距 0.5 米。如果有不同间距，请分别说明。
+2026-07-11 13:11:37,562 [ERROR] deepseek_mcp_client: Agent loop error
+Traceback (most recent call last):
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 720, in call_llm
+    return json.loads(content)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\json\__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\json\decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\json\decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 809, in main
+    parsed = call_llm(messages, api_key, args.model)
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 722, in call_llm
+    raise RuntimeError(f"LLM output is not JSON: {content}") from e
+RuntimeError: LLM output is not JSON: 请提供以下信息以完成 Console 跟随编队设置：
+
+1. **Leader 机器人 ID**（例如 `robot_1`）  
+2. **Followers 顺序列表**（例如 `robot_2, robot_3, robot_4`）  
+3. **每辆 Follower 的间距**：您刚指定为 `0.5`，请问这个间距适用于所有 Follower 吗？如果是，我会为每个 Follower 设置相同的间距 0.5 米。如果有不同间距，请分别说明。
+2026-07-11 13:12:14,812 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:12:29,477 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "list_robots", "args": {}}]
+2026-07-11 13:12:29,495 [INFO] deepseek_mcp_client: Executing tool: list_robots with args {}
+2026-07-11 13:12:35,548 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:12:45,386 [INFO] deepseek_mcp_client: LLM Response: 请指定 Leader 和 Followers 的机器人。目前有 GV1 (robot_1) 和 GV2 (robot_2)。例如：以 GV1 为 Leader，GV2 为 Follower，间距 0.5 米。或者谁先谁后？
+2026-07-11 13:12:45,386 [ERROR] deepseek_mcp_client: Agent loop error
+Traceback (most recent call last):
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 720, in call_llm
+    return json.loads(content)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\json\__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\json\decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\json\decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 809, in main
+    parsed = call_llm(messages, api_key, args.model)
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 722, in call_llm
+    raise RuntimeError(f"LLM output is not JSON: {content}") from e
+RuntimeError: LLM output is not JSON: 请指定 Leader 和 Followers 的机器人。目前有 GV1 (robot_1) 和 GV2 (robot_2)。例如：以 GV1 为 Leader，GV2 为 Follower，间距 0.5 米。或者谁先谁后？
+2026-07-11 13:13:03,931 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:13:07,150 [INFO] deepseek_mcp_client: LLM Response: {"tool": "send_follow_formation", "args": {"leader_id": "GV1", "followers_json": "[{\"robot_id\": \"GV2\", \"distance_m\": 0.5}]"}}
+2026-07-11 13:13:07,151 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:13:11,559 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "send_follow_formation", "args": {"leader_id": "GV1", "followers_json": "[{\"robot_id\": \"GV2\", \"distance_m\": 0.5}]"}}]
+2026-07-11 13:13:11,560 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:13:17,930 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "set_leader", "args": {"unit_id": "GV1"}}]
+2026-07-11 13:13:17,951 [INFO] deepseek_mcp_client: Executing tool: set_leader with args {'unit_id': 'GV1'}
+2026-07-11 13:13:23,951 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:13:42,685 [INFO] deepseek_mcp_client: LLM Response: Console 跟随编队设置失败，错误消息为：“Follow spacing rejected: every distance must come from explicit user input”。您已明确指定每架间距 0.5 米，但工具仍拒绝，可能因底层实现要求距离必须通过特定格式传递（如字符串）。请指定要使用的距离值格式，或尝试其他方式。当前两台机器人分别为 **GV1（Leader）** 和 **GV2（Follower）**。您希望如何处理？
+2026-07-11 13:13:42,686 [ERROR] deepseek_mcp_client: Agent loop error
+Traceback (most recent call last):
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 720, in call_llm
+    return json.loads(content)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\json\__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\json\decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\json\decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 809, in main
+    parsed = call_llm(messages, api_key, args.model)
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 722, in call_llm
+    raise RuntimeError(f"LLM output is not JSON: {content}") from e
+RuntimeError: LLM output is not JSON: Console 跟随编队设置失败，错误消息为：“Follow spacing rejected: every distance must come from explicit user input”。您已明确指定每架间距 0.5 米，但工具仍拒绝，可能因底层实现要求距离必须通过特定格式传递（如字符串）。请指定要使用的距离值格式，或尝试其他方式。当前两台机器人分别为 **GV1（Leader）** 和 **GV2（Follower）**。您希望如何处理？
+2026-07-11 13:34:15,090 [ERROR] deepseek_mcp_client: Agent loop error
+Traceback (most recent call last):
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 809, in main
+    parsed = call_llm(messages, api_key, args.model)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\unittest\mock.py", line 1104, in __call__
+    return self._mock_call(*args, **kwargs)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\unittest\mock.py", line 1108, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\unittest\mock.py", line 1163, in _execute_mock_call
+    raise effect
+AssertionError: Console follow wizard must not call LLM
+2026-07-11 13:34:15,092 [ERROR] deepseek_mcp_client: Agent loop error
+Traceback (most recent call last):
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 809, in main
+    parsed = call_llm(messages, api_key, args.model)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\unittest\mock.py", line 1104, in __call__
+    return self._mock_call(*args, **kwargs)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\unittest\mock.py", line 1108, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\unittest\mock.py", line 1163, in _execute_mock_call
+    raise effect
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 809, in main
+    parsed = call_llm(messages, api_key, args.model)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\unittest\mock.py", line 1104, in __call__
+    return self._mock_call(*args, **kwargs)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\unittest\mock.py", line 1108, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\unittest\mock.py", line 1163, in _execute_mock_call
+    raise effect
+AssertionError: Console follow wizard must not call LLM
+2026-07-11 13:34:15,093 [ERROR] deepseek_mcp_client: Agent loop error
+Traceback (most recent call last):
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 809, in main
+    parsed = call_llm(messages, api_key, args.model)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\unittest\mock.py", line 1104, in __call__
+    return self._mock_call(*args, **kwargs)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\unittest\mock.py", line 1108, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\unittest\mock.py", line 1163, in _execute_mock_call
+    raise effect
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 809, in main
+    parsed = call_llm(messages, api_key, args.model)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\unittest\mock.py", line 1104, in __call__
+    return self._mock_call(*args, **kwargs)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\unittest\mock.py", line 1108, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\unittest\mock.py", line 1163, in _execute_mock_call
+    raise effect
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 809, in main
+    parsed = call_llm(messages, api_key, args.model)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\unittest\mock.py", line 1104, in __call__
+    return self._mock_call(*args, **kwargs)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\unittest\mock.py", line 1108, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\unittest\mock.py", line 1163, in _execute_mock_call
+    raise effect
+AssertionError: Console follow wizard must not call LLM
+2026-07-11 13:35:08,538 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:35:08,538 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 13:35:08,540 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:35:08,540 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 13:37:05,558 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:37:05,558 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 13:37:05,560 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:37:05,560 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 13:41:56,836 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:41:56,837 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 13:41:56,838 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:41:56,838 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 13:41:56,839 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:41:56,839 [INFO] deepseek_mcp_client: LLM Response: 请指定 Leader。
+2026-07-11 13:43:27,389 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:43:27,389 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 13:43:27,392 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:43:27,392 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 13:43:27,394 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:43:27,394 [INFO] deepseek_mcp_client: LLM Response: 请指定 Leader。
+2026-07-11 13:43:56,333 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:44:00,318 [INFO] deepseek_mcp_client: LLM Response: {"done": false, "message": "Your input is unclear. Please provide a specific command or request, such as formation instructions, movement, or status queries."}
+2026-07-11 13:44:00,319 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:44:04,189 [INFO] deepseek_mcp_client: LLM Response: {"done": false, "message": "I need a clear command. Please describe what you'd like me to do with the robots (e.g., formation, movement, status check, etc.)."}
+2026-07-11 13:44:04,191 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:44:06,835 [INFO] deepseek_mcp_client: LLM Response: {"done": false, "message": "I'm ready to assist. Please specify a concrete task: e.g., 'form a follow formation with robot 1 as leader', 'move robot 2 to coordinates (5,10)', 'get fleet status', or 'create a geometric line formation'."}
+2026-07-11 13:44:06,836 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:44:08,953 [INFO] deepseek_mcp_client: LLM Response: [{"done": false, "message": "I'm waiting for your instructions. Please tell me what you want to do with the robots — for example: 'Set up a follow formation with robot 1 leading robots 2 and 3', 'Move robot 4 to (10, 20)', 'List all robots', or 'Form a triangle with robots 1,2,3 spacing 5m'."}]
+2026-07-11 13:44:08,954 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:44:11,259 [INFO] deepseek_mcp_client: LLM Response: [{"done": false, "message": "I'm here to help. Please provide a clear command: e.g., formation setup, movement, status, or emergency stop. What would you like me to do?"}]
+2026-07-11 13:44:11,260 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:44:13,337 [INFO] deepseek_mcp_client: LLM Response: [{"done": false, "message": "I'm ready to execute. Please give me a specific command — for example: 'Form a follow formation with leader robot 1 and followers 2 and 3 with 2m spacing', 'Move robot 3 to coordinates (5,10)', 'List all robots', or 'Emergency stop all robots'."}]
+2026-07-11 13:44:13,338 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:44:16,465 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "No command received. The system is idle. Please provide a specific robot command when ready."}
+2026-07-11 13:44:16,468 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-11 13:44:23,195 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:44:25,389 [INFO] deepseek_mcp_client: LLM Response: [{"done": false, "message": "I'm not sure what you mean by '1'. Could you please provide a complete command? For example: 'Form a follow formation with leader robot 1', 'Move robot 1 to (10,20)', 'List all robots', or 'Send robot 1 forward 2 meters'."}]
+2026-07-11 13:44:25,391 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:44:27,098 [INFO] deepseek_mcp_client: LLM Response: [{"done": false, "message": "I need more context. What would you like to do with '1'? For example: set robot 1 as leader, move robot 1, check status of robot 1, or something else? Please provide a complete command."}]
+2026-07-11 13:44:27,099 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:44:30,011 [INFO] deepseek_mcp_client: LLM Response: {"done": false, "message": "Do you want to operate on robot 1? Please specify an action: e.g., 'Make robot 1 leader', 'Move robot 1 to (5,5)', 'Get status of robot 1', or something else."}
+2026-07-11 13:44:30,012 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:44:31,307 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:44:33,677 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "list_robots", "args": {}}]
+2026-07-11 13:44:34,220 [INFO] deepseek_mcp_client: Executing tool: list_robots with args {}
+2026-07-11 13:44:35,170 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "I didn't understand your input. Please specify what you'd like me to do, such as listing robots, moving a robot, or setting up a formation."}
+2026-07-11 13:44:35,173 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-11 13:44:40,906 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:44:41,991 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:44:43,333 [INFO] deepseek_mcp_client: LLM Response: [{"done": false, "message": "I found 2 robots: robot_1 (unit GV1) and robot_2 (unit GV2). Since you mentioned '1', do you want to operate on robot_1? Please specify what action to take with robot_1 — e.g., move, set as leader, check status, or something else."}]
+2026-07-11 13:44:43,333 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:44:45,881 [INFO] deepseek_mcp_client: LLM Response: [{"done": false, "message": "I have robot_1 (unit GV1) and robot_2 (unit GV2) available. For robot_1, what action should I perform? Options: get status, move to coordinates, set as leader, stop, or something else? Please specify the full command."}]
+2026-07-11 13:44:45,882 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:44:48,475 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "You selected Console follow formation (mode 1). Please provide the leader robot ID and the ordered list of follower robot IDs with their requested distances in meters. For example: leader: 'robot_1', followers: [{'id':'robot_2', 'distance_m':2.0}, {'id':'robot_3', 'distance_m':3.0}]"}
+2026-07-11 13:44:48,476 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-11 13:44:49,392 [INFO] deepseek_mcp_client: LLM Response: [{"done": false, "message": "You've said '1' several times. I think you might want to use robot_1. Here are some examples of what I can do with robot_1:\n- Check robot_1's status\n- Move robot_1 to coordinates (e.g., x=5, y=10)\n- Set robot_1 as leader of a follow formation\n- Stop robot_1\n\nPlease tell me which one you'd like, or provide a full command."}]
+2026-07-11 13:44:49,393 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:44:51,887 [INFO] deepseek_mcp_client: LLM Response: [{"done": false, "message": "I understand you're referring to robot_1 (unit GV1). Please choose one of these actions:\n1. Get status of robot_1\n2. Move robot_1 to specific coordinates (tell me x,y)\n3. Set robot_1 as leader of follow formation\n4. Stop robot_1\n5. Make robot_1 move forward/backward/turn (tell me distance/angle)\n\nJust reply with a number or a full command."}]
+2026-07-11 13:44:51,888 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:44:53,673 [INFO] deepseek_mcp_client: LLM Response: [{"tool": "get_robot_status", "args": {"robot_id": "robot_1"}}]
+2026-07-11 13:44:53,677 [INFO] deepseek_mcp_client: Executing tool: get_robot_status with args {'robot_id': 'robot_1'}
+2026-07-11 13:45:00,508 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:45:03,515 [INFO] deepseek_mcp_client: LLM Response: [{"done": false, "message": "Here is robot_1's status:\n- Online: true\n- Position: (2.22, 2.26)\n- Orientation: 334.68°\n- Unit: GV1\n- Mode: sim\n\nWhat would you like to do next with robot_1? Options:\n- Move to a specific coordinate (tell me x,y)\n- Set as leader for follow formation\n- Move forward/backward/turn\n- Stop\n- Or anything else?"}]
+2026-07-11 13:45:03,516 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:45:06,361 [INFO] deepseek_mcp_client: LLM Response: [{"done": false, "message": "Robot_1 is at (2.22, 2.26). What would you like to do? For example:\n- Move robot_1 to (5, 10)\n- Set robot_1 as leader with followers\n- Move robot_1 forward 2 meters\n- Stop robot_1\n- Check robot_2's status\n\nPlease provide a command."}]
+2026-07-11 13:45:06,362 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:45:09,087 [INFO] deepseek_mcp_client: LLM Response: [{"done": false, "message": "I'm ready. Please tell me one specific action for robot_1. For example:\n\n- \"Set robot_1 as leader and robot_2 as follower with 2m spacing\"\n- \"Move robot_1 to (10, 5)\"\n- \"Move robot_1 forward 3 meters\"\n- \"Turn robot_1 90 degrees right\"\n- \"Stop robot_1\"\n\nWhat would you like to do?"}]
+2026-07-11 13:45:09,088 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:45:11,331 [INFO] deepseek_mcp_client: LLM Response: [{"done": false, "message": "Let me suggest a simple default: would you like me to move robot_1 2 meters forward? Reply with 'yes' or 'forward' to proceed, or provide another command."}]
+2026-07-11 13:45:11,332 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:45:13,691 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "No valid command received after multiple attempts. The system will remain idle. Please provide a specific robot command when you're ready (e.g., 'Move robot_1 to (5,10)', 'Set up follow formation with leader robot_1', etc.)."}
+2026-07-11 13:45:13,692 [INFO] deepseek_mcp_client: Executing tool: get_fleet_status with args {'robot_ids_csv': ''}
+2026-07-11 13:48:59,073 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:48:59,074 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 13:48:59,075 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:48:59,075 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 13:48:59,077 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:48:59,077 [INFO] deepseek_mcp_client: LLM Response: 请指定 Leader。
+2026-07-11 13:58:55,078 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:58:55,078 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 13:58:55,080 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:58:55,080 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 13:58:55,081 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 13:58:55,081 [INFO] deepseek_mcp_client: LLM Response: 请指定 Leader。
+2026-07-11 14:00:19,076 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 14:00:19,076 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 14:00:19,078 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 14:00:19,078 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 14:00:19,080 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 14:00:19,080 [INFO] deepseek_mcp_client: LLM Response: 请指定 Leader。
+2026-07-11 14:01:34,791 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 14:01:34,791 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 14:01:34,793 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 14:01:34,793 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 14:01:34,794 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 14:01:34,794 [INFO] deepseek_mcp_client: LLM Response: 请指定 Leader。
+2026-07-11 14:01:49,732 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 14:01:49,732 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 14:01:49,733 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 14:01:49,734 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 14:01:49,735 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 14:01:49,735 [INFO] deepseek_mcp_client: LLM Response: 请指定 Leader。
+2026-07-11 14:03:18,870 [ERROR] deepseek_mcp_client: Agent loop error
+Traceback (most recent call last):
+  File "E:\MCP-IDL\mcp\deepseek_mcp_client.py", line 913, in main
+    parsed = call_llm(messages, api_key, args.model)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\unittest\mock.py", line 1104, in __call__
+    return self._mock_call(*args, **kwargs)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\unittest\mock.py", line 1108, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+  File "C:\Users\LEGION\AppData\Local\Programs\Python\Python310\lib\unittest\mock.py", line 1163, in _execute_mock_call
+    raise effect
+AssertionError: explicit retry must remain deterministic
+2026-07-11 14:04:26,286 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 14:04:26,288 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 14:04:26,289 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 14:04:26,289 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 14:04:26,290 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 14:04:26,291 [INFO] deepseek_mcp_client: LLM Response: 请指定 Leader。
+2026-07-11 14:04:30,936 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 14:04:30,937 [INFO] deepseek_mcp_client: LLM Response: {"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}
+2026-07-11 14:04:30,939 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 14:04:30,939 [INFO] deepseek_mcp_client: LLM Response: {"done": true, "message": "OK"}
+2026-07-11 14:04:30,940 [INFO] deepseek_mcp_client: Calling LLM...
+2026-07-11 14:04:30,940 [INFO] deepseek_mcp_client: LLM Response: 请指定 Leader。
+2026-07-11 14:07:59,326 [INFO] deepseek_mcp_client: Executing tool: list_robots with args {}
+2026-07-11 14:08:27,736 [INFO] deepseek_mcp_client: Executing tool: set_leader with args {'robot_id': 'GV1'}
+2026-07-11 14:09:08,283 [INFO] deepseek_mcp_client: Executing tool: send_follow_formation with args {'leader_id': 'GV1', 'followers_json': '[{"robot_id":"GV2","distance_m":0.5}]'}
+2026-07-11 14:10:02,094 [INFO] deepseek_mcp_client: Executing tool: send_follow_formation with args {'leader_id': 'GV1', 'followers_json': '[{"robot_id":"GV2","distance_m":0.5}]'}
+2026-07-11 14:30:36,333 [INFO] deepseek_mcp_client: Executing tool: list_robots with args {}
+2026-07-11 14:30:47,358 [INFO] deepseek_mcp_client: Executing tool: set_leader with args {'robot_id': 'GV1'}
+2026-07-11 14:31:07,898 [INFO] deepseek_mcp_client: Executing tool: send_follow_formation with args {'leader_id': 'GV1', 'followers_json': '[{"robot_id":"GV2","distance_m":0.5}]'}
+2026-07-11 14:32:27,616 [INFO] deepseek_mcp_client: Executing tool: goto_follow_formation with args {'x': 2.3, 'y': 2.3}
+2026-07-11 15:10:58,130 [INFO] deepseek_mcp_client: Executing tool: list_robots with args {}
+2026-07-11 15:11:14,138 [INFO] deepseek_mcp_client: Executing tool: set_leader with args {'robot_id': 'GV1'}
+2026-07-11 15:18:32,316 [INFO] deepseek_mcp_client: Executing tool: list_robots with args {}
+2026-07-11 15:18:48,293 [INFO] deepseek_mcp_client: Executing tool: set_leader with args {'robot_id': 'GV2'}
+2026-07-11 15:19:23,544 [INFO] deepseek_mcp_client: Executing tool: send_follow_formation with args {'leader_id': 'GV2', 'followers_json': '[{"robot_id":"GV1","distance_m":0.5}]'}
+2026-07-11 15:20:49,616 [INFO] deepseek_mcp_client: Executing tool: goto_follow_formation with args {'x': 2.3, 'y': 6.3}
+2026-07-11 15:22:58,894 [INFO] deepseek_mcp_client: Executing tool: goto_follow_formation with args {'x': 1.3, 'y': 6.3}
+2026-07-11 15:23:22,346 [INFO] deepseek_mcp_client: Executing tool: goto_follow_formation with args {'x': 1.3, 'y': 2.3}
+2026-07-11 15:24:05,282 [INFO] deepseek_mcp_client: Executing tool: goto_follow_formation with args {'x': 0.3, 'y': 2.3}
+2026-07-11 15:24:50,071 [INFO] deepseek_mcp_client: Executing tool: goto_follow_formation with args {'x': 2.3, 'y': 6.3}

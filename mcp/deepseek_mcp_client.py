@@ -21,9 +21,20 @@ import re
 import subprocess
 import sys
 import time
+from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any
 
 import requests
+
+from console_follow_wizard import (
+    ConsoleFollowWizardState,
+    FollowWizardPhase,
+    WizardTurnResult,
+    apply_follow_tool_result,
+    begin_follow_wizard,
+    handle_follow_wizard_input,
+)
 
 from config import (
     ANGULAR_VELOCITY_MAX_ABS_RAD_S,
@@ -35,8 +46,7 @@ logger = logging.getLogger("deepseek_mcp_client")
 MCP_PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 DEEPSEEK_CHAT_COMPLETIONS_URL = "https://api.deepseek.com/v1/chat/completions"
-DEFAULT_DEEPSEEK_API_KEY = "sk-fc974262。。。。。。。。。。"
-
+DEFAULT_DEEPSEEK_API_KEY = "sk-213f**************"
 
 _USER_LINEAR_SPEED_RE = re.compile(
     r"(?P<val>\d+(?:\.\d+)?)\s*(?:m\s*/\s*s|m/s|米/秒|米每秒|ms(?:\s|$))",
@@ -58,6 +68,41 @@ _USER_POINT_GOAL_RE = re.compile(
     re.IGNORECASE,
 )
 _FORMATION_PLAN_TOOLS = frozenset({"plan_line_targets", "plan_triangle_targets"})
+_FORMATION_ENTRY_RE = re.compile(r"编队|队形|formation", re.IGNORECASE)
+_FOLLOW_FORMATION_RE = re.compile(
+    r"Console\s*跟随|跟随编队|持续跟随|发送队形|车距|间距|Follower|Leader",
+    re.IGNORECASE,
+)
+_GEOMETRIC_FORMATION_RE = re.compile(
+    r"几何编队|几何队形|排成|摆成|三角形|直线排列|沿[xyXY]轴|锚点|边长",
+    re.IGNORECASE,
+)
+GEOMETRIC_FORMATION_TOOLS = frozenset(
+    {
+        "execute_formation",
+        "execute_formation_mission",
+        "execute_geometric_formation",
+        "plan_line_targets",
+        "plan_triangle_targets",
+        "goto_pose",
+        "goto_pose_batch",
+    }
+)
+FOLLOW_FORMATION_TOOLS = frozenset(
+    {"send_follow_formation", "goto_follow_formation"}
+)
+LEGACY_AMBIGUOUS_FORMATION_TOOLS = frozenset({"execute_formation_mission"})
+AUTO_RECOVERY_TOOLS = frozenset(
+    {
+        "cancel_formation_mission",
+        "cancel_task",
+        "stop_active_formation",
+        "emergency_stop_all",
+        "stop_robot",
+        "reset_unit_relations",
+        "set_group_mode",
+    }
+)
 _DONE_INCOMPLETE_MARKERS = (
     "我将",
     "接下来",
@@ -69,6 +114,284 @@ _DONE_INCOMPLETE_MARKERS = (
     "instead",
     "而不是",
 )
+
+
+class FormationMode(str, Enum):
+    CONSOLE_FOLLOW = "console_follow"
+    GEOMETRIC = "geometric"
+
+
+@dataclass
+class FormationDialogState:
+    awaiting_mode: bool = False
+    mode: FormationMode | None = None
+    follow_failure_seen: bool = False
+    follow_send_seen_this_turn: bool = False
+    declared_follow_spacings_m: list[float] = field(default_factory=list)
+    declared_follow_spacings_by_robot: dict[str, list[float]] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class FormationRouteResult:
+    prompt_only: bool
+    message: str = ""
+    mode: FormationMode | None = None
+
+
+_FORMATION_MODE_MENU = (
+    "请选择编队类型：\n"
+    "1. Console 跟随编队\n"
+    "   设置 Leader、每辆跟随车的间距；后续只控制 Leader 前往目标点。\n\n"
+    "2. 几何编队\n"
+    "   各车辆分别移动到直线、三角形等几何位置，不建立持续跟随关系。"
+)
+
+
+def route_formation_input(
+    user_text: str,
+    state: FormationDialogState,
+) -> FormationRouteResult:
+    """识别编队入口；模糊请求只显示选择菜单，不执行工具。"""
+
+    text = user_text.strip()
+    if state.awaiting_mode:
+        normalized = text.lower().replace(" ", "")
+        if normalized in {"1", "一", "console", "console跟随编队", "跟随编队"}:
+            state.awaiting_mode = False
+            state.mode = FormationMode.CONSOLE_FOLLOW
+            state.follow_failure_seen = False
+            state.declared_follow_spacings_m.clear()
+            state.declared_follow_spacings_by_robot.clear()
+            return FormationRouteResult(
+                prompt_only=True,
+                message=(
+                    "已选择 Console 跟随编队，正在读取在线车辆。"
+                ),
+                mode=state.mode,
+            )
+        if normalized in {"2", "二", "几何", "几何编队"}:
+            state.awaiting_mode = False
+            state.mode = FormationMode.GEOMETRIC
+            return FormationRouteResult(
+                prompt_only=True,
+                message="已选择几何编队。请指定形状、参与车辆以及间距或边长。",
+                mode=state.mode,
+            )
+        return FormationRouteResult(
+            prompt_only=True,
+            message=f"无法识别该选择。\n{_FORMATION_MODE_MENU}",
+            mode=None,
+        )
+
+    has_formation_entry = bool(_FORMATION_ENTRY_RE.search(text))
+    explicit_follow = bool(_FOLLOW_FORMATION_RE.search(text))
+    explicit_geometric = bool(_GEOMETRIC_FORMATION_RE.search(text))
+
+    if state.mode is not None and allowed_recovery_tools(text):
+        return FormationRouteResult(prompt_only=False, mode=state.mode)
+    if explicit_follow and not explicit_geometric:
+        state.mode = FormationMode.CONSOLE_FOLLOW
+        return FormationRouteResult(prompt_only=False, mode=state.mode)
+    if explicit_geometric and not explicit_follow:
+        state.mode = FormationMode.GEOMETRIC
+        return FormationRouteResult(prompt_only=False, mode=state.mode)
+    if has_formation_entry:
+        state.awaiting_mode = True
+        state.mode = None
+        state.declared_follow_spacings_m.clear()
+        state.declared_follow_spacings_by_robot.clear()
+        return FormationRouteResult(
+            prompt_only=True,
+            message=_FORMATION_MODE_MENU,
+            mode=None,
+        )
+    return FormationRouteResult(prompt_only=False, mode=state.mode)
+
+
+def allowed_formation_tool(tool_name: str, state: FormationDialogState) -> bool:
+    if tool_name in LEGACY_AMBIGUOUS_FORMATION_TOOLS:
+        return False
+    if state.awaiting_mode:
+        return tool_name not in GEOMETRIC_FORMATION_TOOLS | FOLLOW_FORMATION_TOOLS
+    if state.mode is FormationMode.CONSOLE_FOLLOW:
+        return tool_name not in GEOMETRIC_FORMATION_TOOLS
+    if state.mode is FormationMode.GEOMETRIC:
+        return tool_name not in FOLLOW_FORMATION_TOOLS
+    return True
+
+
+def user_explicitly_requested_recovery(user_text: str) -> bool:
+    return bool(allowed_recovery_tools(user_text))
+
+
+def allowed_recovery_tools(user_text: str) -> set[str]:
+    """只授权用户本轮明确要求的恢复动作，避免停止命令顺带授权重试。"""
+
+    text = user_text.strip()
+    allowed: set[str] = set()
+    if re.search(r"重试|再试|重新发送|retry", text, re.IGNORECASE):
+        allowed.add("send_follow_formation")
+    if re.search(r"停止编队|停下编队|stop\s+formation", text, re.IGNORECASE):
+        allowed.add("stop_active_formation")
+    if re.search(r"取消编队|cancel\s+formation", text, re.IGNORECASE):
+        allowed.add("cancel_formation_mission")
+    if re.search(r"重置.*(?:编队|关系)|reset.*(?:formation|relation)", text, re.IGNORECASE):
+        allowed.add("reset_unit_relations")
+    if re.search(r"(?:停止|停下|stop)\s*(?:车辆?|机器人)?\s*(?:GV\d+|AV\d+|robot_\d+)", text, re.IGNORECASE):
+        allowed.add("stop_robot")
+    if re.search(r"紧急停止.*(?:所有|全部)|(?:emergency|急停).*\b(?:all|全部|所有)", text, re.IGNORECASE):
+        allowed.add("emergency_stop_all")
+    if re.search(r"(?:取消任务|cancel\s+task)\s*task_[A-Za-z0-9_-]+", text, re.IGNORECASE):
+        allowed.add("cancel_task")
+    if re.search(
+        r"(?:设置|切换|set|switch).*(?:编队|group).*(?:模式|mode).*(?:none|follow|imitate|mate|无|跟随|模仿|协同)",
+        text,
+        re.IGNORECASE,
+    ):
+        allowed.add("set_group_mode")
+    return allowed
+
+
+def recovery_tool_call_is_authorized(
+    tool_name: str,
+    tool_args: dict[str, Any],
+    user_text: str,
+) -> bool:
+    """校验恢复工具及其关键参数确实对应用户本轮的明确指令。"""
+
+    if tool_name not in allowed_recovery_tools(user_text):
+        return False
+    if tool_name == "stop_robot":
+        requested = {
+            item.casefold()
+            for item in re.findall(r"(?:GV\d+|AV\d+|robot_\d+)", user_text, re.IGNORECASE)
+        }
+        return str(tool_args.get("robot_id", "")).casefold() in requested
+    if tool_name == "cancel_task":
+        requested = {
+            item.casefold()
+            for item in re.findall(r"task_[A-Za-z0-9_-]+", user_text, re.IGNORECASE)
+        }
+        return str(tool_args.get("task_id", "")).casefold() in requested
+    if tool_name == "cancel_formation_mission":
+        requested = re.findall(r"task_[A-Za-z0-9_-]+", user_text, re.IGNORECASE)
+        return not requested or str(tool_args.get("task_id", "")).casefold() in {
+            item.casefold() for item in requested
+        }
+    if tool_name == "set_group_mode":
+        mode_aliases = {
+            "none": (r"\bnone\b|无模式|关闭.*模式",),
+            "follow": (r"\bfollow\b|跟随模式",),
+            "imitate": (r"\bimitate\b|模仿模式",),
+            "mate": (r"\bmate\b|协同模式",),
+        }
+        requested_modes = {
+            mode
+            for mode, patterns in mode_aliases.items()
+            if any(re.search(pattern, user_text, re.IGNORECASE) for pattern in patterns)
+        }
+        outgoing_mode = str(tool_args.get("mode", "")).casefold()
+        return bool(requested_modes) and outgoing_mode in requested_modes
+    return True
+
+
+def extract_explicit_follow_spacings(user_text: str) -> list[float]:
+    """提取用户明确写出的米制间距；车辆编号和目标坐标不会被当成间距。"""
+
+    values: list[float] = []
+    for match in re.finditer(r"(?<![\d.])(\d+(?:\.\d+)?)\s*(?:米|m)(?![a-z/])", user_text, re.IGNORECASE):
+        values.append(float(match.group(1)))
+    return values
+
+
+_FOLLOWER_SPACING_BINDING_RE = re.compile(
+    r"(?P<robot>(?:GV|AV)\d+|robot_\d+)\s*(?:的\s*)?"
+    r"(?:(?:相对前车的?\s*)?(?:间距|车距)|与前车相距)\s*(?:为|是|=|:|：)?\s*"
+    r"(?P<value>\d+(?:\.\d+)?)\s*(?:米|m)(?![a-z/])",
+    re.IGNORECASE,
+)
+
+
+def record_explicit_follow_spacings(
+    user_text: str,
+    state: FormationDialogState,
+) -> None:
+    """记录有间距语义的输入；多车值必须绑定到明确的 Follower。"""
+
+    bound_value_spans: list[tuple[int, int]] = []
+    for match in _FOLLOWER_SPACING_BINDING_RE.finditer(user_text):
+        robot_id = match.group("robot").casefold()
+        state.declared_follow_spacings_by_robot[robot_id] = [float(match.group("value"))]
+        bound_value_spans.append(match.span("value"))
+
+    if not re.search(r"间距|车距|两车之间|相距", user_text, re.IGNORECASE):
+        return
+    unbound_values: list[float] = []
+    for match in re.finditer(
+        r"(?<![\d.])(\d+(?:\.\d+)?)\s*(?:米|m)(?![a-z/])",
+        user_text,
+        re.IGNORECASE,
+    ):
+        value_span = match.span(1)
+        if any(start <= value_span[0] and value_span[1] <= end for start, end in bound_value_spans):
+            continue
+        unbound_values.append(float(match.group(1)))
+    if unbound_values:
+        state.declared_follow_spacings_m[:] = unbound_values
+
+
+def follow_spacing_args_are_user_supplied(
+    tool_args: dict[str, Any],
+    state: FormationDialogState,
+) -> bool:
+    """要求 send_follow_formation 的每个距离逐一匹配用户明确输入。"""
+
+    try:
+        followers = json.loads(str(tool_args.get("followers_json", "")))
+    except json.JSONDecodeError:
+        return False
+    if not isinstance(followers, list) or not followers:
+        return False
+    outgoing: list[tuple[str, float]] = []
+    for item in followers:
+        if not isinstance(item, dict):
+            return False
+        try:
+            value = float(item["distance_m"])
+        except (KeyError, TypeError, ValueError):
+            return False
+        robot_id = str(item.get("robot_id", "")).strip().casefold()
+        if not robot_id:
+            return False
+        outgoing.append((robot_id, value))
+    available_unbound = list(state.declared_follow_spacings_m)
+    available_bound = {
+        robot_id: list(values)
+        for robot_id, values in state.declared_follow_spacings_by_robot.items()
+    }
+    for robot_id, value in outgoing:
+        available = available_bound.get(robot_id, [])
+        match_index = next(
+            (index for index, declared in enumerate(available) if abs(declared - value) <= 1e-9),
+            None,
+        )
+        if match_index is not None:
+            available.pop(match_index)
+            continue
+        if len(outgoing) != 1:
+            return False
+        unbound_index = next(
+            (
+                index
+                for index, declared in enumerate(available_unbound)
+                if abs(declared - value) <= 1e-9
+            ),
+            None,
+        )
+        if unbound_index is None:
+            return False
+        available_unbound.pop(unbound_index)
+    return True
 
 
 def setup_client_logging() -> None:
@@ -101,33 +424,28 @@ def build_system_prompt() -> str:
     return (
         "You are an intelligent Robot Fleet Commander connected to an MCP tool server.\n"
         "Your goal is to understand the user's intent and autonomously orchestrate robots using available tools.\n\n"
-        "=== TASK-LEVEL TOOLS (PREFERRED for formation/swarm operations) ===\n"
-        "These high-level tools encapsulate complete workflows. Use them whenever possible.\n\n"
-        "1. execute_formation_mission(formation_type, unit_ids_csv=\"\", leader_id=\"\", spacing_m=1.0, heading_rad=0.0):\n"
-        "   ONE-CALL formation setup. Automatically: checks fleet → selects leader → sets leader/follower → sends formation → verifies.\n"
-        "   formation_type: \"line\"(>=2 robots), \"triangle\"(>=3), \"column\"(>=2).\n"
-        "   ALL parameters have defaults — you can call this with just formation_type if fleet has enough robots.\n"
-        "   Example: {\"tool\": \"execute_formation_mission\", \"args\": {\"formation_type\": \"triangle\"}}\n\n"
-        "2. move_active_formation(linear_velocity, angular_velocity=0.0, duration_ms=1000):\n"
-        "   Move the CURRENT active formation. Only controls the leader — followers auto-follow via Console logic.\n"
-        "   REQUIRES a prior successful execute_formation_mission.\n\n"
-        "3. get_formation_status(): Get current formation state (leader, followers, type, state).\n\n"
-        "4. stop_active_formation(): Stop all robots in the active formation.\n\n"
-        "5. cancel_formation_mission(task_id=\"\"): Cancel formation and rollback all leader/follower settings.\n\n"
-        "=== LOW-LEVEL TOOLS (for fine-grained control) ===\n"
-        "6. list_robots(): list bound units with run_mode (sim|real).\n"
-        "7. get_robot_status(robot_id): get robot pose/speed.\n"
-        "8. get_fleet_status(robot_ids_csv=\"\"): batch robot status.\n"
-        "9. send_move(robot_id, linear_velocity, angular_velocity, duration_ms): execute movement.\n"
-        "10. stop_robot(robot_id): stop a robot.\n"
-        "11. emergency_stop_all(): stop all robots.\n"
-        "12. goto_pose(robot_id, x, y): navigate single robot to absolute point.\n"
-        "13. goto_pose_batch(targets_json): navigate multiple robots concurrently.\n"
-        "14. set_leader(robot_id), set_group_mode(mode), set_group_minor_mode(mode): low-level formation control.\n\n"
-        "=== DECISION RULES ===\n"
-        "- FORMATION TASKS (编队/队形/formation/排队): ALWAYS prefer execute_formation_mission. Do NOT manually chain plan_* + compute_navigation_hint + send_move.\n"
-        "  If the user doesn't specify spacing/leader/units, use defaults (spacing_m=1.0, auto-select leader, use all online units).\n"
-        "  After formation is established, use move_active_formation for movement, get_formation_status for status.\n"
+        "=== Available Tools: FORMATION HAS TWO DISTINCT MODES ===\n"
+        "1. Console follow formation:\n"
+        "   send_follow_formation(leader_id, followers_json) sends the same chain formation as Console.\n"
+        "   followers_json contains ordered robot_id + distance_m for EVERY follower. Never default spacing.\n"
+        "   goto_follow_formation(x, y) sends a target only to the Console's current Leader.\n"
+        "   get_formation_status() reads durable Console-owned state.\n"
+        "2. Geometric formation:\n"
+        "   execute_geometric_formation(formation_type, unit_ids_csv, spacing_m, ...) independently navigates all vehicles.\n"
+        "   Use only when the user explicitly requests geometric placement such as a line or triangle.\n\n"
+        "For an ambiguous formation request, do not call a formation tool; the client asks the user to choose mode 1 or 2.\n"
+        "In Console follow mode, require Leader, ordered Followers, and every distance before one send_follow_formation call.\n"
+        "If Console reports requested_distance_m different from effective_distance_m, explicitly tell the user the applied value.\n"
+        "After follow formation succeeds, use only goto_follow_formation for a target; never goto_pose followers separately.\n"
+        "Never automatically cancel, stop, reset, retry, or create a second formation after a follow-formation failure.\n"
+        "Legacy plan_line_targets and plan_triangle_targets are geometry helpers, not Console follow tools.\n\n"
+        "=== OTHER TOOLS ===\n"
+        "list_robots, get_robot_status, get_fleet_status, send_move, stop_robot, emergency_stop_all,\n"
+        "goto_pose, goto_pose_batch, set_leader, set_group_mode, set_group_minor_mode.\n\n"
+        "=== SPEED SAFETY (TC-06) ===\n"
+        "Never clamp an explicitly requested speed; send the exact value so the adapter can reject unsafe input.\n"
+        "=== ABSOLUTE POINT GOALS / PREMATURE DONE ===\n"
+        "Outside Console follow mode, execute navigation before claiming an absolute point goal is complete.\n"
         "- ABSOLUTE POINT GOALS (go to x,y): use goto_pose or compute_navigation_hint + send_move loop.\n"
         "- RELATIVE/BLIND MOTION (前进/后退/转弯): use send_move directly with velocity×duration.\n"
         "- ID BINDING: If a tool fails with 'unit_not_bound', call list_robots() first, then use valid unit_id.\n\n"
@@ -392,6 +710,7 @@ def call_llm(messages: list[dict[str, Any]], api_key: str, model: str) -> dict[s
 
     data = resp.json()
     content = data["choices"][0]["message"]["content"].strip()
+    original_content = content
     
     # 清理可能包含 markdown block 的 JSON 格式
     if content.startswith("```"):
@@ -409,6 +728,8 @@ def call_llm(messages: list[dict[str, Any]], api_key: str, model: str) -> dict[s
     try:
         return json.loads(content)
     except json.JSONDecodeError as e:
+        if original_content:
+            return {"done": True, "message": original_content}
         raise RuntimeError(f"LLM output is not JSON: {content}") from e
 
 
@@ -437,6 +758,57 @@ def run_mcp_call(server_spec: str, tool: str, args: dict[str, Any]) -> str:
     return out[first:]
 
 
+def normalize_tool_call_args(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+    """Normalize only unambiguous legacy argument aliases."""
+
+    normalized = dict(args)
+    if tool_name != "set_leader" or "unit_id" not in normalized:
+        return normalized
+    unit_id = str(normalized.pop("unit_id"))
+    if "robot_id" in normalized and str(normalized["robot_id"]) != unit_id:
+        raise ValueError("conflicting robot_id and unit_id")
+    normalized["robot_id"] = unit_id
+    return normalized
+
+
+def _parse_wizard_tool_payload(raw_result: str) -> dict[str, Any]:
+    try:
+        parsed = json.loads(raw_result)
+    except json.JSONDecodeError:
+        return {"success": False, "message": f"Invalid MCP response: {raw_result}"}
+    return unwrap_tool_payload(parsed)
+
+
+def start_console_follow_wizard(
+    server_spec: str,
+    state: ConsoleFollowWizardState,
+) -> WizardTurnResult:
+    """Discover vehicles and enter the deterministic Console-follow wizard."""
+
+    state.phase = FollowWizardPhase.DISCOVERING_UNITS
+    print("[Agent] Calling tool: list_robots({})")
+    raw_result = run_mcp_call(server_spec, "list_robots", {})
+    payload = _parse_wizard_tool_payload(raw_result)
+    print_list_robots_runtime_summary(payload)
+    return begin_follow_wizard(state, payload)
+
+
+def run_console_follow_wizard_turn(
+    server_spec: str,
+    state: ConsoleFollowWizardState,
+    user_text: str,
+) -> WizardTurnResult:
+    """Process one wizard input and execute at most one deterministic MCP call."""
+
+    result = handle_follow_wizard_input(state, user_text)
+    if not result.tool_name:
+        return result
+    print(f"[Agent] Calling tool: {result.tool_name}({result.tool_args})")
+    raw_result = run_mcp_call(server_spec, result.tool_name, result.tool_args)
+    payload = _parse_wizard_tool_payload(raw_result)
+    return apply_follow_tool_result(state, result.tool_name, payload)
+
+
 def main() -> int:
     """
     入口函数，循环读取用户输入，并跑 Agent Loop。
@@ -454,6 +826,8 @@ def main() -> int:
     print("Thin DeepSeek MCP Client started. Type 'exit' to quit.")
     
     messages = [{"role": "system", "content": build_system_prompt()}]
+    formation_state = FormationDialogState()
+    follow_wizard_state = ConsoleFollowWizardState()
     
     while True:
         try:
@@ -462,13 +836,71 @@ def main() -> int:
                 continue
             if user_text.lower() in {"exit", "quit"}:
                 break
-                
+
+            requested_recovery_tools = allowed_recovery_tools(user_text)
+            deterministic_follow_retry = (
+                follow_wizard_state.formation_send_failed
+                and requested_recovery_tools == {"send_follow_formation"}
+            )
+            explicit_follow_recovery = (
+                follow_wizard_state.formation_send_failed
+                and bool(requested_recovery_tools)
+                and not deterministic_follow_retry
+            )
+            if (
+                follow_wizard_state.phase is not FollowWizardPhase.IDLE
+                and not re.search(r"^(?:重新|再次)?进行编队$|^重新编队$", user_text)
+                and not explicit_follow_recovery
+            ):
+                wizard_result = run_console_follow_wizard_turn(
+                    args.server_spec,
+                    follow_wizard_state,
+                    user_text,
+                )
+                print(f"\n[Agent] {wizard_result.message}")
+                if follow_wizard_state.phase is FollowWizardPhase.IDLE:
+                    formation_state.mode = None
+                    formation_state.follow_failure_seen = False
+                continue
+            if explicit_follow_recovery:
+                formation_state.follow_failure_seen = True
+            if follow_wizard_state.phase is not FollowWizardPhase.IDLE:
+                if not explicit_follow_recovery:
+                    follow_wizard_state = ConsoleFollowWizardState()
+
+            formation_route = route_formation_input(user_text, formation_state)
+            if formation_route.prompt_only:
+                print(f"\n[Agent] {formation_route.message}")
+                messages.append({"role": "user", "content": user_text})
+                messages.append({"role": "assistant", "content": formation_route.message})
+                if formation_route.mode is FormationMode.CONSOLE_FOLLOW:
+                    wizard_result = start_console_follow_wizard(
+                        args.server_spec,
+                        follow_wizard_state,
+                    )
+                    print(f"\n[Agent] {wizard_result.message}")
+                continue
+            if (
+                formation_route.mode is FormationMode.CONSOLE_FOLLOW
+                and follow_wizard_state.phase is FollowWizardPhase.IDLE
+            ):
+                wizard_result = start_console_follow_wizard(
+                    args.server_spec,
+                    follow_wizard_state,
+                )
+                print(f"\n[Agent] {wizard_result.message}")
+                continue
+            if formation_state.mode is FormationMode.CONSOLE_FOLLOW:
+                record_explicit_follow_spacings(user_text, formation_state)
+            formation_state.follow_send_seen_this_turn = False
+
             messages.append({"role": "user", "content": user_text})
             user_speed_intent = extract_user_speed_intent(user_text)
             user_oob_speed = user_requested_out_of_bounds_speed(user_speed_intent)
             user_point_goals = extract_user_absolute_point_goals(user_text)
             speed_rejection_seen = False
             send_move_call_count = 0
+            follow_target_call_count = 0
             
             # Agent Loop variables for guardrails
             robot_iteration_counts = {}
@@ -516,10 +948,16 @@ def main() -> int:
                             "\n[Agent] Task Rejected: 越界速度指令已被 MCP 适配层拦截，"
                             "未下发至主控（TC-06）"
                         )
-                    elif is_premature_done_for_point_goals(
+                    elif (
+                        not (
+                            formation_state.mode is FormationMode.CONSOLE_FOLLOW
+                            and follow_target_call_count > 0
+                        )
+                        and is_premature_done_for_point_goals(
                         user_point_goals=user_point_goals,
                         send_move_call_count=send_move_call_count,
                         done_message=str(parsed.get("message", "")),
+                        )
                     ):
                         print(
                             "\n[Agent] [GUARDRAIL] 用户指定绝对坐标，但尚未执行 send_move，"
@@ -566,8 +1004,64 @@ def main() -> int:
                     tool_args = call.get("args", {})
                     if not tool_name:
                         continue
+                    try:
+                        tool_args = normalize_tool_call_args(tool_name, tool_args)
+                    except (TypeError, ValueError) as exc:
+                        guard_msg = f"Tool arguments rejected: {exc}"
+                        print(f"[Agent] [GUARDRAIL] 工具参数已拒绝: {guard_msg}")
+                        all_results.append({
+                            "tool": tool_name,
+                            "result": {"success": False, "message": guard_msg, "data": None},
+                        })
+                        continue
                         
                     robot_id = tool_args.get("robot_id")
+
+                    if not allowed_formation_tool(tool_name, formation_state):
+                        guard_msg = f"Cross-mode tool rejected: {tool_name}"
+                        print(f"[Agent] [GUARDRAIL] 跨模式工具调用已拒绝: {tool_name}")
+                        all_results.append({
+                            "tool": tool_name,
+                            "result": {"success": False, "message": guard_msg, "data": None},
+                        })
+                        continue
+
+                    if (
+                        tool_name == "send_follow_formation"
+                        and not follow_spacing_args_are_user_supplied(tool_args, formation_state)
+                    ):
+                        guard_msg = "Follow spacing rejected: every distance must come from explicit user input"
+                        print("[Agent] [GUARDRAIL] 间距并非来自用户明确输入，已拒绝发送队形")
+                        all_results.append({
+                            "tool": tool_name,
+                            "result": {"success": False, "message": guard_msg, "data": None},
+                        })
+                        continue
+
+                    recovery_authorized = recovery_tool_call_is_authorized(
+                        tool_name,
+                        tool_args,
+                        user_text,
+                    )
+                    recovery_forbidden = (
+                        formation_state.mode is FormationMode.CONSOLE_FOLLOW
+                        and formation_state.follow_failure_seen
+                        and (tool_name in AUTO_RECOVERY_TOOLS or tool_name in FOLLOW_FORMATION_TOOLS)
+                        and not recovery_authorized
+                    )
+                    repeated_follow_send = (
+                        tool_name == "send_follow_formation"
+                        and formation_state.follow_send_seen_this_turn
+                        and not recovery_authorized
+                    )
+                    if recovery_forbidden or repeated_follow_send:
+                        guard_msg = f"Automatic recovery rejected after follow formation result: {tool_name}"
+                        print(f"[Agent] [GUARDRAIL] 自动恢复已拒绝: {tool_name}")
+                        all_results.append({
+                            "tool": tool_name,
+                            "result": {"success": False, "message": guard_msg, "data": None},
+                        })
+                        continue
 
                     if tool_name in _FORMATION_PLAN_TOOLS and user_point_goals:
                         goals_hint = format_point_goals_hint(user_point_goals)
@@ -609,6 +1103,8 @@ def main() -> int:
                     print(f"[Agent] Calling tool: {tool_name}({tool_args})")
                     if tool_name == "send_move":
                         send_move_call_count += 1
+                    if tool_name == "send_follow_formation":
+                        formation_state.follow_send_seen_this_turn = True
                     try:
                         requests.post("http://127.0.0.1:9001/api/monitor/mcp_log", json={"func": tool_name, "params": tool_args}, timeout=0.5)
                     except Exception:
@@ -630,6 +1126,11 @@ def main() -> int:
                                 )
                                 all_results.append({"tool": tool_name, "result": res_obj})
                                 break
+
+                    if tool_name == "send_follow_formation":
+                        formation_state.follow_failure_seen = not bool(inner_payload.get("success"))
+                    if tool_name == "goto_follow_formation" and inner_payload.get("success"):
+                        follow_target_call_count += 1
 
                     if tool_name == "send_move" and robot_id and inner_payload.get("success"):
                         robot_moved[robot_id] = True

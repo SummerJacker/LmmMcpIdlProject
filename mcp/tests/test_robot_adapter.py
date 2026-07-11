@@ -433,3 +433,80 @@ async def test_reset_unit_relations_route() -> None:
     assert obj["success"] is True
     assert calls[0]["url"].endswith("/api/system/reset_relations")
     assert calls[0]["json_body"] == {}
+
+
+@pytest.mark.asyncio
+async def test_send_follow_formation_resolves_ids_and_preserves_spacing() -> None:
+    calls = []
+
+    def fake_http_request(**kwargs: Any) -> tuple[int, dict[str, Any], str]:
+        calls.append(kwargs)
+        return 200, {"success": True, "message": "accepted", "data": {}}, ""
+
+    adapter = RobotAdapter()
+    with patch("robot_adapter.http_request", side_effect=fake_http_request):
+        response = await adapter.send_follow_formation(
+            leader_id="robot_1",
+            followers_json='[{"robot_id":"robot_2","distance_m":0.3}]',
+        )
+
+    assert _parse_response(response)["success"] is True
+    assert calls[0]["url"].endswith("/api/formation/send_follow")
+    assert calls[0]["json_body"] == {
+        "leader_id": "GV1",
+        "followers": [{"unit_id": "GV2", "distance_m": 0.3}],
+    }
+
+
+@pytest.mark.asyncio
+async def test_send_follow_formation_rejects_duplicate_followers_without_http() -> None:
+    adapter = RobotAdapter()
+    with patch("robot_adapter.http_request") as request:
+        response = await adapter.send_follow_formation(
+            leader_id="GV1",
+            followers_json=(
+                '[{"robot_id":"GV2","distance_m":0.3},'
+                '{"robot_id":"GV2","distance_m":0.4}]'
+            ),
+        )
+
+    assert _parse_response(response)["success"] is False
+    request.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_goto_follow_formation_posts_target_without_robot_id() -> None:
+    calls = []
+
+    def fake_http_request(**kwargs: Any) -> tuple[int, dict[str, Any], str]:
+        calls.append(kwargs)
+        return 200, {
+            "success": True,
+            "message": "accepted",
+            "data": {"leader_id": "GV1"},
+        }, ""
+
+    adapter = RobotAdapter()
+    with patch("robot_adapter.http_request", side_effect=fake_http_request):
+        response = await adapter.goto_follow_formation(x=5.0, y=6.0)
+
+    assert _parse_response(response)["success"] is True
+    assert calls[0]["url"].endswith("/api/formation/goto_target")
+    assert calls[0]["json_body"] == {"x": 5.0, "y": 6.0}
+
+
+@pytest.mark.asyncio
+async def test_get_follow_formation_status_uses_console_endpoint() -> None:
+    calls = []
+
+    def fake_http_request(**kwargs: Any) -> tuple[int, dict[str, Any], str]:
+        calls.append(kwargs)
+        return 200, {"success": True, "message": "ok", "data": {"state": "READY"}}, ""
+
+    adapter = RobotAdapter()
+    with patch("robot_adapter.http_request", side_effect=fake_http_request):
+        response = await adapter.get_follow_formation_status()
+
+    assert _parse_response(response)["success"] is True
+    assert calls[0]["method"] == "GET"
+    assert calls[0]["url"].endswith("/api/formation/status")
