@@ -1,169 +1,176 @@
-// ============================================================
-// MCP-IDL: MCP Swarm Task Interface Definition Language
-// 大模型 ↔ MCP Server ↔ Console 的任务级接口契约
-//
-// 版本: 1.0
-// 职责: 定义大模型可调用的任务级能力接口，不定义底层如何执行
-// 原则: 先定义契约，再写代码；契约即文档；契约即测试标准
-// ============================================================
-
+// MCP task-level contract. This file does not replace or modify the five base IDLs.
 module MCP_Swarm_Task {
-
-  // ==========================================================
-  // 基础类型定义
-  // ==========================================================
-
-  typedef string UnitID;       // 智能体标识，如 "GV1"、"AV1"
-  typedef string TaskID;       // 任务唯一标识 (UUID v4)
-
-  // ==========================================================
-  // 任务状态机
-  //
-  // PENDING ──→ RUNNING ──→ COMPLETED
-  //                │    ╰──→ PARTIAL_COMPLETED
-  //                │    ╰──→ FAILED
-  //                │    ╰──→ TIMEOUT
-  //                │    ╰──→ CANCELLED
-  //                ╰── REJECTED (入口校验不通过)
-  // ==========================================================
+  typedef string UnitID;
+  typedef string TaskID;
 
   enum TaskState {
-    PENDING,              // 任务已创建，等待执行
-    RUNNING,              // 任务执行中
-    COMPLETED,            // 全部单元成功
-    FAILED,               // 全部单元失败
-    PARTIAL_COMPLETED,    // 部分单元成功，部分失败
-    TIMEOUT,              // 执行超时
-    CANCELLED,            // 被用户取消
-    REJECTED              // 被安全校验拒绝
+    PENDING,
+    RUNNING,
+    COMPLETED,
+    PARTIAL_COMPLETED,
+    FAILED,
+    TIMEOUT,
+    CANCELLED,
+    REJECTED
   };
 
-  // ==========================================================
-  // 数据结构
-  // ==========================================================
+  enum CancellationEffect {
+    NOT_APPLICABLE,         // operation is not a cancellation
+    CANCEL_CONFIRMED,       // local/mock task ended and its motion state was cleared
+    STOP_REQUESTED,         // stop was requested, but base IDL cannot clear a task point/path
+    STATE_ONLY_CANCELLED    // state was cancelled but no stop RPC could be confirmed
+  };
 
-  struct Pose2D {
-    float x;              // x 坐标 (米)
-    float y;              // y 坐标 (米)
-    float yaw;            // 朝向角 (弧度)，不关心时填 0.0
+  struct Point2D {
+    float x;
+    float y;
+  };
+
+  struct CapabilityFlag {
+    boolean supported;
+    string reason;
+  };
+
+  struct Capabilities {
+    CapabilityFlag target_point_navigation;
+    CapabilityFlag path_tasks;
+    CapabilityFlag static_geometric_formation;
+    CapabilityFlag continuous_follow_formation;
+    CapabilityFlag final_yaw;
+    CapabilityFlag navigation_speed;
+    CapabilityFlag strict_cancel;
+    CapabilityFlag real_unit_rpc;
+  };
+
+  struct UnitSnapshot {
+    UnitID unit_id;
+    string run_mode;       // sim | real
+    boolean online;
+    boolean online_verified;
+    boolean rpc_available;
+    boolean busy;
+    boolean mock;
+  };
+
+  struct FleetSnapshot {
+    sequence<UnitSnapshot> units;
+    boolean rpc_enabled;
   };
 
   enum FormationType {
-    LINE,                 // 直线编队
-    TRIANGLE,             // 正三角形编队
-    COLUMN,               // 纵队
-    WEDGE                 // 楔形 (预留)
+    line,
+    triangle,
+    column
   };
 
-  // 编队请求 —— 只接受语义化参数，不对大模型暴露底层实现细节
-  struct FormationRequest {
-    FormationType formation_type;       // 编队类型
-    sequence<UnitID> unit_ids;          // 参与单元 (空 = 自动选择全部可用地面单元)
-    float spacing_m;                    // 间距 (米)
-    Pose2D anchor;                      // 锚点 (可选，空 = 以当前位姿自动计算)
-    float heading_rad;                  // 编队朝向 (可选，空 = 以 leader 朝向为准)
+  struct StaticFormationRequest {
+    FormationType formation_type;
+    sequence<UnitID> unit_ids;
+    float spacing_m;
+    Point2D anchor;
+    float heading_rad;
+    float tolerance_m;
+    unsigned long timeout_ms;
   };
 
-  // 单个单元的任务结果
+  struct FollowMember {
+    UnitID unit_id;
+    float distance_m;
+  };
+
+  struct FollowFormationRequest {
+    UnitID leader_id;
+    sequence<FollowMember> followers;
+  };
+
+  struct FollowMemberStatus {
+    UnitID unit_id;
+    float requested_distance_m;
+    float effective_distance_m;
+  };
+
   struct UnitTaskResult {
     UnitID unit_id;
-    TaskState state;
-    float progress_pct;                 // 0.0 ~ 100.0
-    string message;                     // 人类可读的状态描述
-    string error_code;                  // 空 = 无错误，否则为 ErrorCode 常量
-  };
-
-  // 整体任务结果
-  struct TaskResult {
-    boolean success;                    // 整体是否成功
-    TaskID task_id;
-    string task_type;                   // "goto_pose" | "goto_pose_batch" | "execute_formation"
     TaskState state;
     float progress_pct;
     string message;
     string error_code;
-    sequence<UnitTaskResult> unit_results;  // 每个单元的子结果
-    unsigned long elapsed_ms;
-    unsigned long started_at_ms;
   };
 
-  // ==========================================================
-  // 统一错误码
-  // 大模型可以根据 error_code 决定下一步行为
-  // ==========================================================
+  // Logical payload carried in the HTTP/MCP response envelope's data field.
+  struct TaskResult {
+    boolean success;
+    TaskID task_id;
+    string task_type;
+    TaskState state;
+    float progress_pct;
+    string message;
+    string error_code;
+    sequence<UnitTaskResult> unit_results;
+    unsigned long elapsed_ms;
+    unsigned long started_at_ms;
+    CancellationEffect cancellation_effect;
+  };
 
-  const string ERR_OK                    = "";
-  const string ERR_UNIT_NOT_FOUND        = "UNIT_NOT_FOUND";
-  const string ERR_UNIT_OFFLINE          = "UNIT_OFFLINE";
-  const string ERR_UNIT_BUSY             = "UNIT_BUSY";
-  const string ERR_TARGET_OUT_OF_BOUNDS  = "TARGET_OUT_OF_BOUNDS";
-  const string ERR_TARGET_IN_NOGO_ZONE   = "TARGET_IN_NOGO_ZONE";
-  const string ERR_SPEED_OUT_OF_BOUNDS   = "SPEED_OUT_OF_BOUNDS";
-  const string ERR_DISTANCE_TOO_FAR      = "DISTANCE_TOO_FAR";
-  const string ERR_LOW_BATTERY           = "LOW_BATTERY";
-  const string ERR_TASK_NOT_FOUND        = "TASK_NOT_FOUND";
+  struct FormationStatus {
+    boolean has_active_formation;
+    string state;          // IDLE | CREATING | READY | MOVING | FAILED
+    UnitID leader_id;
+    sequence<FollowMemberStatus> followers;
+    string active_move_task_id;
+    string message;
+    string error_code;
+  };
+
+  const string ERR_OK = "";
+  const string ERR_UNIT_NOT_FOUND = "UNIT_NOT_FOUND";
+  const string ERR_UNIT_OFFLINE = "UNIT_OFFLINE";
+  const string ERR_UNIT_BUSY = "UNIT_BUSY";
+  const string ERR_TASK_CONFLICT = "TASK_CONFLICT";
+  const string ERR_TASK_NOT_FOUND = "TASK_NOT_FOUND";
   const string ERR_TASK_ALREADY_CANCELLED = "TASK_ALREADY_CANCELLED";
-  const string ERR_SAFETY_REJECTED       = "SAFETY_REJECTED";
-  const string ERR_INTERNAL_ERROR        = "INTERNAL_ERROR";
-  const string ERR_RPC_DISABLED          = "RPC_DISABLED";
-
-  // ==========================================================
-  // MCP Swarm Task Control Interface
-  // 大模型可调用的全部任务级接口
-  // ==========================================================
+  const string ERR_TARGET_OUT_OF_BOUNDS = "TARGET_OUT_OF_BOUNDS";
+  const string ERR_SAFETY_REJECTED = "SAFETY_REJECTED";
+  const string ERR_FORMATION_NOT_READY = "FORMATION_NOT_READY";
+  const string ERR_FORMATION_CONFLICT = "FORMATION_CONFLICT";
+  const string ERR_UNSUPPORTED_CAPABILITY = "UNSUPPORTED_CAPABILITY";
+  const string ERR_RPC_DISABLED = "RPC_DISABLED";
+  const string ERR_INTERNAL_ERROR = "INTERNAL_ERROR";
 
   interface SwarmTaskControl {
+    Capabilities getCapabilities();
+    FleetSnapshot getFleetSnapshot();
 
-    // ----------------------------------------------------------
-    // 导航类任务
-    // ----------------------------------------------------------
-
-    /// 令单个智能体自主导航到目标点位
-    /// 返回 task_id，大模型轮询 getTaskStatus 获取进度
-    /// 安全约束: 目标必须在允许区域内、距离不超过 100m、速度不超过上限
-    TaskResult gotoPose(
-      in UnitID unit_id,              // 智能体标识 (如 "GV1")
-      in Pose2D target,               // 目标位姿
-      in float tolerance_m,           // 到达容差 (默认 0.15m，最小 0.02m)
-      in unsigned long timeout_ms     // 超时 (默认 30000ms)
-    );
-
-    /// 多智能体并发导航到各自目标点
-    /// 所有目标一次性校验，任一失败即整体 REJECTED
-    /// 各单元独立执行，全部到达后返回 COMPLETED 或 PARTIAL_COMPLETED
-    TaskResult gotoPoseBatch(
-      in sequence<UnitID> unit_ids,       // 与 targets 一一对应
-      in sequence<Pose2D> targets,        // 每个单元的目标位姿
+    // Base Ground_Unit.setTaskPoint supports x/y only: no final yaw or task speed.
+    TaskResult navigateTo(
+      in UnitID unit_id,
+      in Point2D target,
       in float tolerance_m,
       in unsigned long timeout_ms
     );
 
-    // ----------------------------------------------------------
-    // 编队类任务
-    // ----------------------------------------------------------
-
-    /// 执行编队任务
-    /// 内部流程: 规划目标点 → 并发导航 → (可选)建立编队关系
-    /// 大模型只需指定 formation_type + spacing_m，无需理解底层参数
-    TaskResult executeFormation(
-      in FormationRequest request
+    TaskResult followPath(
+      in UnitID unit_id,
+      in sequence<Point2D> points,
+      in float tolerance_m,
+      in unsigned long timeout_ms
     );
 
-    // ----------------------------------------------------------
-    // 任务管理
-    // ----------------------------------------------------------
+    // Computes local geometry, rotates by heading_rad and translates by anchor.
+    // Does not establish persistent leader/follower relationships.
+    TaskResult createStaticFormation(in StaticFormationRequest request);
 
-    /// 查询任务进度，包含每个 unit 的子状态
-    /// 大模型应轮询此接口直到 state ∈ {COMPLETED, FAILED, CANCELLED, TIMEOUT}
-    TaskResult getTaskStatus(
-      in TaskID task_id
-    );
+    // Console atomically sets leader/followers, dispatches formation data,
+    // enables Follow mode and reports READY only after all required steps succeed.
+    FormationStatus createFollowFormation(in FollowFormationRequest request);
+    TaskResult moveFollowFormation(in Point2D target);
+    FormationStatus getFormationStatus();
+    FormationStatus disbandFormation();
 
-    /// 取消运行中的任务
-    /// 所有相关智能体立即停止，任务状态变为 CANCELLED
-    /// 已完成的不可取消 (返回 ERR_TASK_ALREADY_CANCELLED)
-    TaskResult cancelTask(
-      in TaskID task_id
-    );
+    TaskResult getTaskStatus(in TaskID task_id);
+    TaskResult cancelTask(in TaskID task_id);
+
+    // Sends Unit_MA_Stop only; it does not cancel task state or disband formation.
+    TaskResult stopUnits(in sequence<UnitID> unit_ids);
   };
 };

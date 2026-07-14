@@ -2,8 +2,8 @@
 
 ## 1. 模块分层
 - L1 交互层：deepseek_mcp_client.py（Agent Loop + DeepSeek LLM，支持 deepseek-v4-flash / deepseek-v4-pro）
-- L2 协议层：main.py（FastMCP stdio，15+ 个工具）
-- L3 适配层：robot_adapter.py + qt_http_client.py + agents/（别名解析、安全校验）
+- L2 协议层：main.py（FastMCP stdio，生产模式固定 12 个任务级工具）
+- L3 适配层：task_api/ + console_client/ + robot_adapter.py + qt_http_client.py（契约、别名解析、安全校验）
 - L4 配置：config.py、robots.json、utils/logging_setup.py
 - L5 安全层：mcp/safety/validator.py（Python）+ SafetyValidator.cpp（C++）双层校验
 - 执行层（外部）：SAU Console HttpPlugin :9001 → IDL/ILU
@@ -13,7 +13,7 @@ MCP-IDL 任务级接口契约：`mcp/idl/mcp_swarm_task.idl`
 ## 快速验证
 pip install -r requirements.txt
 pytest tests/ -q
-fastmcp call main.py list_robots --json
+fastmcp call main.py getCapabilities --json
 （需先启动 SAU 主控 -httpPort 9001 -mockRobots GV1,GV2,GV3）
 ## 2. 系统分层与模块对应
 
@@ -25,8 +25,8 @@ fastmcp call main.py list_robots --json
 | **L2 协议层** | FastMCP 工具注册、stdio 服务 | `mcp/main.py` |
 | **L3 适配层** | ID 映射、别名解析、速度校验、锁、HTTP 封装、编队几何 | `mcp/robot_adapter.py`、`mcp/qt_http_client.py`、`mcp/agents/` |
 | **L4 配置与基础设施** | 端点、阈值、机器人映射、日志 | `mcp/config.py`、`mcp/robots.json`、`mcp/utils/logging_setup.py` |
-| **L5 安全层** | Python + C++ 双层参数与业务校验 | `mcp/safety/validator.py`、`SAU-cosnaming/Console/SafetyValidator.cpp` |
-| **L6 执行层（Qt/IDL）** | HTTP 接入、TaskManager 状态机、Mock/RPC 分流、ILU 桩 | `SAU-cosnaming/Console/`（`HttpApiExecutor`、`TaskManager`、`stubs/`、`MockRobotSimulator` 等） |
+| **L5 安全层** | Python + C++ 双层参数与业务校验 | `mcp/safety/validator.py`、`SAU/Console/SafetyValidator.cpp` |
+| **L6 执行层（Qt/IDL）** | HTTP 接入、TaskManager 状态机、Mock/RPC 分流、ILU 桩 | `SAU/Console/`（`HttpApiExecutor`、`TaskManager`、`stubs/`、`MockRobotSimulator` 等） |
 
 **数据流（简要）**：
 
@@ -41,7 +41,7 @@ fastmcp call main.py list_robots --json
 
 **核心设计原则**：
 
-> 旧 IDL 是 Console 控制智能体的底层协议；新 MCP-IDL 是大模型控制 Console 的任务级协议。大模型不直接调用底层 IDL，而是通过 MCP-IDL 调用高层任务接口（goto_pose / goto_pose_batch / execute_formation），再由 Console 转换到底层 IDL 控制智能体集群执行。
+> 旧 IDL 是 Console 控制智能体的底层协议；新 MCP-IDL 是大模型控制 Console 的任务级协议。生产模式下大模型只调用 `getCapabilities`、`getFleetSnapshot`、`navigateTo`、`followPath`、静态/持续编队和任务管理接口；Console 再转换为既有底层 IDL/ILU RPC。
 
 ---
 
@@ -81,7 +81,7 @@ fastmcp call main.py list_robots --json
 │   ├── test_stage_a3.py      TC-04 相关（可选）
 │   ├── test_stage_b.py       联调脚本（可选）
 │   └── logs/                 运行日志（验收包可只保留空目录或脱敏样例）
-└── SAU-cosnaming/            ← Qt 主控 + ILU 运行时（执行层）
+└── SAU/            ← Qt 主控 + ILU 运行时（执行层）
     ├── Console/              主控源码
     │   ├── console.pro             Qt 项目（已配置 MSVC /utf-8）
     │   ├── HttpApiExecutor.cpp     HTTP 路由 + 任务执行
@@ -107,26 +107,20 @@ fastmcp call main.py list_robots --json
 
 | 类别 | 工具名 | 作用 |
 |------|--------|------|
-| **任务级导航** | `goto_pose` | 单智能体导航到目标点，返回 task_id |
-| | `goto_pose_batch` | 多智能体并发导航 |
-| | `execute_formation` | 编队任务（line/column/triangle） |
-| | `get_task_status` | 查询任务进度（含子任务状态） |
-| | `cancel_task` | 取消运行中的任务 |
-| 基础控制 | `send_move` | 线速度/角速度/持续时间 |
-| | `stop_robot` | 单车停止 |
-| | `emergency_stop_all` | 全车队停止 |
-| 状态感知 | `list_robots` | 绑定表 + run_mode（sim/real） |
-| | `get_robot_status` | 单车位姿与速度 |
-| | `get_fleet_status` | 批量状态 |
-| **别名管理** | `list_agents` | 智能体列表（含别名） |
-| | `set_agent_alias` | 设置唯一别名 |
-| | `clear_agent_alias` | 清除别名 |
-| | `get_agent_status` | 查询智能体状态 |
-| 任务辅助 | `compute_navigation_hint` | 到目标点导航提示 |
-| | `compute_remaining_distance` | 两车间距 |
-| | `compute_relative_pose` | 相对位姿 |
-| | `plan_line_targets` | 直线编队目标点 |
-| | `plan_triangle_targets` | 三角编队目标点 |
+| 能力/车队 | `getCapabilities` | 返回八项真实能力及限制原因 |
+| | `getFleetSnapshot` | 返回 mock/real、online、busy、rpc_available |
+| 单车任务 | `navigateTo` | 使用既有 `setTaskPoint(x,y)` 导航 |
+| | `followPath` | 使用既有 `setTaskPath`，按最终点判断完成 |
+| 静态编队 | `createStaticFormation` | 旋转/平移几何目标并逐车导航 |
+| 持续跟随 | `createFollowFormation` | 建立限定成员的 Leader/Follower/Formation/Follow 关系 |
+| | `moveFollowFormation` | 只向当前 Leader 下发目标点 |
+| | `getFormationStatus` | 查询 IDLE/CREATING/READY/MOVING/FAILED |
+| | `disbandFormation` | 解散当前持续跟随关系 |
+| 任务管理 | `getTaskStatus` | 查询父任务与逐车状态 |
+| | `cancelTask` | 取消状态机并请求 Stop，返回取消效果 |
+| | `stopUnits` | 只发送停止动作，不取消任务或解散编队 |
+
+低层和旧 snake_case 工具仅在 `MCP_EXPOSE_LOW_LEVEL_TOOLS=1` 时用于调试，默认不注册到生产 MCP 工具列表。
 
 ---
 
@@ -141,7 +135,7 @@ pip install -r requirements.txt
 
 ### 5.2 启动 SAU 主控（执行层）
 
-在 Qt Creator 或命令行编译运行 `SAU-cosnaming/Console/console.pro`：
+在 Qt Creator 或命令行编译运行 `SAU/Console/console.pro`：
 
 - Mock 多车：`main_console -httpPort 9001 -mockRobots GV1,GV2,GV3`
 - 真车 RPC：启动前设置 `SAU_ENABLE_REAL_RPC=1`
@@ -161,7 +155,7 @@ pytest tests/ -q
 
 ```powershell
 cd mcp
-fastmcp call main.py list_robots --json
+fastmcp call main.py getCapabilities --json
 fastmcp call main.py send_move --json robot_id=robot_1 linear_velocity=0.2 angular_velocity=0.0 duration_ms=1000
 ```
 

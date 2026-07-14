@@ -25,6 +25,7 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QPointer>
 #include <QTimer>
 #include <QVector>
 
@@ -63,6 +64,7 @@ public:
         QJsonObject params;      // 原始任务参数
         QString errorCode;       // MCP-IDL ErrorCode
         QString message;
+        QString cancellationEffect; // NOT_APPLICABLE | CANCEL_CONFIRMED | STOP_REQUESTED | STATE_ONLY_CANCELLED
         QVector<SubTask> subTasks;
         qint64 startedAtMs;
         qint64 completedAtMs;
@@ -77,6 +79,9 @@ public:
             o["progress_pct"] = progressPct;
             o["error_code"] = errorCode;
             o["message"] = message;
+            o["success"] = state == "PENDING" || state == "RUNNING" ||
+                           state == "COMPLETED" || state == "PARTIAL_COMPLETED";
+            o["cancellation_effect"] = cancellationEffect;
             o["elapsed_ms"] = (state == "RUNNING" || state == "PENDING")
                 ? (qint64)(QDateTime::currentMSecsSinceEpoch() - startedAtMs)
                 : (qint64)(completedAtMs - startedAtMs);
@@ -101,6 +106,13 @@ public:
      */
     QString createTask(const QString &taskType, const QJsonObject &params,
                        const QStringList &unitIds = {});
+
+    /**
+     * @brief Atomically reserve all units and create the task.
+     * @returns empty when any unit is already owned by a PENDING/RUNNING task.
+     */
+    QString createTaskIfUnitsAvailable(const QString &taskType, const QJsonObject &params,
+                                       const QStringList &unitIds, QString *busyUnit = nullptr);
 
     /**
      * @brief 状态转换 (线程安全)。
@@ -128,16 +140,33 @@ public:
     void appendAudit(const QString &taskId, const QString &event,
                      const QString &detail);
 
-    /**
-     * @brief 获取任务 (可能返回 nullptr)。
-     */
-    TaskEntry *getTask(const QString &taskId);
+    /** @brief Copy a task while holding the manager lock. */
+    bool taskSnapshot(const QString &taskId, TaskEntry *out) const;
+
+    /** @brief Return a copy of all units associated with a task. */
+    QStringList taskUnitIds(const QString &taskId) const;
+
+    /** @brief Return only PENDING/RUNNING units associated with a task. */
+    QStringList taskActiveUnitIds(const QString &taskId) const;
+
+    /** @brief Atomically reserve persistent formation members. */
+    bool reserveUnitsIfAvailable(const QString &ownerId, const QStringList &unitIds,
+                                 QString *busyUnit = nullptr);
+
+    /** @brief Release all persistent reservations owned by ownerId. */
+    void releaseReservations(const QString &ownerId);
+
+    /** Keep a unit unavailable when the Console cannot confirm physical control ended. */
+    void markUnitControlUncertain(const QString &unitId, const QString &reason);
+    void clearUnitControlUncertain(const QString &unitId);
+    bool isUnitControlUncertain(const QString &unitId) const;
 
     /**
      * @brief 取消任务: 停止定时器 + 状态 → CANCELLED。
      * @returns 错误消息 (空 = 成功)
      */
-    QString cancelTask(const QString &taskId);
+    QString cancelTask(const QString &taskId,
+                       const QString &cancellationEffect = QStringLiteral("STATE_ONLY_CANCELLED"));
 
     /**
      * @brief 注册 QTimer (供 cancel 时停止)。
@@ -154,6 +183,9 @@ public:
      */
     static double computeBatchProgress(const QVector<SubTask> &subTasks);
 
+    /** @brief Aggregate terminal subtask states into the parent task. */
+    bool finalizeTaskIfAllSubTasksTerminal(const QString &taskId);
+
 signals:
     void taskStateChanged(const QString &taskId, const QString &newState);
 
@@ -167,8 +199,16 @@ private:
 
     QString generateTaskId(const QString &prefix) const;
 
+    static bool isTerminalState(const QString &state);
+    bool isUnitBusyLocked(const QString &unitId) const;
+    void releaseReservationsLocked(const QString &ownerId);
+    QString createTaskLocked(const QString &taskType, const QJsonObject &params,
+                             const QStringList &unitIds);
+
     QHash<QString, TaskEntry> tasks_;
-    QHash<QString, QTimer *> timers_;
+    QHash<QString, QVector<QPointer<QTimer>>> timers_;
+    QHash<QString, QString> unitReservations_; // unitId -> task/formation owner id
+    QHash<QString, QString> controlUncertainUnits_; // unitId -> reason
     mutable QMutex mutex_;
     int taskIdCounter_;
     QTimer *cleanupTimer_;

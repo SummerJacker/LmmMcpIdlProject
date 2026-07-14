@@ -7,7 +7,28 @@
 
 #include <QMutexLocker>
 #include <QDebug>
+#include <QSet>
 #include <QUuid>
+
+namespace {
+
+QString normalizedUnitKey(const QString &unitId) {
+    const QString value = unitId.trimmed().toUpper();
+    int digitIndex = -1;
+    for (int i = 0; i < value.size(); ++i) {
+        if (value.at(i).isDigit()) {
+            digitIndex = i;
+            break;
+        }
+    }
+    if (digitIndex <= 0)
+        return value;
+    bool ok = false;
+    const int number = value.mid(digitIndex).toInt(&ok);
+    return ok ? value.left(digitIndex) + QString::number(number) : value;
+}
+
+} // namespace
 
 // ---- Singleton ----
 
@@ -42,14 +63,14 @@ QString TaskManager::generateTaskId(const QString &prefix) const {
 
 // ---- Create Task ----
 
-QString TaskManager::createTask(const QString &taskType, const QJsonObject &params,
-                                 const QStringList &unitIds) {
-    QMutexLocker lock(&mutex_);
-
+QString TaskManager::createTaskLocked(const QString &taskType, const QJsonObject &params,
+                                       const QStringList &unitIds) {
     TaskEntry entry;
     entry.taskId = generateTaskId(
         taskType == "goto_pose_batch" ? QStringLiteral("batch") :
-        taskType == "execute_formation" ? QStringLiteral("form") :
+        taskType == "create_static_formation" || taskType == "execute_formation"
+            ? QStringLiteral("form") :
+        taskType == "follow_path" ? QStringLiteral("path") :
         QStringLiteral("goto"));
     entry.taskType = taskType;
     entry.state = QStringLiteral("PENDING");
@@ -58,8 +79,8 @@ QString TaskManager::createTask(const QString &taskType, const QJsonObject &para
     entry.startedAtMs = QDateTime::currentMSecsSinceEpoch();
     entry.completedAtMs = 0;
     entry.pollTimer = nullptr;
+    entry.cancellationEffect = QStringLiteral("NOT_APPLICABLE");
 
-    // 为每个参与单元创建子任务
     for (const QString &uid : unitIds) {
         SubTask st;
         st.unitId = uid;
@@ -68,7 +89,6 @@ QString TaskManager::createTask(const QString &taskType, const QJsonObject &para
         entry.subTasks.append(st);
     }
 
-    // 审计日志: 任务创建
     QJsonObject auditEntry;
     auditEntry["ts_ms"] = entry.startedAtMs;
     auditEntry["event"] = QStringLiteral("TASK_CREATED");
@@ -78,10 +98,36 @@ QString TaskManager::createTask(const QString &taskType, const QJsonObject &para
     entry.auditLog.append(auditEntry);
 
     tasks_.insert(entry.taskId, entry);
-
     qDebug() << "[TaskManager] created task" << entry.taskId
              << "type=" << taskType << "units=" << unitIds;
     return entry.taskId;
+}
+
+QString TaskManager::createTask(const QString &taskType, const QJsonObject &params,
+                                 const QStringList &unitIds) {
+    QMutexLocker lock(&mutex_);
+    return createTaskLocked(taskType, params, unitIds);
+}
+
+QString TaskManager::createTaskIfUnitsAvailable(const QString &taskType,
+                                                 const QJsonObject &params,
+                                                 const QStringList &unitIds,
+                                                 QString *busyUnit) {
+    QMutexLocker lock(&mutex_);
+    QSet<QString> seen;
+    for (const QString &uid : unitIds) {
+        const QString key = normalizedUnitKey(uid);
+        if (key.isEmpty() || seen.contains(key) || isUnitBusyLocked(uid)) {
+            if (busyUnit)
+                *busyUnit = uid;
+            return QString();
+        }
+        seen.insert(key);
+    }
+    const QString taskId = createTaskLocked(taskType, params, unitIds);
+    for (const QString &uid : unitIds)
+        unitReservations_.insert(normalizedUnitKey(uid), taskId);
+    return taskId;
 }
 
 // ---- State Transition ----
@@ -97,6 +143,11 @@ void TaskManager::transitionTask(const QString &taskId, const QString &newState,
     }
 
     const QString oldState = it->state;
+    if (isTerminalState(oldState) && oldState != newState) {
+        qWarning() << "[TaskManager] refusing terminal transition" << taskId
+                   << oldState << "->" << newState;
+        return;
+    }
     it->state = newState;
     if (!errorCode.isEmpty())
         it->errorCode = errorCode;
@@ -109,6 +160,7 @@ void TaskManager::transitionTask(const QString &taskId, const QString &newState,
         newState == "CANCELLED" || newState == "REJECTED") {
         it->completedAtMs = QDateTime::currentMSecsSinceEpoch();
         it->progressPct = (newState == "COMPLETED") ? 100.0 : it->progressPct;
+        releaseReservationsLocked(taskId);
     }
 
     // 审计日志
@@ -158,8 +210,9 @@ void TaskManager::updateSubTask(const QString &taskId, const QString &unitId,
         }
     }
 
-    // 批量任务: 自动计算整体进度
-    if (it->taskType == "goto_pose_batch" || it->taskType == "execute_formation") {
+    // Every task with sub-tasks, including a single-unit navigation task,
+    // derives its visible progress from those sub-tasks.
+    if (!it->subTasks.isEmpty()) {
         it->progressPct = computeBatchProgress(it->subTasks);
     }
 }
@@ -182,67 +235,186 @@ void TaskManager::appendAudit(const QString &taskId, const QString &event,
 
 // ---- Get Task ----
 
-TaskManager::TaskEntry *TaskManager::getTask(const QString &taskId) {
+bool TaskManager::taskSnapshot(const QString &taskId, TaskEntry *out) const {
     QMutexLocker lock(&mutex_);
-    auto it = tasks_.find(taskId);
-    return (it != tasks_.end()) ? &it.value() : nullptr;
+    auto it = tasks_.constFind(taskId);
+    if (it == tasks_.constEnd())
+        return false;
+    if (out)
+        *out = it.value();
+    return true;
+}
+
+QStringList TaskManager::taskUnitIds(const QString &taskId) const {
+    QMutexLocker lock(&mutex_);
+    QStringList result;
+    auto it = tasks_.constFind(taskId);
+    if (it == tasks_.constEnd())
+        return result;
+    for (const SubTask &subTask : it->subTasks)
+        result.append(subTask.unitId);
+    return result;
+}
+
+QStringList TaskManager::taskActiveUnitIds(const QString &taskId) const {
+    QMutexLocker lock(&mutex_);
+    QStringList result;
+    auto it = tasks_.constFind(taskId);
+    if (it == tasks_.constEnd())
+        return result;
+    for (const SubTask &subTask : it->subTasks) {
+        if (subTask.state == "PENDING" || subTask.state == "RUNNING")
+            result.append(subTask.unitId);
+    }
+    return result;
+}
+
+bool TaskManager::reserveUnitsIfAvailable(const QString &ownerId,
+                                          const QStringList &unitIds,
+                                          QString *busyUnit) {
+    QMutexLocker lock(&mutex_);
+    if (ownerId.isEmpty() || unitIds.isEmpty())
+        return false;
+    QSet<QString> seen;
+    for (const QString &uid : unitIds) {
+        const QString key = normalizedUnitKey(uid);
+        if (key.isEmpty() || seen.contains(key) || isUnitBusyLocked(uid)) {
+            if (busyUnit)
+                *busyUnit = uid;
+            return false;
+        }
+        seen.insert(key);
+    }
+    for (const QString &uid : unitIds)
+        unitReservations_.insert(normalizedUnitKey(uid), ownerId);
+    return true;
+}
+
+void TaskManager::releaseReservations(const QString &ownerId) {
+    QMutexLocker lock(&mutex_);
+    releaseReservationsLocked(ownerId);
+}
+
+void TaskManager::markUnitControlUncertain(const QString &unitId,
+                                           const QString &reason) {
+    QMutexLocker lock(&mutex_);
+    const QString key = normalizedUnitKey(unitId);
+    if (!key.isEmpty())
+        controlUncertainUnits_.insert(key, reason);
+}
+
+void TaskManager::clearUnitControlUncertain(const QString &unitId) {
+    QMutexLocker lock(&mutex_);
+    controlUncertainUnits_.remove(normalizedUnitKey(unitId));
+}
+
+bool TaskManager::isUnitControlUncertain(const QString &unitId) const {
+    QMutexLocker lock(&mutex_);
+    return controlUncertainUnits_.contains(normalizedUnitKey(unitId));
 }
 
 // ---- Cancel ----
 
-QString TaskManager::cancelTask(const QString &taskId) {
+QString TaskManager::cancelTask(const QString &taskId,
+                                const QString &cancellationEffect) {
     QMutexLocker lock(&mutex_);
     auto it = tasks_.find(taskId);
     if (it == tasks_.end())
         return QStringLiteral("TASK_NOT_FOUND");
 
-    if (it->state == "COMPLETED" || it->state == "CANCELLED") {
+    if (it->state == "CANCELLED")
         return QStringLiteral("TASK_ALREADY_CANCELLED");
-    }
+    if (isTerminalState(it->state))
+        return QStringLiteral("TASK_CONFLICT");
 
-    // 停止关联定时器
     auto timerIt = timers_.find(taskId);
-    if (timerIt != timers_.end() && timerIt.value()) {
-        timerIt.value()->stop();
-        timerIt.value()->deleteLater();
+    if (timerIt != timers_.end()) {
+        for (const QPointer<QTimer> &timer : timerIt.value()) {
+            if (timer) {
+                timer->stop();
+                timer->deleteLater();
+            }
+        }
         timers_.erase(timerIt);
     }
 
-    // 所有子任务标记为 cancelled
     for (auto &st : it->subTasks) {
         if (st.state == "RUNNING" || st.state == "PENDING") {
             st.state = "CANCELLED";
+            st.message = QStringLiteral("task state cancelled");
+            st.progressPct = 100.0;
         }
     }
 
+    it->progressPct = computeBatchProgress(it->subTasks);
+    const QString oldState = it->state;
     it->state = QStringLiteral("CANCELLED");
+    it->cancellationEffect = cancellationEffect;
+    it->message = QStringLiteral("task state cancelled; physical stop effect is reported separately");
     it->completedAtMs = QDateTime::currentMSecsSinceEpoch();
+    releaseReservationsLocked(taskId);
 
-    qDebug() << "[TaskManager] task cancelled:" << taskId;
-    return QString(); // empty = success
+    QJsonObject auditEntry;
+    auditEntry["ts_ms"] = it->completedAtMs;
+    auditEntry["event"] = QStringLiteral("STATE_TRANSITION");
+    auditEntry["detail"] = QStringLiteral("%1 -> CANCELLED effect=%2")
+        .arg(oldState, cancellationEffect);
+    it->auditLog.append(auditEntry);
+
+    qDebug() << "[TaskManager] task cancelled:" << taskId
+             << "effect=" << cancellationEffect;
+    lock.unlock();
+    emit taskStateChanged(taskId, QStringLiteral("CANCELLED"));
+    return QString();
 }
 
 // ---- Timer Registration ----
 
 void TaskManager::registerTimer(const QString &taskId, QTimer *timer) {
+    if (!timer)
+        return;
     QMutexLocker lock(&mutex_);
-    timers_.insert(taskId, timer);
+    timers_[taskId].append(QPointer<QTimer>(timer));
 }
 
 // ---- Unit Busy Check ----
 
-bool TaskManager::isUnitBusy(const QString &unitId) const {
-    QMutexLocker lock(&mutex_);
+bool TaskManager::isTerminalState(const QString &state) {
+    return state == "COMPLETED" || state == "PARTIAL_COMPLETED" ||
+           state == "FAILED" || state == "TIMEOUT" ||
+           state == "CANCELLED" || state == "REJECTED";
+}
+
+void TaskManager::releaseReservationsLocked(const QString &ownerId) {
+    for (auto it = unitReservations_.begin(); it != unitReservations_.end();) {
+        if (it.value() == ownerId)
+            it = unitReservations_.erase(it);
+        else
+            ++it;
+    }
+}
+
+bool TaskManager::isUnitBusyLocked(const QString &unitId) const {
+    const QString key = normalizedUnitKey(unitId);
+    if (controlUncertainUnits_.contains(key))
+        return true;
+    if (unitReservations_.contains(key))
+        return true;
     for (auto it = tasks_.cbegin(); it != tasks_.cend(); ++it) {
         if (it->state != "RUNNING" && it->state != "PENDING")
             continue;
         for (const auto &st : it->subTasks) {
-            if (st.unitId == unitId &&
+            if (normalizedUnitKey(st.unitId) == key &&
                 (st.state == "RUNNING" || st.state == "PENDING"))
                 return true;
         }
     }
     return false;
+}
+
+bool TaskManager::isUnitBusy(const QString &unitId) const {
+    QMutexLocker lock(&mutex_);
+    return isUnitBusyLocked(unitId);
 }
 
 // ---- Batch Progress ----
@@ -252,16 +424,65 @@ double TaskManager::computeBatchProgress(const QVector<SubTask> &subTasks) {
         return 0.0;
     double total = 0.0;
     for (const auto &st : subTasks) {
-        // 终态计为 100%
-        if (st.state == "COMPLETED")
+        if (st.state == "COMPLETED" || st.state == "FAILED" ||
+            st.state == "TIMEOUT" || st.state == "CANCELLED")
             total += 100.0;
-        else if (st.state == "FAILED" || st.state == "TIMEOUT" ||
-                 st.state == "CANCELLED")
-            total += 100.0; // 不再变化，计入完成
         else
             total += st.progressPct;
     }
     return total / subTasks.size();
+}
+
+bool TaskManager::finalizeTaskIfAllSubTasksTerminal(const QString &taskId) {
+    QString finalState;
+    QString finalErrorCode;
+    QString finalMessage;
+    {
+        QMutexLocker lock(&mutex_);
+        auto it = tasks_.find(taskId);
+        if (it == tasks_.end() || it->subTasks.isEmpty())
+            return false;
+
+        bool anyCompleted = false;
+        bool anyFailed = false;
+        bool anyTimeout = false;
+        bool anyCancelled = false;
+        int representativeErrorRank = 0;
+        for (const SubTask &subTask : it->subTasks) {
+            if (subTask.state == "RUNNING" || subTask.state == "PENDING")
+                return false;
+            anyCompleted = anyCompleted || subTask.state == "COMPLETED";
+            anyFailed = anyFailed || subTask.state == "FAILED";
+            anyTimeout = anyTimeout || subTask.state == "TIMEOUT";
+            anyCancelled = anyCancelled || subTask.state == "CANCELLED";
+
+            int errorRank = 0;
+            if (subTask.state == "FAILED")
+                errorRank = 3;
+            else if (subTask.state == "TIMEOUT")
+                errorRank = 2;
+            else if (subTask.state == "CANCELLED")
+                errorRank = 1;
+            if (errorRank > representativeErrorRank) {
+                representativeErrorRank = errorRank;
+                finalErrorCode = subTask.errorCode;
+                finalMessage = subTask.message;
+            }
+        }
+
+        if (anyCompleted && (anyFailed || anyTimeout || anyCancelled))
+            finalState = QStringLiteral("PARTIAL_COMPLETED");
+        else if (anyCompleted)
+            finalState = QStringLiteral("COMPLETED");
+        else if (anyCancelled && !anyFailed && !anyTimeout)
+            finalState = QStringLiteral("CANCELLED");
+        else if (anyTimeout && !anyFailed)
+            finalState = QStringLiteral("TIMEOUT");
+        else
+            finalState = QStringLiteral("FAILED");
+    }
+    transitionTask(taskId, finalState, finalErrorCode, finalMessage);
+    return true;
 }
 
 // ---- Cleanup ----
@@ -282,8 +503,11 @@ void TaskManager::cleanupExpiredTasks() {
     for (const QString &id : toRemove) {
         // 清理关联定时器
         auto timerIt = timers_.find(id);
-        if (timerIt != timers_.end() && timerIt.value()) {
-            timerIt.value()->deleteLater();
+        if (timerIt != timers_.end()) {
+            for (const QPointer<QTimer> &timer : timerIt.value()) {
+                if (timer)
+                    timer->deleteLater();
+            }
             timers_.erase(timerIt);
         }
         tasks_.remove(id);

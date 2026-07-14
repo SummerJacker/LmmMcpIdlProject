@@ -15,7 +15,7 @@
     {
       "robot_id": "robot_3",
       "unit_id": "GV3",
-      "mode": "sim",
+      "mode": "real",
       "simulator_type": "sau"
     }
   ]

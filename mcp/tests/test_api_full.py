@@ -2,7 +2,14 @@
 MCP-IDL HTTP API 完整测试套件
 按照分层测试计划: 异常输入 → goto_pose → status → cancel → batch → formation
 """
-import json, time, urllib.parse, requests
+import json, os, time, urllib.parse, requests
+import pytest
+
+if os.getenv("RUN_LIVE_CONSOLE_TESTS") != "1":
+    pytest.skip(
+        "manual live Console test; set RUN_LIVE_CONSOLE_TESTS=1 explicitly",
+        allow_module_level=True,
+    )
 
 BASE = "http://127.0.0.1:9001"
 PASS, FAIL, SKIP = 0, 0, 0
@@ -21,6 +28,8 @@ def test(name, fn):
         FAIL += 1
         results.append(f"  CRASH {name}: {e}")
 
+test.__test__ = False
+
 def assert_eq(actual, expected, msg=""):
     if actual != expected:
         raise AssertionError(f"{msg} expected={expected!r} got={actual!r}")
@@ -28,6 +37,30 @@ def assert_eq(actual, expected, msg=""):
 def assert_in(substr, text, msg=""):
     if substr not in text:
         raise AssertionError(f"{msg} '{substr}' not in response")
+
+TERMINAL_STATES = {
+    "COMPLETED", "PARTIAL_COMPLETED", "FAILED", "TIMEOUT", "CANCELLED", "REJECTED"
+}
+
+def release_task(task_id):
+    """Release units before the next scenario without weakening busy-unit checks."""
+    if not task_id:
+        return
+    status = requests.get(
+        f"{BASE}/api/task/status", params={"task_id": task_id}, timeout=5
+    ).json()
+    if status.get("success") and status.get("data", {}).get("state") not in TERMINAL_STATES:
+        requests.post(
+            f"{BASE}/api/task/cancel", json={"task_id": task_id}, timeout=5
+        )
+    for _ in range(20):
+        status = requests.get(
+            f"{BASE}/api/task/status", params={"task_id": task_id}, timeout=5
+        ).json()
+        if status.get("data", {}).get("state") in TERMINAL_STATES:
+            return
+        time.sleep(0.05)
+    raise AssertionError(f"task {task_id} did not become terminal during cleanup")
 
 # ============================================================
 # LAYER 0: 异常输入测试
@@ -263,6 +296,7 @@ def t_batch_status():
     assert d["state"] in ("RUNNING", "COMPLETED", "TIMEOUT", "PARTIAL_COMPLETED")
     urs = d["unit_results"]
     print(f"    state={d['state']} subtask states: {[(u['unit_id'], u['state']) for u in urs]}")
+    release_task(BATCH_TASK_ID)
 
 test("batch status → 含3个子任务状态", t_batch_status)
 
@@ -305,6 +339,7 @@ def t_formation_status():
     # 3个子任务
     urs = d["unit_results"]
     print(f"    state={d['state']} units: {[(u['unit_id'], u['state']) for u in urs]}")
+    release_task(FORM_TASK_ID)
 
 test("formation status → 3个子任务", t_formation_status)
 
@@ -318,6 +353,7 @@ def t_formation_column():
     }, timeout=5).json()
     assert_eq(r["success"], True, "column formation should succeed")
     assert_eq(r["data"]["task_type"], "execute_formation")
+    release_task(r["data"]["task_id"])
 
 test("formation COLUMN 2车 → task accepted", t_formation_column)
 
@@ -330,6 +366,7 @@ def t_formation_triangle():
         "timeout_ms": 30000
     }, timeout=5).json()
     assert_eq(r["success"], True, "triangle formation should succeed")
+    release_task(r["data"]["task_id"])
 
 test("formation TRIANGLE 3车 → task accepted", t_formation_triangle)
 

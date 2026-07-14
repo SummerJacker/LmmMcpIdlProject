@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -108,6 +109,27 @@ QT_FOLLOW_FORMATION_STATUS_PATH: str = "/api/formation/status"
 QT_FOLLOW_FORMATION_TARGET_PATH: str = "/api/formation/goto_target"
 QT_TASK_STATUS_PATH: str = "/api/task/status"
 QT_TASK_CANCEL_PATH: str = "/api/task/cancel"
+
+# --- Task architecture v2 routes (legacy routes above remain supported) ---
+QT_CAPABILITIES_PATH: str = "/api/task/capabilities"
+QT_FLEET_SNAPSHOT_PATH: str = "/api/task/fleet_snapshot"
+QT_NAVIGATE_TO_PATH: str = "/api/task/navigate"
+QT_FOLLOW_PATH_PATH: str = "/api/task/follow_path"
+QT_STATIC_FORMATION_PATH: str = "/api/task/formation/static"
+QT_FOLLOW_FORMATION_CREATE_PATH: str = "/api/task/formation/follow/create"
+QT_FOLLOW_FORMATION_MOVE_PATH: str = "/api/task/formation/follow/move"
+QT_FOLLOW_FORMATION_STATUS_V2_PATH: str = "/api/task/formation/follow/status"
+QT_FOLLOW_FORMATION_DISBAND_PATH: str = "/api/task/formation/follow/disband"
+QT_STOP_UNITS_PATH: str = "/api/task/stop_units"
+
+# Low-level and compatibility tools are opt-in. Production defaults to task-only.
+MCP_EXPOSE_LOW_LEVEL_TOOLS: bool = os.getenv("MCP_EXPOSE_LOW_LEVEL_TOOLS", "0").strip() == "1"
+
+
+def expose_low_level_tools() -> bool:
+    """Read the debug-tool switch at app creation time (useful for tests and reloads)."""
+    return os.getenv("MCP_EXPOSE_LOW_LEVEL_TOOLS", "0").strip() == "1"
+
 
 # --- 线速度 / 角速度 demo 安全范围 ---
 LINEAR_VELOCITY_MAX_ABS_M_S: float = 5.0

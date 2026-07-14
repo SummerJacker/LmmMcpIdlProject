@@ -5,9 +5,11 @@
 
 #include "SafetyValidator.h"
 #include "TaskManager.h"
+#include "console.h"
 
 #include <QtMath>
 #include <QDebug>
+#include <QSet>
 
 #ifdef __cplusplus
 extern "C" {
@@ -95,6 +97,7 @@ SafetyValidator::validateGotoPoseBatch(const QJsonArray &targets) {
     }
 
     // 逐一校验每个 target，第一个失败即返回
+    QSet<QString> seen;
     for (const QJsonValue &v : targets) {
         if (!v.isObject()) {
             result.passed = false;
@@ -104,18 +107,31 @@ SafetyValidator::validateGotoPoseBatch(const QJsonArray &targets) {
         }
         QJsonObject t = v.toObject();
         QString unitId = t.value("unit_id").toString().trimmed();
-        double x = t.value("x").toDouble();
-        double y = t.value("y").toDouble();
+        const QJsonValue xValue = t.value(QStringLiteral("x"));
+        const QJsonValue yValue = t.value(QStringLiteral("y"));
 
-        if (unitId.isEmpty()) {
+        if (unitId.isEmpty() || !unitId.startsWith(QLatin1Char('G'))) {
             result.passed = false;
             result.errorCode = QStringLiteral("SAFETY_REJECTED");
-            result.message = QStringLiteral("target missing unit_id");
+            result.message = QStringLiteral("target requires a ground unit_id");
+            return result;
+        }
+        if (seen.contains(unitId)) {
+            result.passed = false;
+            result.errorCode = QStringLiteral("SAFETY_REJECTED");
+            result.message = QStringLiteral("duplicate unit_id in batch: %1").arg(unitId);
+            return result;
+        }
+        seen.insert(unitId);
+        if (!xValue.isDouble() || !yValue.isDouble() ||
+            !qIsFinite(xValue.toDouble()) || !qIsFinite(yValue.toDouble())) {
+            result.passed = false;
+            result.errorCode = QStringLiteral("TARGET_OUT_OF_BOUNDS");
+            result.message = QStringLiteral("target x/y must be finite numbers");
             return result;
         }
 
-        // 使用默认速度做校验 (具体速度在 goto_pose 中覆盖)
-        result = validateGotoPose(unitId, x, y, 0.3, 0.6);
+        result = validateGotoPose(unitId, xValue.toDouble(), yValue.toDouble(), 0.0, 0.0);
         if (!result.passed)
             return result;
     }
@@ -160,6 +176,12 @@ SafetyValidator::validateFormation(const QJsonObject &request) {
         result.message = QStringLiteral("triangle formation requires at least 3 units");
         return result;
     }
+    if (ftype == "column" && n < 2) {
+        result.passed = false;
+        result.errorCode = QStringLiteral("SAFETY_REJECTED");
+        result.message = QStringLiteral("column formation requires at least 2 units");
+        return result;
+    }
 
     double spacing = request.value("spacing_m").toDouble(1.0);
     if (spacing <= 0.0 || spacing > 50.0) {
@@ -169,9 +191,23 @@ SafetyValidator::validateFormation(const QJsonObject &request) {
         return result;
     }
 
-    // 校验每个 unit 已绑定且空闲
+    // Static geometric formation dispatches Ground_Unit.setTaskPoint only.
+    QSet<QString> seen;
     for (const QJsonValue &v : unitIds) {
         QString uid = v.toString().trimmed();
+        if (!uid.startsWith(QLatin1Char('G'))) {
+            result.passed = false;
+            result.errorCode = QStringLiteral("UNSUPPORTED_CAPABILITY");
+            result.message = QStringLiteral("static formation supports ground units only");
+            return result;
+        }
+        if (seen.contains(uid)) {
+            result.passed = false;
+            result.errorCode = QStringLiteral("SAFETY_REJECTED");
+            result.message = QStringLiteral("duplicate unit_id: %1").arg(uid);
+            return result;
+        }
+        seen.insert(uid);
         if (!isUnitBound(uid)) {
             result.passed = false;
             result.errorCode = QStringLiteral("UNIT_NOT_FOUND");
@@ -193,16 +229,39 @@ SafetyValidator::validateFormation(const QJsonObject &request) {
 
 bool SafetyValidator::isTargetInBounds(double x, double y) {
     // 基本范围检查: 允许 [-1000, 1000] 米 (可配置)
+    return isTaskTargetInBounds(x, y);
+}
+
+bool SafetyValidator::isTaskTargetInBounds(double x, double y) {
     constexpr double kMaxCoord = 1000.0;
-    return qAbs(x) <= kMaxCoord && qAbs(y) <= kMaxCoord;
+    return qIsFinite(x) && qIsFinite(y) &&
+           qAbs(x) <= kMaxCoord && qAbs(y) <= kMaxCoord;
+}
+
+bool SafetyValidator::isFollowDistanceAllowed(double distanceM) {
+    return qIsFinite(distanceM) &&
+           distanceM >= minFollowDistanceM() &&
+           distanceM <= maxFollowDistanceM();
 }
 
 bool SafetyValidator::isUnitBound(const QString &unitId) {
     if (!Units_Hash_Table)
         return false;
-    QByteArray u = unitId.toUtf8();
-    return ilu_hash_FindInTable(Units_Hash_Table,
-                                 reinterpret_cast<ilu_refany>(u.data())) != ILU_NIL;
+    QByteArray requested = unitId.toUtf8();
+    if (ilu_hash_FindInTable(Units_Hash_Table,
+                            reinterpret_cast<ilu_refany>(requested.data())) != ILU_NIL)
+        return true;
+
+    ilu_HashEnumerator_s enumerator{};
+    ilu_refany uid = nullptr;
+    ilu_refany sbh = nullptr;
+    ilu_hash_BeginEnumeration(Units_Hash_Table, &enumerator);
+    while (ilu_hash_Next(&enumerator, &uid, &sbh)) {
+        Q_UNUSED(sbh);
+        if (logicalUnitIdsEqual(requested.constData(), static_cast<const char *>(uid)))
+            return true;
+    }
+    return false;
 }
 
 bool SafetyValidator::isUnitAvailable(const QString &unitId) {

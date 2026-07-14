@@ -49,10 +49,22 @@ from config import (
     QT_FOLLOW_FORMATION_TARGET_PATH,
     QT_TASK_STATUS_PATH,
     QT_TASK_CANCEL_PATH,
+    QT_CAPABILITIES_PATH,
+    QT_FLEET_SNAPSHOT_PATH,
+    QT_NAVIGATE_TO_PATH,
+    QT_FOLLOW_PATH_PATH,
+    QT_STATIC_FORMATION_PATH,
+    QT_FOLLOW_FORMATION_CREATE_PATH,
+    QT_FOLLOW_FORMATION_MOVE_PATH,
+    QT_FOLLOW_FORMATION_STATUS_V2_PATH,
+    QT_FOLLOW_FORMATION_DISBAND_PATH,
+    QT_STOP_UNITS_PATH,
     load_robot_configs,
     qt_url,
 )
-def make_tool_response(*, success: bool, message: str, data: Any | None = None) -> str:
+def make_tool_response(
+    *, success: bool, message: str, data: Any | None = None, error_code: str = ""
+) -> str:
     """
     生成统一的工具返回字符串（JSON 字符串）。
 
@@ -63,9 +75,14 @@ def make_tool_response(*, success: bool, message: str, data: Any | None = None) 
     """
 
     payload: dict[str, Any] = {"success": success, "message": message, "data": data}
+    nested_error = data.get("error_code") if isinstance(data, dict) else ""
+    effective_error = error_code or str(nested_error or "")
+    if not success and effective_error:
+        payload["error_code"] = effective_error
     return json.dumps(payload, ensure_ascii=False)
 
 from qt_http_client import http_request
+from task_api.contracts import normalize_console_response
 from utils.logging_setup import get_logger
 
 # NOTE (MCP tool `message` field): keep ASCII-only for client display stability on Windows.
@@ -208,18 +225,15 @@ def _normalize_planned_mode(mode: str) -> str:
     return "sim"
 
 
-def derive_unit_run_mode(*, mock: bool, rpc_enabled: bool) -> str:
-    """
-    与主控台 HttpApiExecutor 一致：MOCK SBH 或 HTTP 未开真实 RPC 时均为 sim。
+def derive_unit_run_mode(*, mock: bool, rpc_enabled: bool | None = None) -> str:
+    """Return physical runtime kind; RPC availability is reported separately.
 
-    @param mock: 绑定 SBH 是否 MOCK:
-    @param rpc_enabled: 环境变量 SAU_ENABLE_REAL_RPC 是否生效
-    @returns: sim 或 real
+    ``rpc_enabled`` is retained for compatibility with existing callers, but a
+    real SBH remains ``real`` even when HTTP-side real RPC is disabled.
     """
 
-    if mock or not rpc_enabled:
-        return "sim"
-    return "real"
+    del rpc_enabled
+    return "sim" if mock else "real"
 
 
 def enrich_list_robots_payload(data: dict[str, Any], manager: RobotInstanceManager) -> None:
@@ -244,6 +258,9 @@ def enrich_list_robots_payload(data: dict[str, Any], manager: RobotInstanceManag
         mock = bool(u.get("mock", False))
         run_mode = derive_unit_run_mode(mock=mock, rpc_enabled=rpc_enabled)
         u["run_mode"] = run_mode
+        u["rpc_available"] = mock or rpc_enabled
+        u.setdefault("online", True)
+        u.setdefault("busy", False)
         u.pop("mode", None)
 
         for rid, entry in manager._robots.items():
@@ -270,7 +287,7 @@ def enrich_list_robots_payload(data: dict[str, Any], manager: RobotInstanceManag
         "rpc_enabled": rpc_enabled,
     }
     data["runtime_hint"] = (
-        "Use unit.run_mode for current sim/real state. planned_mode is robots.json intent only."
+        "run_mode describes mock/real binding; rpc_available separately reports whether commands can execute."
     )
 
 
@@ -433,6 +450,23 @@ class RobotAdapter:
             resolved = await self._agent_resolver.resolve(name)
             if resolved:
                 return resolved
+        # 3. Runtime Console directory. robots.json is deployment intent, not
+        # the complete set of units that may bind after MCP startup.
+        requested = name.strip().casefold()
+        if requested:
+            try:
+                listed = json.loads(await self.list_robots())
+            except (TypeError, json.JSONDecodeError):
+                listed = {}
+            data = listed.get("data") if isinstance(listed, dict) else None
+            units = data.get("units") if isinstance(data, dict) else None
+            if isinstance(units, list):
+                for unit in units:
+                    if not isinstance(unit, dict):
+                        continue
+                    candidate = str(unit.get("unit_id", "")).strip()
+                    if candidate and candidate.casefold() == requested:
+                        return candidate
         return None
 
     def _inject_run_mode(self, data: Any) -> None:
@@ -447,6 +481,7 @@ class RobotAdapter:
         mock = bool(data.get("mock", False))
         run_mode = derive_unit_run_mode(mock=mock, rpc_enabled=self._cached_rpc_enabled)
         data["run_mode"] = run_mode
+        data["rpc_available"] = mock or self._cached_rpc_enabled
         data.pop("mode", None)
 
     def _maybe_enrich_tool_data(self, raw_resp: str) -> str:
@@ -555,32 +590,39 @@ class RobotAdapter:
             return make_tool_response(success=False, message=err or "HTTP error")
 
         if status in (503, 429):
-            msg = "QT server busy, please retry later"
-            if body and isinstance(body.get("message"), str):
-                msg = body["message"]
-            self._logger.warning("%s QT busy status=%s", op_name, status)
-            return make_tool_response(success=False, message=msg, data=body)
+            self._logger.warning("%s QT unavailable status=%s", op_name, status)
+            return normalize_console_response(
+                body,
+                fallback_message="QT server unavailable, please retry later",
+                fallback_error_code="RPC_DISABLED" if status == 503 else "TASK_CONFLICT",
+            )
 
         if status >= 400:
-            msg = f"QT HTTP error status={status}"
-            if body and isinstance(body.get("message"), str):
-                msg = body["message"]
             self._logger.error("%s bad status=%s body=%s", op_name, status, body)
-            return make_tool_response(success=False, message=msg, data=body)
+            fallback_code = {
+                404: "TASK_NOT_FOUND",
+                409: "TASK_CONFLICT",
+                422: "SAFETY_REJECTED",
+            }.get(status, "INTERNAL_ERROR")
+            return normalize_console_response(
+                body,
+                fallback_message=f"QT HTTP error status={status}",
+                fallback_error_code=fallback_code,
+            )
 
-        if body is None:
-            return make_tool_response(success=False, message="QT returned empty or non-JSON body")
-
-        success = bool(body.get("success", False))
-        message = str(body.get("message", "OK" if success else "QT reported failure"))
-        data = body.get("data")
-
-        if not success:
-            self._logger.warning("%s QT logical failure: %s", op_name, message)
-            return make_tool_response(success=False, message=message, data=data)
-
-        self._logger.info("%s success", op_name)
-        return make_tool_response(success=True, message=message, data=data)
+        normalized = normalize_console_response(
+            body,
+            fallback_message="QT returned empty or non-JSON body",
+        )
+        try:
+            normalized_obj = json.loads(normalized)
+        except json.JSONDecodeError:
+            return normalized
+        if normalized_obj.get("success"):
+            self._logger.info("%s success", op_name)
+        else:
+            self._logger.warning("%s QT logical failure: %s", op_name, normalized_obj.get("message"))
+        return normalized
 
     async def send_move(
         self,
@@ -959,7 +1001,271 @@ class RobotAdapter:
         )
 
     # =====================================================================
-    # MCP-IDL Task-Level Tools (mcp_swarm_task.idl SwarmTaskControl)
+    # MCP-IDL v2 production task-level API
+    # =====================================================================
+
+    async def get_capabilities(self) -> str:
+        return await self._run_http(
+            method="GET",
+            url=qt_url(QT_CAPABILITIES_PATH),
+            json_body=None,
+            robot_id_for_lock=None,
+            op_name="get_capabilities",
+        )
+
+    async def get_fleet_snapshot(self) -> str:
+        raw = await self._run_http(
+            method="GET",
+            url=qt_url(QT_FLEET_SNAPSHOT_PATH),
+            json_body=None,
+            robot_id_for_lock=None,
+            op_name="get_fleet_snapshot",
+        )
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            return raw
+        if not parsed.get("success") and parsed.get("error_code") == "TASK_NOT_FOUND":
+            return await self.list_robots()
+        return self._maybe_enrich_tool_data(raw)
+
+    async def navigate_to(
+        self, *, unit_id: str, x: float, y: float,
+        tolerance_m: float = 0.15, timeout_ms: int = 30000,
+    ) -> str:
+        resolved = await self._resolve_to_unit_id(unit_id)
+        if resolved is None:
+            return make_tool_response(
+                success=False,
+                message=_message_unit_not_bound(unit_id),
+                error_code="UNIT_NOT_FOUND",
+            )
+        ok_x, target_x, error_x = _finite_float(x, "x")
+        ok_y, target_y, error_y = _finite_float(y, "y")
+        if not ok_x or not ok_y:
+            return make_tool_response(success=False, message=error_x or error_y)
+        from safety.validator import validate_navigate_to
+        passed, error_code, validation_message = validate_navigate_to(
+            resolved, target_x, target_y, tolerance_m,
+        )
+        if not passed:
+            return make_tool_response(
+                success=False,
+                message=validation_message,
+                data={"error_code": error_code},
+            )
+        if timeout_ms <= 0:
+            return make_tool_response(success=False, message="Validation failed: timeout_ms must be > 0")
+        return await self._post_qt(
+            path=QT_NAVIGATE_TO_PATH,
+            json_body={
+                "unit_id": resolved,
+                "x": target_x,
+                "y": target_y,
+                "tolerance_m": float(tolerance_m),
+                "timeout_ms": int(timeout_ms),
+            },
+            robot_id_for_lock=resolved,
+            op_name="navigate_to",
+        )
+
+    async def follow_path(
+        self, *, unit_id: str, points_json: str,
+        tolerance_m: float = 0.15, timeout_ms: int = 30000,
+    ) -> str:
+        resolved = await self._resolve_to_unit_id(unit_id)
+        if resolved is None:
+            return make_tool_response(
+                success=False,
+                message=_message_unit_not_bound(unit_id),
+                error_code="UNIT_NOT_FOUND",
+            )
+        ok, points, error = _parse_task_points(points_json)
+        if not ok:
+            return make_tool_response(success=False, message=error)
+        if tolerance_m < 0.02 or timeout_ms <= 0:
+            return make_tool_response(
+                success=False,
+                message="Validation failed: tolerance_m must be >= 0.02 and timeout_ms > 0",
+            )
+        return await self._post_qt(
+            path=QT_FOLLOW_PATH_PATH,
+            json_body={
+                "unit_id": resolved,
+                "points": points,
+                "tolerance_m": float(tolerance_m),
+                "timeout_ms": int(timeout_ms),
+            },
+            robot_id_for_lock=resolved,
+            op_name="follow_path",
+        )
+
+    async def create_static_formation(
+        self, *, formation_type: str, unit_ids_csv: str, spacing_m: float,
+        anchor_x: float, anchor_y: float, heading_rad: float = 0.0,
+        tolerance_m: float = 0.15, timeout_ms: int = 30000,
+    ) -> str:
+        raw_ids = [value.strip() for value in unit_ids_csv.split(",") if value.strip()]
+        resolved_ids: list[str] = []
+        for value in raw_ids:
+            resolved = await self._resolve_to_unit_id(value)
+            if resolved is None:
+                return make_tool_response(
+                    success=False,
+                    message=_message_unit_not_bound(value),
+                    error_code="UNIT_NOT_FOUND",
+                )
+            resolved_ids.append(resolved)
+        if len(set(resolved_ids)) != len(resolved_ids):
+            return make_tool_response(success=False, message="Validation failed: duplicate unit_ids")
+        ok_x, world_x, error_x = _finite_float(anchor_x, "anchor_x")
+        ok_y, world_y, error_y = _finite_float(anchor_y, "anchor_y")
+        ok_h, heading, error_h = _finite_float(heading_rad, "heading_rad")
+        if not ok_x or not ok_y or not ok_h:
+            return make_tool_response(success=False, message=error_x or error_y or error_h)
+        from safety.validator import validate_formation
+        passed, error_code, message = validate_formation(
+            formation_type.strip().lower(), resolved_ids, spacing_m,
+        )
+        if not passed:
+            return make_tool_response(
+                success=False,
+                message=message,
+                data={"error_code": error_code},
+            )
+        return await self._post_qt(
+            path=QT_STATIC_FORMATION_PATH,
+            json_body={
+                "formation_type": formation_type.strip().lower(),
+                "unit_ids": resolved_ids,
+                "spacing_m": float(spacing_m),
+                "anchor": {"x": world_x, "y": world_y},
+                "heading_rad": heading,
+                "tolerance_m": float(tolerance_m),
+                "timeout_ms": int(timeout_ms),
+            },
+            robot_id_for_lock=None,
+            op_name="create_static_formation",
+        )
+
+    async def create_follow_formation(self, *, leader_id: str, followers_json: str) -> str:
+        leader = await self._resolve_to_unit_id(leader_id)
+        if leader is None:
+            return make_tool_response(
+                success=False,
+                message=_message_unit_not_bound(leader_id),
+                error_code="UNIT_NOT_FOUND",
+            )
+        try:
+            raw_followers = json.loads(followers_json)
+        except (TypeError, json.JSONDecodeError):
+            return make_tool_response(success=False, message="Validation failed: followers must be a JSON array")
+        if not isinstance(raw_followers, list) or not raw_followers:
+            return make_tool_response(success=False, message="Validation failed: at least one follower is required")
+        followers: list[dict[str, Any]] = []
+        seen = {leader}
+        for item in raw_followers:
+            if not isinstance(item, dict):
+                return make_tool_response(success=False, message="Validation failed: each follower must be an object")
+            name = str(item.get("unit_id", item.get("robot_id", ""))).strip()
+            follower = await self._resolve_to_unit_id(name)
+            if follower is None:
+                return make_tool_response(
+                    success=False,
+                    message=_message_unit_not_bound(name),
+                    error_code="UNIT_NOT_FOUND",
+                )
+            ok, distance, error = _finite_float(item.get("distance_m"), "distance_m")
+            if not ok:
+                return make_tool_response(
+                    success=False,
+                    message=error,
+                    error_code="SAFETY_REJECTED",
+                )
+            from safety.validator import validate_follow_distance
+            passed, error_code, validation_message = validate_follow_distance(distance)
+            if not passed:
+                return make_tool_response(
+                    success=False,
+                    message=validation_message,
+                    error_code=error_code,
+                )
+            if follower in seen:
+                return make_tool_response(success=False, message=f"Validation failed: duplicate unit {follower}")
+            seen.add(follower)
+            followers.append({"unit_id": follower, "distance_m": distance})
+        return await self._post_qt(
+            path=QT_FOLLOW_FORMATION_CREATE_PATH,
+            json_body={"leader_id": leader, "followers": followers},
+            robot_id_for_lock=None,
+            op_name="create_follow_formation",
+        )
+
+    async def move_follow_formation(self, *, x: float, y: float) -> str:
+        ok_x, target_x, error_x = _finite_float(x, "x")
+        ok_y, target_y, error_y = _finite_float(y, "y")
+        if not ok_x or not ok_y:
+            return make_tool_response(
+                success=False,
+                message=error_x or error_y,
+                error_code="TARGET_OUT_OF_BOUNDS",
+            )
+        from safety.validator import validate_follow_target
+        passed, error_code, validation_message = validate_follow_target(target_x, target_y)
+        if not passed:
+            return make_tool_response(
+                success=False,
+                message=validation_message,
+                error_code=error_code,
+            )
+        return await self._post_qt(
+            path=QT_FOLLOW_FORMATION_MOVE_PATH,
+            json_body={"x": target_x, "y": target_y},
+            robot_id_for_lock=None,
+            op_name="move_follow_formation",
+        )
+
+    async def get_formation_status(self) -> str:
+        return await self._run_http(
+            method="GET",
+            url=qt_url(QT_FOLLOW_FORMATION_STATUS_V2_PATH),
+            json_body=None,
+            robot_id_for_lock=None,
+            op_name="get_formation_status",
+        )
+
+    async def disband_formation(self) -> str:
+        return await self._post_qt(
+            path=QT_FOLLOW_FORMATION_DISBAND_PATH,
+            json_body={},
+            robot_id_for_lock=None,
+            op_name="disband_formation",
+        )
+
+    async def stop_units(self, *, unit_ids_csv: str) -> str:
+        raw_ids = [value.strip() for value in unit_ids_csv.split(",") if value.strip()]
+        if not raw_ids:
+            return make_tool_response(success=False, message="Validation failed: unit_ids is empty")
+        resolved_ids: list[str] = []
+        for value in raw_ids:
+            resolved = await self._resolve_to_unit_id(value)
+            if resolved is None:
+                return make_tool_response(
+                    success=False,
+                    message=_message_unit_not_bound(value),
+                    error_code="UNIT_NOT_FOUND",
+                )
+            if resolved not in resolved_ids:
+                resolved_ids.append(resolved)
+        return await self._post_qt(
+            path=QT_STOP_UNITS_PATH,
+            json_body={"unit_ids": resolved_ids},
+            robot_id_for_lock=None,
+            op_name="stop_units",
+        )
+
+    # =====================================================================
+    # Legacy MCP-IDL v1 methods retained for debug/compatibility callers
     # =====================================================================
 
     async def goto_pose(
@@ -1171,9 +1477,10 @@ class RobotAdapter:
 
     async def cancel_task(self, *, task_id: str) -> str:
         """
-        MCP-IDL: 取消运行中的任务。
+        MCP-IDL: cancel the task state machine and request stop for active units.
 
-        所有相关智能体立即停止，任务状态变为 CANCELLED。
+        The Console reports whether cancellation was confirmed locally, merely
+        requested through Unit_MA_Stop, or was state-only.
         """
         tid = task_id.strip()
         if not tid:

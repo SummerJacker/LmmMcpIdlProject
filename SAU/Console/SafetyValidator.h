@@ -37,6 +37,10 @@ public:
     static double maxLinearSpeedMS()     { return 5.0; }
     static double maxAngularSpeedRadS()  { return 10.0; }
     static double minToleranceM()        { return 0.02; }
+    static double minFollowDistanceM()   { return 0.5; }
+    static double maxFollowDistanceM()   { return 20.0; }
+    static bool isTaskTargetInBounds(double x, double y);
+    static bool isFollowDistanceAllowed(double distanceM);
 
 private:
     bool isTargetInBounds(double x, double y);

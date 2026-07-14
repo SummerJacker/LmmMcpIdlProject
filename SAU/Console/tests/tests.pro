@@ -27,6 +27,10 @@ DEFINES += UNIT_TEST
 SOURCES += \
     test_formation.cpp \
     ../console.cpp \
+    ../TaskManager.cpp \
+    ../TaskOrchestrator.cpp \
+    ../SafetyValidator.cpp \
+    ../LegacyIdlAdapter.cpp \
     ../stubs/Air_Unit-common.c \
     ../stubs/Air_Unit-surrogate.c \
     ../stubs/Console-common.c \
@@ -49,6 +53,10 @@ SOURCES += \
 
 HEADERS += \
     ../console.h \
+    ../TaskManager.h \
+    ../TaskOrchestrator.h \
+    ../SafetyValidator.h \
+    ../LegacyIdlAdapter.h \
     ../mainwindow.h \
     ../serverthread.h \
     ../stubs/Monitor.h \

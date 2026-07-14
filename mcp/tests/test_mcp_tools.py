@@ -2,13 +2,21 @@
 MCP 工具层测试 — 直接调用 RobotAdapter 方法
 MCP tool → RobotAdapter → HTTP → Console 的完整路径
 """
-import asyncio, json, sys
+import asyncio, json, os, sys
+import pytest
+
+if os.getenv("RUN_LIVE_CONSOLE_TESTS") != "1":
+    pytest.skip(
+        "manual live Console test may actuate units; set RUN_LIVE_CONSOLE_TESTS=1 explicitly",
+        allow_module_level=True,
+    )
 sys.path.insert(0, '.')
 
 from robot_adapter import RobotAdapter
 from agents import AgentApiClient, AgentResolver, AgentService
 from config import QT_HTTP_BASE
 
+@pytest.mark.asyncio
 async def test_all():
     adapter = RobotAdapter(tool_timeout_s=12.0)
     api = AgentApiClient(base_url=QT_HTTP_BASE)
@@ -147,4 +155,5 @@ async def test_all():
     for name, ok, detail in results:
         print(f"  {'PASS' if ok else 'FAIL'}: {name} {detail}")
 
-asyncio.run(test_all())
+if __name__ == "__main__":
+    asyncio.run(test_all())

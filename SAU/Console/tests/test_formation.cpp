@@ -15,11 +15,15 @@
 #include <QtTest/QtTest>
 #include <QRandomGenerator>
 #include <cmath>
+#include <limits>
 // Workaround: suppress SIZE_T redefinition conflict between ILU headers and Windows SDK.
 // ILU's iluwin.h defines SIZE_T as unsigned long, but basetsd.h defines it as ULONG_PTR.
 // The /wd2371 flag in Makefile.Release suppresses this as a warning.
 #include "../console.h"
 #include "../HttpApiExecutor.h"
+#include "../SafetyValidator.h"
+#include "../TaskManager.h"
+#include "../TaskOrchestrator.h"
 
 class TestFormation : public QObject
 {
@@ -146,6 +150,94 @@ private:
     }
 
 private slots:
+    void testLegacyNavigateRouteKeepsLegacyTaskType() {
+        QCOMPARE(LegacyIdlAdapter::taskTypeForNavigateRoute(
+                     QStringLiteral("/api/task/goto_pose")),
+                 QStringLiteral("goto_pose"));
+        QCOMPARE(LegacyIdlAdapter::taskTypeForNavigateRoute(
+                     QStringLiteral("/api/task/navigate")),
+                 QStringLiteral("navigate_to"));
+    }
+
+    void testLegacyStaticFormationRouteKeepsLegacyTaskType() {
+        QCOMPARE(LegacyIdlAdapter::taskTypeForStaticFormationRoute(
+                     QStringLiteral("/api/formation/execute")),
+                 QStringLiteral("execute_formation"));
+        QCOMPARE(LegacyIdlAdapter::taskTypeForStaticFormationRoute(
+                     QStringLiteral("/api/task/formation/static")),
+                 QStringLiteral("create_static_formation"));
+    }
+
+    void testLegacyStaticFormationAddsOnlyMissingTransformDefaults() {
+        QJsonObject legacyRequest;
+        const QJsonObject normalized =
+            LegacyIdlAdapter::withStaticFormationTransformDefaults(legacyRequest);
+        const QJsonObject anchor = normalized.value(QStringLiteral("anchor")).toObject();
+        QCOMPARE(anchor.value(QStringLiteral("x")).toDouble(), 0.0);
+        QCOMPARE(anchor.value(QStringLiteral("y")).toDouble(), 0.0);
+        QCOMPARE(normalized.value(QStringLiteral("heading_rad")).toDouble(), 0.0);
+
+        QJsonObject explicitRequest;
+        QJsonObject explicitAnchor;
+        explicitAnchor.insert(QStringLiteral("x"), 3.0);
+        explicitAnchor.insert(QStringLiteral("y"), -2.0);
+        explicitRequest.insert(QStringLiteral("anchor"), explicitAnchor);
+        explicitRequest.insert(QStringLiteral("heading_rad"), 1.25);
+        const QJsonObject preserved =
+            LegacyIdlAdapter::withStaticFormationTransformDefaults(explicitRequest);
+        QCOMPARE(preserved.value(QStringLiteral("anchor")).toObject(), explicitAnchor);
+        QCOMPARE(preserved.value(QStringLiteral("heading_rad")).toDouble(), 1.25);
+    }
+
+    void testTaskCapabilityPolicyRealOnlyRpcDisabled() {
+        const TaskCapabilityPolicy policy =
+            TaskOrchestrator::capabilityPolicy(0, 2, false);
+        QVERIFY(!policy.targetPointNavigation);
+        QVERIFY(!policy.pathTasks);
+        QVERIFY(!policy.staticFormation);
+        QVERIFY(!policy.followFormation);
+        QVERIFY(!policy.realUnitRpc);
+    }
+
+    void testTaskCapabilityPolicyMockFleetSupportsIndependentTasks() {
+        const TaskCapabilityPolicy policy =
+            TaskOrchestrator::capabilityPolicy(2, 0, false);
+        QVERIFY(policy.targetPointNavigation);
+        QVERIFY(policy.pathTasks);
+        QVERIFY(policy.staticFormation);
+        QVERIFY(!policy.followFormation);
+        QVERIFY(!policy.realUnitRpc);
+    }
+
+    void testFollowSetupPolicyRejectsMockAndMixedFleets() {
+        QCOMPARE(TaskOrchestrator::followSetupPolicy(2, 0, false),
+                 FollowSetupPolicy::UnsupportedMock);
+        QCOMPARE(TaskOrchestrator::followSetupPolicy(1, 1, true),
+                 FollowSetupPolicy::UnsupportedMixed);
+    }
+
+    void testFollowSetupPolicyRequiresRpcForRealFleet() {
+        QCOMPARE(TaskOrchestrator::followSetupPolicy(0, 2, false),
+                 FollowSetupPolicy::RpcDisabled);
+        QCOMPARE(TaskOrchestrator::followSetupPolicy(0, 2, true),
+                 FollowSetupPolicy::DispatchReal);
+    }
+
+    void testMockPathProgressVisitsEveryPointInOrder() {
+        QJsonArray points;
+        points.append(QJsonObject{{QStringLiteral("x"), 1.0},
+                                  {QStringLiteral("y"), 0.0}});
+        points.append(QJsonObject{{QStringLiteral("x"), 1.0},
+                                  {QStringLiteral("y"), 1.0}});
+        MockPathProgress progress(points);
+        QCOMPARE(progress.currentTarget().value(QStringLiteral("x")).toDouble(), 1.0);
+        QCOMPARE(progress.currentTarget().value(QStringLiteral("y")).toDouble(), 0.0);
+        QVERIFY(!progress.advance());
+        QCOMPARE(progress.currentTarget().value(QStringLiteral("x")).toDouble(), 1.0);
+        QCOMPARE(progress.currentTarget().value(QStringLiteral("y")).toDouble(), 1.0);
+        QVERIFY(progress.advance());
+    }
+
     void testLogicalUnitIdCompatibility() {
         QVERIFY(logicalUnitIdsEqual("GV1", "GV01"));
         QVERIFY(logicalUnitIdsEqual("AV2", "AV02"));
@@ -217,9 +309,38 @@ private slots:
         QCOMPARE((int)f->leader_ids._buffer[0], 0);
         QCOMPARE((int)f->leader_ids._buffer[1], 0);
         QCOMPARE((int)f->leader_ids._buffer[2], 1);
-        QCOMPARE((double)f->distances._buffer[1], 0.6);
-        QCOMPARE((double)f->distances._buffer[2], 0.9);
+        QVERIFY(qAbs((double)f->distances._buffer[1] - 0.6) < 1e-6);
+        QVERIFY(qAbs((double)f->distances._buffer[2] - 0.9) < 1e-6);
         freeUnitFormation(f);
+    }
+
+    void testGroundFollowParentIds_UsesOrderedChain() {
+        QString error;
+        const QStringList parents = groundFollowParentIds(
+            QStringLiteral("GV1"),
+            QStringList() << QStringLiteral("GV2") << QStringLiteral("GV3"),
+            &error);
+
+        QVERIFY2(error.isEmpty(), qPrintable(error));
+        QCOMPARE(parents,
+                 QStringList() << QString() << QStringLiteral("GV1")
+                               << QStringLiteral("GV2"));
+    }
+
+    void testGroundFollowParentIds_RejectsInvalidMembers() {
+        QString error;
+        QVERIFY(groundFollowParentIds(
+                    QStringLiteral("GV1"),
+                    QStringList() << QStringLiteral("GV2") << QStringLiteral("GV1"),
+                    &error).isEmpty());
+        QVERIFY(!error.isEmpty());
+
+        error.clear();
+        QVERIFY(groundFollowParentIds(
+                    QStringLiteral("GV1"),
+                    QStringList() << QString(),
+                    &error).isEmpty());
+        QVERIFY(!error.isEmpty());
     }
 
     void testFollowFormationSnapshot_ReportsRequestedAndEffectiveDistance() {
@@ -240,10 +361,80 @@ private slots:
         QCOMPARE(follower.value(QStringLiteral("effective_distance_m")).toDouble(), 0.5);
     }
 
+    void testFailedFormationWithPhysicalLeaderRemainsActive() {
+        FollowFormationSnapshot snapshot;
+        snapshot.state = QStringLiteral("FAILED");
+        snapshot.leaderId = QStringLiteral("GV1");
+        snapshot.errorCode = QStringLiteral("INTERNAL_ERROR");
+        const QJsonObject json = snapshot.toJson();
+        QVERIFY(json.value(QStringLiteral("has_active_formation")).toBool());
+        QCOMPARE(json.value(QStringLiteral("error_code")).toString(),
+                 QStringLiteral("INTERNAL_ERROR"));
+    }
+
     void testFollowFormationReadyRequiresEveryUnitToSucceed() {
         QVERIFY(followFormationDispatchIsReady(3, 0, 3));
         QVERIFY(!followFormationDispatchIsReady(2, 1, 3));
         QVERIFY(!followFormationDispatchIsReady(0, 0, 3));
+    }
+
+    void testTaskTargetBoundsAreSharedByFollowMovement() {
+        QVERIFY(SafetyValidator::isTaskTargetInBounds(1000.0, -1000.0));
+        QVERIFY(!SafetyValidator::isTaskTargetInBounds(1000.01, 0.0));
+        QVERIFY(!SafetyValidator::isTaskTargetInBounds(
+            std::numeric_limits<double>::infinity(), 0.0));
+    }
+
+    void testFollowDistanceRangeIsClosedAndFinite() {
+        QVERIFY(SafetyValidator::isFollowDistanceAllowed(0.5));
+        QVERIFY(SafetyValidator::isFollowDistanceAllowed(20.0));
+        QVERIFY(!SafetyValidator::isFollowDistanceAllowed(0.49));
+        QVERIFY(!SafetyValidator::isFollowDistanceAllowed(20.01));
+        QVERIFY(!SafetyValidator::isFollowDistanceAllowed(
+            std::numeric_limits<double>::infinity()));
+    }
+
+    void testControlUncertainUnitRemainsBusyUntilCleared() {
+        TaskManager &manager = TaskManager::instance();
+        const QString unitId = QStringLiteral("GV999");
+        manager.clearUnitControlUncertain(unitId);
+        manager.markUnitControlUncertain(unitId, QStringLiteral("stop failed"));
+        QVERIFY(manager.isUnitControlUncertain(unitId));
+        QVERIFY(manager.isUnitBusy(unitId));
+        manager.clearUnitControlUncertain(unitId);
+        QVERIFY(!manager.isUnitControlUncertain(unitId));
+        QVERIFY(!manager.isUnitBusy(unitId));
+    }
+
+    void testSingleTaskProgressMirrorsItsSubTask() {
+        TaskManager &manager = TaskManager::instance();
+        const QString taskId = manager.createTask(
+            QStringLiteral("navigate_to"), QJsonObject(),
+            QStringList() << QStringLiteral("GV997"));
+        manager.transitionTask(taskId, QStringLiteral("RUNNING"));
+        manager.updateSubTask(taskId, QStringLiteral("GV997"),
+                              QStringLiteral("RUNNING"), 40.0);
+        TaskManager::TaskEntry snapshot;
+        QVERIFY(manager.taskSnapshot(taskId, &snapshot));
+        QCOMPARE(snapshot.progressPct, 40.0);
+    }
+
+    void testTerminalSubTaskErrorPropagatesToParent() {
+        TaskManager &manager = TaskManager::instance();
+        const QString taskId = manager.createTask(
+            QStringLiteral("navigate_to"), QJsonObject(),
+            QStringList() << QStringLiteral("GV996"));
+        manager.transitionTask(taskId, QStringLiteral("RUNNING"));
+        manager.updateSubTask(taskId, QStringLiteral("GV996"),
+                              QStringLiteral("TIMEOUT"), 100.0,
+                              QStringLiteral("UNIT_OFFLINE"),
+                              QStringLiteral("pose polling failed"));
+        QVERIFY(manager.finalizeTaskIfAllSubTasksTerminal(taskId));
+        TaskManager::TaskEntry snapshot;
+        QVERIFY(manager.taskSnapshot(taskId, &snapshot));
+        QCOMPARE(snapshot.state, QStringLiteral("TIMEOUT"));
+        QCOMPARE(snapshot.errorCode, QStringLiteral("UNIT_OFFLINE"));
+        QCOMPARE(snapshot.message, QStringLiteral("pose polling failed"));
     }
 
     /**

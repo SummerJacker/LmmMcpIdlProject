@@ -37,7 +37,11 @@ struct FollowFormationMember {
 
 struct FollowFormationSnapshot {
     bool ready = false;
+    QString state = QStringLiteral("IDLE");
     QString leaderId;
+    QString activeMoveTaskId;
+    QString message;
+    QString errorCode;
     QVector<FollowFormationMember> followers;
 
     QJsonObject toJson() const {
@@ -45,11 +49,20 @@ struct FollowFormationSnapshot {
         for (const FollowFormationMember &member : followers)
             followerValues.append(member.toJson());
         QJsonObject value;
-        value.insert(QStringLiteral("has_active_formation"), ready);
-        value.insert(QStringLiteral("state"), ready ? QStringLiteral("READY")
-                                                    : QStringLiteral("IDLE"));
+        const QString effectiveState = ready && state == QStringLiteral("IDLE")
+            ? QStringLiteral("READY") : state;
+        value.insert(QStringLiteral("has_active_formation"),
+                     effectiveState == QStringLiteral("CREATING") ||
+                     effectiveState == QStringLiteral("READY") ||
+                     effectiveState == QStringLiteral("MOVING") ||
+                     (effectiveState == QStringLiteral("FAILED") &&
+                      !leaderId.isEmpty()));
+        value.insert(QStringLiteral("state"), effectiveState);
         value.insert(QStringLiteral("leader_id"), leaderId);
         value.insert(QStringLiteral("followers"), followerValues);
+        value.insert(QStringLiteral("active_move_task_id"), activeMoveTaskId);
+        value.insert(QStringLiteral("message"), message);
+        value.insert(QStringLiteral("error_code"), errorCode);
         return value;
     }
 };

@@ -16,20 +16,25 @@ FastMCP 将自然语言车辆指令转发到持续运行的 SAU Console。Consol
 → Followers 通过 Follow 逻辑自动跟随
 ```
 
-MCP 工具：
+生产 MCP 工具：
 
-- `set_leader(robot_id)`
-- `send_follow_formation(leader_id, followers_json)`
-- `get_formation_status()`
-- `goto_follow_formation(x, y)`
+- `createFollowFormation(request)`
+- `moveFollowFormation(target)`
+- `getFormationStatus()`
+- `disbandFormation()`
 
-`followers_json` 示例：
+`createFollowFormation` 示例：
 
 ```json
-[
-  {"robot_id": "GV2", "distance_m": 0.3},
-  {"robot_id": "GV3", "distance_m": 0.8}
-]
+{
+  "request": {
+    "leader_id": "GV1",
+    "followers": [
+      {"unit_id": "GV2", "distance_m": 0.3},
+      {"unit_id": "GV3", "distance_m": 0.8}
+    ]
+  }
+}
 ```
 
 Console 会把小于 `0.5m` 的地面跟随间距调整为 `0.5m`。响应同时包含请求间距与实际生效间距。
@@ -38,11 +43,13 @@ Console 会把小于 `0.5m` 的地面跟随间距调整为 `0.5m`。响应同时
 
 用于让多辆车分别导航到直线、三角形或纵队的几何位置，不建立持续跟随关系。
 
-MCP 工具：
+生产 MCP 工具：
 
-- `execute_geometric_formation(formation_type, unit_ids_csv, spacing_m, ...)`
+- `createStaticFormation(request)`
 
-旧工具 `execute_formation` 和 `execute_formation_mission` 仅保留兼容性，不应再用于 Console 跟随编队。
+`request` 必须包含 `formation_type`、`unit_ids`、`spacing_m`、`anchor={x,y}`、`heading_rad`、`tolerance_m` 和 `timeout_ms`。Console 使用二维旋转和平移计算每车世界坐标，再逐车调用既有 `setTaskPoint`。
+
+旧工具仅在 `MCP_EXPOSE_LOW_LEVEL_TOOLS=1` 时作为 legacy/debug 兼容面暴露，生产模式默认不可见。
 
 ## 自然语言交互
 
@@ -104,7 +111,7 @@ Agent：请指定形状、参与车辆以及间距或边长。
 客户端会把这些输入统一解析成数值参数：
 
 ```json
-{"x": 3.0, "y": 3.0}
+{"target": {"x": 3.0, "y": 3.0}}
 ```
 
 出现下面的输出时：
@@ -152,10 +159,11 @@ deepseek_mcp_client.py
 main.py / RobotAdapter
                 ↓ HTTP
 SAU Console / HttpApiExecutor（持久状态）
-  ├─ POST /api/formation/send_follow
-  ├─ GET  /api/formation/status
-  ├─ POST /api/formation/goto_target
-  └─ POST /api/formation/execute（几何编队）
+  ├─ GET  /api/task/capabilities
+  ├─ GET  /api/task/fleet_snapshot
+  ├─ POST /api/task/navigate
+  ├─ POST /api/task/formation/static
+  └─ /api/task/formation/follow/{create,move,status,disband}
                 ↓ ILU RPC
 车辆节点
 ```
@@ -177,6 +185,14 @@ $env:SAU_ENABLE_REAL_RPC = "1"
 ```powershell
 cd E:\MCP-IDL\mcp
 python .\deepseek_mcp_client.py
+```
+
+### 调试兼容工具
+
+生产模式默认只暴露 `mcp_swarm_task.idl` 的 12 个任务级工具。仅在诊断旧 HTTP/IDL 路径时显式开启：
+
+```powershell
+$env:MCP_EXPOSE_LOW_LEVEL_TOOLS = "1"
 ```
 
 ### Python 测试

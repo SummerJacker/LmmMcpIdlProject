@@ -1,18 +1,17 @@
 /****************************************************************************
 ** Meta object code from reading C++ file 'test_formation.cpp'
 **
-** Created by: The Qt Meta Object Compiler version 67 (Qt 5.15.2)
+** Created by: The Qt Meta Object Compiler version 67 (Qt 5.12.4)
 **
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
 
-#include <memory>
 #include <QtCore/qbytearray.h>
 #include <QtCore/qmetatype.h>
 #if !defined(Q_MOC_OUTPUT_REVISION)
 #error "The header file 'test_formation.cpp' doesn't include <QObject>."
 #elif Q_MOC_OUTPUT_REVISION != 67
-#error "This file was generated using the moc from 5.15.2. It"
+#error "This file was generated using the moc from 5.12.4. It"
 #error "cannot be used with the include files from this version of Qt."
 #error "(The moc has changed too much.)"
 #endif
@@ -21,8 +20,8 @@ QT_BEGIN_MOC_NAMESPACE
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
 struct qt_meta_stringdata_TestFormation_t {
-    QByteArrayData data[61];
-    char stringdata0[2509];
+    QByteArrayData data[77];
+    char stringdata0[3258];
 };
 #define QT_MOC_LITERAL(idx, ofs, len) \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
@@ -32,75 +31,107 @@ struct qt_meta_stringdata_TestFormation_t {
 static const qt_meta_stringdata_TestFormation_t qt_meta_stringdata_TestFormation = {
     {
 QT_MOC_LITERAL(0, 0, 13), // "TestFormation"
-QT_MOC_LITERAL(1, 14, 30), // "testLogicalUnitIdCompatibility"
-QT_MOC_LITERAL(2, 45, 0), // ""
-QT_MOC_LITERAL(3, 46, 36), // "testPublishedConsoleSbhNormal..."
-QT_MOC_LITERAL(4, 83, 41), // "testDuplicateIluServerIdConfl..."
-QT_MOC_LITERAL(5, 125, 42), // "testBuildGroundFollowFormatio..."
-QT_MOC_LITERAL(6, 168, 54), // "testBuildGroundFollowFormatio..."
-QT_MOC_LITERAL(7, 223, 64), // "testFollowFormationSnapshot_R..."
-QT_MOC_LITERAL(8, 288, 50), // "testFollowFormationReadyRequi..."
-QT_MOC_LITERAL(9, 339, 44), // "testValidateFormation_Propert..."
-QT_MOC_LITERAL(10, 384, 46), // "testValidateFormation_Propert..."
-QT_MOC_LITERAL(11, 431, 44), // "testDetectCrossTypeEdges_Prop..."
-QT_MOC_LITERAL(12, 476, 46), // "testDetectCrossTypeEdges_Prop..."
-QT_MOC_LITERAL(13, 523, 36), // "testValidateFormation_EmptyFo..."
-QT_MOC_LITERAL(14, 560, 35), // "testValidateFormation_NullFor..."
-QT_MOC_LITERAL(15, 596, 39), // "testValidateFormation_Mismatc..."
-QT_MOC_LITERAL(16, 636, 38), // "testDetectCrossTypeEdges_Null..."
-QT_MOC_LITERAL(17, 675, 43), // "testSplitFormation_Property6_..."
-QT_MOC_LITERAL(18, 719, 49), // "testSplitFormation_Property6_..."
-QT_MOC_LITERAL(19, 769, 32), // "testSplitFormation_NullFormation"
-QT_MOC_LITERAL(20, 802, 38), // "testSplitFormation_PureGround..."
-QT_MOC_LITERAL(21, 841, 35), // "testSplitFormation_PureAirFor..."
-QT_MOC_LITERAL(22, 877, 45), // "testNormalizeTopology_Propert..."
-QT_MOC_LITERAL(23, 923, 44), // "testNormalizeTopology_Propert..."
-QT_MOC_LITERAL(24, 968, 48), // "testNormalizeTopology_Propert..."
-QT_MOC_LITERAL(25, 1017, 35), // "testNormalizeTopology_NullFor..."
-QT_MOC_LITERAL(26, 1053, 32), // "testNormalizeTopology_SingleUnit"
-QT_MOC_LITERAL(27, 1086, 51), // "testSetGroupMode_Property3_Re..."
-QT_MOC_LITERAL(28, 1138, 43), // "testSetGroupMode_Property3_Un..."
-QT_MOC_LITERAL(29, 1182, 35), // "testParameterIndependence_Pro..."
-QT_MOC_LITERAL(30, 1218, 46), // "testParameterIndependence_Pro..."
-QT_MOC_LITERAL(31, 1265, 35), // "testAirFormationInterface_Pro..."
-QT_MOC_LITERAL(32, 1301, 46), // "testAirFormationInterface_Pro..."
-QT_MOC_LITERAL(33, 1348, 36), // "testPartialSuccessHandling_Pr..."
-QT_MOC_LITERAL(34, 1385, 48), // "testPartialSuccessHandling_Pr..."
-QT_MOC_LITERAL(35, 1434, 43), // "testIntegration_TC1_ChainTopo..."
-QT_MOC_LITERAL(36, 1478, 40), // "testIntegration_TC2_AirFormat..."
-QT_MOC_LITERAL(37, 1519, 39), // "testIntegration_TC3_MixedForm..."
-QT_MOC_LITERAL(38, 1559, 44), // "testIntegration_TC4_CrossType..."
-QT_MOC_LITERAL(39, 1604, 42), // "testIntegration_TC5_PartialSu..."
-QT_MOC_LITERAL(40, 1647, 41), // "testIntegration_TC6_Parameter..."
-QT_MOC_LITERAL(41, 1689, 38), // "testAirFormationDispatch_Null..."
-QT_MOC_LITERAL(42, 1728, 39), // "testAirFormationDispatch_Empt..."
-QT_MOC_LITERAL(43, 1768, 38), // "testAirFormationDispatch_Sing..."
-QT_MOC_LITERAL(44, 1807, 41), // "testAirFormationDispatch_Mult..."
-QT_MOC_LITERAL(45, 1849, 41), // "testAirFormationDispatch_Inva..."
-QT_MOC_LITERAL(46, 1891, 37), // "testAirFormationDispatch_Star..."
-QT_MOC_LITERAL(47, 1929, 46), // "testProperty10_GroundFormatio..."
-QT_MOC_LITERAL(48, 1976, 33), // "testProperty6_MinimumSafeDist..."
-QT_MOC_LITERAL(49, 2010, 44), // "testProperty11_GroundFormatio..."
-QT_MOC_LITERAL(50, 2055, 38), // "testGroundFormationCoverage_P..."
-QT_MOC_LITERAL(51, 2094, 42), // "testProperty12_FormationResul..."
-QT_MOC_LITERAL(52, 2137, 40), // "testProperty13_ErrorPropagati..."
-QT_MOC_LITERAL(53, 2178, 48), // "testProperty14_PartialSuccess..."
-QT_MOC_LITERAL(54, 2227, 36), // "testBackwardCompatibility_Pro..."
-QT_MOC_LITERAL(55, 2264, 40), // "testProperty1_AirLeaderSetupC..."
-QT_MOC_LITERAL(56, 2305, 33), // "testProperty2_LeaderSwitchCle..."
-QT_MOC_LITERAL(57, 2339, 48), // "testProperty4_FirstGroundVehi..."
-QT_MOC_LITERAL(58, 2388, 39), // "testIntegration_TC5_PureGroun..."
-QT_MOC_LITERAL(59, 2428, 36), // "testIntegration_TC6_PureAirFo..."
-QT_MOC_LITERAL(60, 2465, 43) // "testIntegration_TC7_MixedAirG..."
+QT_MOC_LITERAL(1, 14, 42), // "testLegacyNavigateRouteKeepsL..."
+QT_MOC_LITERAL(2, 57, 0), // ""
+QT_MOC_LITERAL(3, 58, 49), // "testLegacyStaticFormationRout..."
+QT_MOC_LITERAL(4, 108, 57), // "testLegacyStaticFormationAdds..."
+QT_MOC_LITERAL(5, 166, 43), // "testTaskCapabilityPolicyRealO..."
+QT_MOC_LITERAL(6, 210, 57), // "testTaskCapabilityPolicyMockF..."
+QT_MOC_LITERAL(7, 268, 46), // "testFollowSetupPolicyRejectsM..."
+QT_MOC_LITERAL(8, 315, 44), // "testFollowSetupPolicyRequires..."
+QT_MOC_LITERAL(9, 360, 43), // "testMockPathProgressVisitsEve..."
+QT_MOC_LITERAL(10, 404, 30), // "testLogicalUnitIdCompatibility"
+QT_MOC_LITERAL(11, 435, 36), // "testPublishedConsoleSbhNormal..."
+QT_MOC_LITERAL(12, 472, 41), // "testDuplicateIluServerIdConfl..."
+QT_MOC_LITERAL(13, 514, 42), // "testBuildGroundFollowFormatio..."
+QT_MOC_LITERAL(14, 557, 54), // "testBuildGroundFollowFormatio..."
+QT_MOC_LITERAL(15, 612, 42), // "testGroundFollowParentIds_Use..."
+QT_MOC_LITERAL(16, 655, 47), // "testGroundFollowParentIds_Rej..."
+QT_MOC_LITERAL(17, 703, 64), // "testFollowFormationSnapshot_R..."
+QT_MOC_LITERAL(18, 768, 50), // "testFailedFormationWithPhysic..."
+QT_MOC_LITERAL(19, 819, 50), // "testFollowFormationReadyRequi..."
+QT_MOC_LITERAL(20, 870, 45), // "testTaskTargetBoundsAreShared..."
+QT_MOC_LITERAL(21, 916, 40), // "testFollowDistanceRangeIsClos..."
+QT_MOC_LITERAL(22, 957, 47), // "testControlUncertainUnitRemai..."
+QT_MOC_LITERAL(23, 1005, 39), // "testSingleTaskProgressMirrors..."
+QT_MOC_LITERAL(24, 1045, 42), // "testTerminalSubTaskErrorPropa..."
+QT_MOC_LITERAL(25, 1088, 44), // "testValidateFormation_Propert..."
+QT_MOC_LITERAL(26, 1133, 46), // "testValidateFormation_Propert..."
+QT_MOC_LITERAL(27, 1180, 44), // "testDetectCrossTypeEdges_Prop..."
+QT_MOC_LITERAL(28, 1225, 46), // "testDetectCrossTypeEdges_Prop..."
+QT_MOC_LITERAL(29, 1272, 36), // "testValidateFormation_EmptyFo..."
+QT_MOC_LITERAL(30, 1309, 35), // "testValidateFormation_NullFor..."
+QT_MOC_LITERAL(31, 1345, 39), // "testValidateFormation_Mismatc..."
+QT_MOC_LITERAL(32, 1385, 38), // "testDetectCrossTypeEdges_Null..."
+QT_MOC_LITERAL(33, 1424, 43), // "testSplitFormation_Property6_..."
+QT_MOC_LITERAL(34, 1468, 49), // "testSplitFormation_Property6_..."
+QT_MOC_LITERAL(35, 1518, 32), // "testSplitFormation_NullFormation"
+QT_MOC_LITERAL(36, 1551, 38), // "testSplitFormation_PureGround..."
+QT_MOC_LITERAL(37, 1590, 35), // "testSplitFormation_PureAirFor..."
+QT_MOC_LITERAL(38, 1626, 45), // "testNormalizeTopology_Propert..."
+QT_MOC_LITERAL(39, 1672, 44), // "testNormalizeTopology_Propert..."
+QT_MOC_LITERAL(40, 1717, 48), // "testNormalizeTopology_Propert..."
+QT_MOC_LITERAL(41, 1766, 35), // "testNormalizeTopology_NullFor..."
+QT_MOC_LITERAL(42, 1802, 32), // "testNormalizeTopology_SingleUnit"
+QT_MOC_LITERAL(43, 1835, 51), // "testSetGroupMode_Property3_Re..."
+QT_MOC_LITERAL(44, 1887, 43), // "testSetGroupMode_Property3_Un..."
+QT_MOC_LITERAL(45, 1931, 35), // "testParameterIndependence_Pro..."
+QT_MOC_LITERAL(46, 1967, 46), // "testParameterIndependence_Pro..."
+QT_MOC_LITERAL(47, 2014, 35), // "testAirFormationInterface_Pro..."
+QT_MOC_LITERAL(48, 2050, 46), // "testAirFormationInterface_Pro..."
+QT_MOC_LITERAL(49, 2097, 36), // "testPartialSuccessHandling_Pr..."
+QT_MOC_LITERAL(50, 2134, 48), // "testPartialSuccessHandling_Pr..."
+QT_MOC_LITERAL(51, 2183, 43), // "testIntegration_TC1_ChainTopo..."
+QT_MOC_LITERAL(52, 2227, 40), // "testIntegration_TC2_AirFormat..."
+QT_MOC_LITERAL(53, 2268, 39), // "testIntegration_TC3_MixedForm..."
+QT_MOC_LITERAL(54, 2308, 44), // "testIntegration_TC4_CrossType..."
+QT_MOC_LITERAL(55, 2353, 42), // "testIntegration_TC5_PartialSu..."
+QT_MOC_LITERAL(56, 2396, 41), // "testIntegration_TC6_Parameter..."
+QT_MOC_LITERAL(57, 2438, 38), // "testAirFormationDispatch_Null..."
+QT_MOC_LITERAL(58, 2477, 39), // "testAirFormationDispatch_Empt..."
+QT_MOC_LITERAL(59, 2517, 38), // "testAirFormationDispatch_Sing..."
+QT_MOC_LITERAL(60, 2556, 41), // "testAirFormationDispatch_Mult..."
+QT_MOC_LITERAL(61, 2598, 41), // "testAirFormationDispatch_Inva..."
+QT_MOC_LITERAL(62, 2640, 37), // "testAirFormationDispatch_Star..."
+QT_MOC_LITERAL(63, 2678, 46), // "testProperty10_GroundFormatio..."
+QT_MOC_LITERAL(64, 2725, 33), // "testProperty6_MinimumSafeDist..."
+QT_MOC_LITERAL(65, 2759, 44), // "testProperty11_GroundFormatio..."
+QT_MOC_LITERAL(66, 2804, 38), // "testGroundFormationCoverage_P..."
+QT_MOC_LITERAL(67, 2843, 42), // "testProperty12_FormationResul..."
+QT_MOC_LITERAL(68, 2886, 40), // "testProperty13_ErrorPropagati..."
+QT_MOC_LITERAL(69, 2927, 48), // "testProperty14_PartialSuccess..."
+QT_MOC_LITERAL(70, 2976, 36), // "testBackwardCompatibility_Pro..."
+QT_MOC_LITERAL(71, 3013, 40), // "testProperty1_AirLeaderSetupC..."
+QT_MOC_LITERAL(72, 3054, 33), // "testProperty2_LeaderSwitchCle..."
+QT_MOC_LITERAL(73, 3088, 48), // "testProperty4_FirstGroundVehi..."
+QT_MOC_LITERAL(74, 3137, 39), // "testIntegration_TC5_PureGroun..."
+QT_MOC_LITERAL(75, 3177, 36), // "testIntegration_TC6_PureAirFo..."
+QT_MOC_LITERAL(76, 3214, 43) // "testIntegration_TC7_MixedAirG..."
 
     },
-    "TestFormation\0testLogicalUnitIdCompatibility\0"
-    "\0testPublishedConsoleSbhNormalization\0"
+    "TestFormation\0testLegacyNavigateRouteKeepsLegacyTaskType\0"
+    "\0testLegacyStaticFormationRouteKeepsLegacyTaskType\0"
+    "testLegacyStaticFormationAddsOnlyMissingTransformDefaults\0"
+    "testTaskCapabilityPolicyRealOnlyRpcDisabled\0"
+    "testTaskCapabilityPolicyMockFleetSupportsIndependentTasks\0"
+    "testFollowSetupPolicyRejectsMockAndMixedFleets\0"
+    "testFollowSetupPolicyRequiresRpcForRealFleet\0"
+    "testMockPathProgressVisitsEveryPointInOrder\0"
+    "testLogicalUnitIdCompatibility\0"
+    "testPublishedConsoleSbhNormalization\0"
     "testDuplicateIluServerIdConflictDetection\0"
     "testBuildGroundFollowFormation_TwoVehicles\0"
     "testBuildGroundFollowFormation_IndependentChainSpacing\0"
+    "testGroundFollowParentIds_UsesOrderedChain\0"
+    "testGroundFollowParentIds_RejectsInvalidMembers\0"
     "testFollowFormationSnapshot_ReportsRequestedAndEffectiveDistance\0"
+    "testFailedFormationWithPhysicalLeaderRemainsActive\0"
     "testFollowFormationReadyRequiresEveryUnitToSucceed\0"
+    "testTaskTargetBoundsAreSharedByFollowMovement\0"
+    "testFollowDistanceRangeIsClosedAndFinite\0"
+    "testControlUncertainUnitRemainsBusyUntilCleared\0"
+    "testSingleTaskProgressMirrorsItsSubTask\0"
+    "testTerminalSubTaskErrorPropagatesToParent\0"
     "testValidateFormation_Property2_ValidIndices\0"
     "testValidateFormation_Property2_InvalidIndices\0"
     "testDetectCrossTypeEdges_Property5_Detection\0"
@@ -162,7 +193,7 @@ static const uint qt_meta_data_TestFormation[] = {
        8,       // revision
        0,       // classname
        0,    0, // classinfo
-      59,   14, // methods
+      75,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
@@ -170,67 +201,99 @@ static const uint qt_meta_data_TestFormation[] = {
        0,       // signalCount
 
  // slots: name, argc, parameters, tag, flags
-       1,    0,  309,    2, 0x08 /* Private */,
-       3,    0,  310,    2, 0x08 /* Private */,
-       4,    0,  311,    2, 0x08 /* Private */,
-       5,    0,  312,    2, 0x08 /* Private */,
-       6,    0,  313,    2, 0x08 /* Private */,
-       7,    0,  314,    2, 0x08 /* Private */,
-       8,    0,  315,    2, 0x08 /* Private */,
-       9,    0,  316,    2, 0x08 /* Private */,
-      10,    0,  317,    2, 0x08 /* Private */,
-      11,    0,  318,    2, 0x08 /* Private */,
-      12,    0,  319,    2, 0x08 /* Private */,
-      13,    0,  320,    2, 0x08 /* Private */,
-      14,    0,  321,    2, 0x08 /* Private */,
-      15,    0,  322,    2, 0x08 /* Private */,
-      16,    0,  323,    2, 0x08 /* Private */,
-      17,    0,  324,    2, 0x08 /* Private */,
-      18,    0,  325,    2, 0x08 /* Private */,
-      19,    0,  326,    2, 0x08 /* Private */,
-      20,    0,  327,    2, 0x08 /* Private */,
-      21,    0,  328,    2, 0x08 /* Private */,
-      22,    0,  329,    2, 0x08 /* Private */,
-      23,    0,  330,    2, 0x08 /* Private */,
-      24,    0,  331,    2, 0x08 /* Private */,
-      25,    0,  332,    2, 0x08 /* Private */,
-      26,    0,  333,    2, 0x08 /* Private */,
-      27,    0,  334,    2, 0x08 /* Private */,
-      28,    0,  335,    2, 0x08 /* Private */,
-      29,    0,  336,    2, 0x08 /* Private */,
-      30,    0,  337,    2, 0x08 /* Private */,
-      31,    0,  338,    2, 0x08 /* Private */,
-      32,    0,  339,    2, 0x08 /* Private */,
-      33,    0,  340,    2, 0x08 /* Private */,
-      34,    0,  341,    2, 0x08 /* Private */,
-      35,    0,  342,    2, 0x08 /* Private */,
-      36,    0,  343,    2, 0x08 /* Private */,
-      37,    0,  344,    2, 0x08 /* Private */,
-      38,    0,  345,    2, 0x08 /* Private */,
-      39,    0,  346,    2, 0x08 /* Private */,
-      40,    0,  347,    2, 0x08 /* Private */,
-      41,    0,  348,    2, 0x08 /* Private */,
-      42,    0,  349,    2, 0x08 /* Private */,
-      43,    0,  350,    2, 0x08 /* Private */,
-      44,    0,  351,    2, 0x08 /* Private */,
-      45,    0,  352,    2, 0x08 /* Private */,
-      46,    0,  353,    2, 0x08 /* Private */,
-      47,    0,  354,    2, 0x08 /* Private */,
-      48,    0,  355,    2, 0x08 /* Private */,
-      49,    0,  356,    2, 0x08 /* Private */,
-      50,    0,  357,    2, 0x08 /* Private */,
-      51,    0,  358,    2, 0x08 /* Private */,
-      52,    0,  359,    2, 0x08 /* Private */,
-      53,    0,  360,    2, 0x08 /* Private */,
-      54,    0,  361,    2, 0x08 /* Private */,
-      55,    0,  362,    2, 0x08 /* Private */,
-      56,    0,  363,    2, 0x08 /* Private */,
-      57,    0,  364,    2, 0x08 /* Private */,
-      58,    0,  365,    2, 0x08 /* Private */,
-      59,    0,  366,    2, 0x08 /* Private */,
-      60,    0,  367,    2, 0x08 /* Private */,
+       1,    0,  389,    2, 0x08 /* Private */,
+       3,    0,  390,    2, 0x08 /* Private */,
+       4,    0,  391,    2, 0x08 /* Private */,
+       5,    0,  392,    2, 0x08 /* Private */,
+       6,    0,  393,    2, 0x08 /* Private */,
+       7,    0,  394,    2, 0x08 /* Private */,
+       8,    0,  395,    2, 0x08 /* Private */,
+       9,    0,  396,    2, 0x08 /* Private */,
+      10,    0,  397,    2, 0x08 /* Private */,
+      11,    0,  398,    2, 0x08 /* Private */,
+      12,    0,  399,    2, 0x08 /* Private */,
+      13,    0,  400,    2, 0x08 /* Private */,
+      14,    0,  401,    2, 0x08 /* Private */,
+      15,    0,  402,    2, 0x08 /* Private */,
+      16,    0,  403,    2, 0x08 /* Private */,
+      17,    0,  404,    2, 0x08 /* Private */,
+      18,    0,  405,    2, 0x08 /* Private */,
+      19,    0,  406,    2, 0x08 /* Private */,
+      20,    0,  407,    2, 0x08 /* Private */,
+      21,    0,  408,    2, 0x08 /* Private */,
+      22,    0,  409,    2, 0x08 /* Private */,
+      23,    0,  410,    2, 0x08 /* Private */,
+      24,    0,  411,    2, 0x08 /* Private */,
+      25,    0,  412,    2, 0x08 /* Private */,
+      26,    0,  413,    2, 0x08 /* Private */,
+      27,    0,  414,    2, 0x08 /* Private */,
+      28,    0,  415,    2, 0x08 /* Private */,
+      29,    0,  416,    2, 0x08 /* Private */,
+      30,    0,  417,    2, 0x08 /* Private */,
+      31,    0,  418,    2, 0x08 /* Private */,
+      32,    0,  419,    2, 0x08 /* Private */,
+      33,    0,  420,    2, 0x08 /* Private */,
+      34,    0,  421,    2, 0x08 /* Private */,
+      35,    0,  422,    2, 0x08 /* Private */,
+      36,    0,  423,    2, 0x08 /* Private */,
+      37,    0,  424,    2, 0x08 /* Private */,
+      38,    0,  425,    2, 0x08 /* Private */,
+      39,    0,  426,    2, 0x08 /* Private */,
+      40,    0,  427,    2, 0x08 /* Private */,
+      41,    0,  428,    2, 0x08 /* Private */,
+      42,    0,  429,    2, 0x08 /* Private */,
+      43,    0,  430,    2, 0x08 /* Private */,
+      44,    0,  431,    2, 0x08 /* Private */,
+      45,    0,  432,    2, 0x08 /* Private */,
+      46,    0,  433,    2, 0x08 /* Private */,
+      47,    0,  434,    2, 0x08 /* Private */,
+      48,    0,  435,    2, 0x08 /* Private */,
+      49,    0,  436,    2, 0x08 /* Private */,
+      50,    0,  437,    2, 0x08 /* Private */,
+      51,    0,  438,    2, 0x08 /* Private */,
+      52,    0,  439,    2, 0x08 /* Private */,
+      53,    0,  440,    2, 0x08 /* Private */,
+      54,    0,  441,    2, 0x08 /* Private */,
+      55,    0,  442,    2, 0x08 /* Private */,
+      56,    0,  443,    2, 0x08 /* Private */,
+      57,    0,  444,    2, 0x08 /* Private */,
+      58,    0,  445,    2, 0x08 /* Private */,
+      59,    0,  446,    2, 0x08 /* Private */,
+      60,    0,  447,    2, 0x08 /* Private */,
+      61,    0,  448,    2, 0x08 /* Private */,
+      62,    0,  449,    2, 0x08 /* Private */,
+      63,    0,  450,    2, 0x08 /* Private */,
+      64,    0,  451,    2, 0x08 /* Private */,
+      65,    0,  452,    2, 0x08 /* Private */,
+      66,    0,  453,    2, 0x08 /* Private */,
+      67,    0,  454,    2, 0x08 /* Private */,
+      68,    0,  455,    2, 0x08 /* Private */,
+      69,    0,  456,    2, 0x08 /* Private */,
+      70,    0,  457,    2, 0x08 /* Private */,
+      71,    0,  458,    2, 0x08 /* Private */,
+      72,    0,  459,    2, 0x08 /* Private */,
+      73,    0,  460,    2, 0x08 /* Private */,
+      74,    0,  461,    2, 0x08 /* Private */,
+      75,    0,  462,    2, 0x08 /* Private */,
+      76,    0,  463,    2, 0x08 /* Private */,
 
  // slots: parameters
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void,
@@ -300,65 +363,81 @@ void TestFormation::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _i
         auto *_t = static_cast<TestFormation *>(_o);
         Q_UNUSED(_t)
         switch (_id) {
-        case 0: _t->testLogicalUnitIdCompatibility(); break;
-        case 1: _t->testPublishedConsoleSbhNormalization(); break;
-        case 2: _t->testDuplicateIluServerIdConflictDetection(); break;
-        case 3: _t->testBuildGroundFollowFormation_TwoVehicles(); break;
-        case 4: _t->testBuildGroundFollowFormation_IndependentChainSpacing(); break;
-        case 5: _t->testFollowFormationSnapshot_ReportsRequestedAndEffectiveDistance(); break;
-        case 6: _t->testFollowFormationReadyRequiresEveryUnitToSucceed(); break;
-        case 7: _t->testValidateFormation_Property2_ValidIndices(); break;
-        case 8: _t->testValidateFormation_Property2_InvalidIndices(); break;
-        case 9: _t->testDetectCrossTypeEdges_Property5_Detection(); break;
-        case 10: _t->testDetectCrossTypeEdges_Property5_NoCrossType(); break;
-        case 11: _t->testValidateFormation_EmptyFormation(); break;
-        case 12: _t->testValidateFormation_NullFormation(); break;
-        case 13: _t->testValidateFormation_MismatchedLengths(); break;
-        case 14: _t->testDetectCrossTypeEdges_NullFormation(); break;
-        case 15: _t->testSplitFormation_Property6_IndexRemapping(); break;
-        case 16: _t->testSplitFormation_Property6_CrossTypeEdgeRemoval(); break;
-        case 17: _t->testSplitFormation_NullFormation(); break;
-        case 18: _t->testSplitFormation_PureGroundFormation(); break;
-        case 19: _t->testSplitFormation_PureAirFormation(); break;
-        case 20: _t->testNormalizeTopology_Property1_ChainTopology(); break;
-        case 21: _t->testNormalizeTopology_Property1_StarStrategy(); break;
-        case 22: _t->testNormalizeTopology_Property1_AirFormationSkip(); break;
-        case 23: _t->testNormalizeTopology_NullFormation(); break;
-        case 24: _t->testNormalizeTopology_SingleUnit(); break;
-        case 25: _t->testSetGroupMode_Property3_ResponsibilitySeparation(); break;
-        case 26: _t->testSetGroupMode_Property3_UnitTypeHandling(); break;
-        case 27: _t->testParameterIndependence_Property7(); break;
-        case 28: _t->testParameterIndependence_Property7_AfterSplit(); break;
-        case 29: _t->testAirFormationInterface_Property4(); break;
-        case 30: _t->testAirFormationInterface_Property4_GroundPath(); break;
-        case 31: _t->testPartialSuccessHandling_Property8(); break;
-        case 32: _t->testPartialSuccessHandling_Property8_MixedGroups(); break;
-        case 33: _t->testIntegration_TC1_ChainTopologyConversion(); break;
-        case 34: _t->testIntegration_TC2_AirFormationDispatch(); break;
-        case 35: _t->testIntegration_TC3_MixedFormationSplit(); break;
-        case 36: _t->testIntegration_TC4_CrossTypeEdgeDegradation(); break;
-        case 37: _t->testIntegration_TC5_PartialSuccessHandling(); break;
-        case 38: _t->testIntegration_TC6_ParameterIndependence(); break;
-        case 39: _t->testAirFormationDispatch_NullFormation(); break;
-        case 40: _t->testAirFormationDispatch_EmptyFormation(); break;
-        case 41: _t->testAirFormationDispatch_SingleAirUnit(); break;
-        case 42: _t->testAirFormationDispatch_MultipleAirUnits(); break;
-        case 43: _t->testAirFormationDispatch_InvalidLeaderSBH(); break;
-        case 44: _t->testAirFormationDispatch_StarTopology(); break;
-        case 45: _t->testProperty10_GroundFormationDispatchCoverage(); break;
-        case 46: _t->testProperty6_MinimumSafeDistance(); break;
-        case 47: _t->testProperty11_GroundFormationRetryMechanism(); break;
-        case 48: _t->testGroundFormationCoverage_Property10(); break;
-        case 49: _t->testProperty12_FormationResultCompleteness(); break;
-        case 50: _t->testProperty13_ErrorPropagationIsolation(); break;
-        case 51: _t->testProperty14_PartialSuccessStatusDetermination(); break;
-        case 52: _t->testBackwardCompatibility_Property15(); break;
-        case 53: _t->testProperty1_AirLeaderSetupCompleteness(); break;
-        case 54: _t->testProperty2_LeaderSwitchCleanup(); break;
-        case 55: _t->testProperty4_FirstGroundVehicleFollowsAirLeader(); break;
-        case 56: _t->testIntegration_TC5_PureGroundFormation(); break;
-        case 57: _t->testIntegration_TC6_PureAirFormation(); break;
-        case 58: _t->testIntegration_TC7_MixedAirGroundFormation(); break;
+        case 0: _t->testLegacyNavigateRouteKeepsLegacyTaskType(); break;
+        case 1: _t->testLegacyStaticFormationRouteKeepsLegacyTaskType(); break;
+        case 2: _t->testLegacyStaticFormationAddsOnlyMissingTransformDefaults(); break;
+        case 3: _t->testTaskCapabilityPolicyRealOnlyRpcDisabled(); break;
+        case 4: _t->testTaskCapabilityPolicyMockFleetSupportsIndependentTasks(); break;
+        case 5: _t->testFollowSetupPolicyRejectsMockAndMixedFleets(); break;
+        case 6: _t->testFollowSetupPolicyRequiresRpcForRealFleet(); break;
+        case 7: _t->testMockPathProgressVisitsEveryPointInOrder(); break;
+        case 8: _t->testLogicalUnitIdCompatibility(); break;
+        case 9: _t->testPublishedConsoleSbhNormalization(); break;
+        case 10: _t->testDuplicateIluServerIdConflictDetection(); break;
+        case 11: _t->testBuildGroundFollowFormation_TwoVehicles(); break;
+        case 12: _t->testBuildGroundFollowFormation_IndependentChainSpacing(); break;
+        case 13: _t->testGroundFollowParentIds_UsesOrderedChain(); break;
+        case 14: _t->testGroundFollowParentIds_RejectsInvalidMembers(); break;
+        case 15: _t->testFollowFormationSnapshot_ReportsRequestedAndEffectiveDistance(); break;
+        case 16: _t->testFailedFormationWithPhysicalLeaderRemainsActive(); break;
+        case 17: _t->testFollowFormationReadyRequiresEveryUnitToSucceed(); break;
+        case 18: _t->testTaskTargetBoundsAreSharedByFollowMovement(); break;
+        case 19: _t->testFollowDistanceRangeIsClosedAndFinite(); break;
+        case 20: _t->testControlUncertainUnitRemainsBusyUntilCleared(); break;
+        case 21: _t->testSingleTaskProgressMirrorsItsSubTask(); break;
+        case 22: _t->testTerminalSubTaskErrorPropagatesToParent(); break;
+        case 23: _t->testValidateFormation_Property2_ValidIndices(); break;
+        case 24: _t->testValidateFormation_Property2_InvalidIndices(); break;
+        case 25: _t->testDetectCrossTypeEdges_Property5_Detection(); break;
+        case 26: _t->testDetectCrossTypeEdges_Property5_NoCrossType(); break;
+        case 27: _t->testValidateFormation_EmptyFormation(); break;
+        case 28: _t->testValidateFormation_NullFormation(); break;
+        case 29: _t->testValidateFormation_MismatchedLengths(); break;
+        case 30: _t->testDetectCrossTypeEdges_NullFormation(); break;
+        case 31: _t->testSplitFormation_Property6_IndexRemapping(); break;
+        case 32: _t->testSplitFormation_Property6_CrossTypeEdgeRemoval(); break;
+        case 33: _t->testSplitFormation_NullFormation(); break;
+        case 34: _t->testSplitFormation_PureGroundFormation(); break;
+        case 35: _t->testSplitFormation_PureAirFormation(); break;
+        case 36: _t->testNormalizeTopology_Property1_ChainTopology(); break;
+        case 37: _t->testNormalizeTopology_Property1_StarStrategy(); break;
+        case 38: _t->testNormalizeTopology_Property1_AirFormationSkip(); break;
+        case 39: _t->testNormalizeTopology_NullFormation(); break;
+        case 40: _t->testNormalizeTopology_SingleUnit(); break;
+        case 41: _t->testSetGroupMode_Property3_ResponsibilitySeparation(); break;
+        case 42: _t->testSetGroupMode_Property3_UnitTypeHandling(); break;
+        case 43: _t->testParameterIndependence_Property7(); break;
+        case 44: _t->testParameterIndependence_Property7_AfterSplit(); break;
+        case 45: _t->testAirFormationInterface_Property4(); break;
+        case 46: _t->testAirFormationInterface_Property4_GroundPath(); break;
+        case 47: _t->testPartialSuccessHandling_Property8(); break;
+        case 48: _t->testPartialSuccessHandling_Property8_MixedGroups(); break;
+        case 49: _t->testIntegration_TC1_ChainTopologyConversion(); break;
+        case 50: _t->testIntegration_TC2_AirFormationDispatch(); break;
+        case 51: _t->testIntegration_TC3_MixedFormationSplit(); break;
+        case 52: _t->testIntegration_TC4_CrossTypeEdgeDegradation(); break;
+        case 53: _t->testIntegration_TC5_PartialSuccessHandling(); break;
+        case 54: _t->testIntegration_TC6_ParameterIndependence(); break;
+        case 55: _t->testAirFormationDispatch_NullFormation(); break;
+        case 56: _t->testAirFormationDispatch_EmptyFormation(); break;
+        case 57: _t->testAirFormationDispatch_SingleAirUnit(); break;
+        case 58: _t->testAirFormationDispatch_MultipleAirUnits(); break;
+        case 59: _t->testAirFormationDispatch_InvalidLeaderSBH(); break;
+        case 60: _t->testAirFormationDispatch_StarTopology(); break;
+        case 61: _t->testProperty10_GroundFormationDispatchCoverage(); break;
+        case 62: _t->testProperty6_MinimumSafeDistance(); break;
+        case 63: _t->testProperty11_GroundFormationRetryMechanism(); break;
+        case 64: _t->testGroundFormationCoverage_Property10(); break;
+        case 65: _t->testProperty12_FormationResultCompleteness(); break;
+        case 66: _t->testProperty13_ErrorPropagationIsolation(); break;
+        case 67: _t->testProperty14_PartialSuccessStatusDetermination(); break;
+        case 68: _t->testBackwardCompatibility_Property15(); break;
+        case 69: _t->testProperty1_AirLeaderSetupCompleteness(); break;
+        case 70: _t->testProperty2_LeaderSwitchCleanup(); break;
+        case 71: _t->testProperty4_FirstGroundVehicleFollowsAirLeader(); break;
+        case 72: _t->testIntegration_TC5_PureGroundFormation(); break;
+        case 73: _t->testIntegration_TC6_PureAirFormation(); break;
+        case 74: _t->testIntegration_TC7_MixedAirGroundFormation(); break;
         default: ;
         }
     }
@@ -366,7 +445,7 @@ void TestFormation::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _i
 }
 
 QT_INIT_METAOBJECT const QMetaObject TestFormation::staticMetaObject = { {
-    QMetaObject::SuperData::link<QObject::staticMetaObject>(),
+    &QObject::staticMetaObject,
     qt_meta_stringdata_TestFormation.data,
     qt_meta_data_TestFormation,
     qt_static_metacall,
@@ -394,13 +473,13 @@ int TestFormation::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 59)
+        if (_id < 75)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 59;
+        _id -= 75;
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 59)
+        if (_id < 75)
             *reinterpret_cast<int*>(_a[0]) = -1;
-        _id -= 59;
+        _id -= 75;
     }
     return _id;
 }

@@ -33,6 +33,58 @@ MAX_TARGET_DISTANCE_M = 100.0
 MIN_TOLERANCE_M = 0.02
 MAX_BATCH_SIZE = 10
 MAX_TARGET_COORD = 1000.0
+MIN_FOLLOW_DISTANCE_M = 0.5
+MAX_FOLLOW_DISTANCE_M = 20.0
+
+
+def validate_follow_target(x: float, y: float) -> tuple[bool, str, str]:
+    """Validate the Leader target used by persistent follow formations."""
+
+    if not math.isfinite(x) or not math.isfinite(y):
+        return False, ERR_TARGET_OUT_OF_BOUNDS, "target coordinates must be finite numbers"
+    if abs(x) > MAX_TARGET_COORD or abs(y) > MAX_TARGET_COORD:
+        return False, ERR_TARGET_OUT_OF_BOUNDS, (
+            f"target ({x:.1f}, {y:.1f}) exceeds max coordinate {MAX_TARGET_COORD}"
+        )
+    return True, ERR_OK, ""
+
+
+def validate_follow_distance(distance_m: float) -> tuple[bool, str, str]:
+    """Validate one requested follower spacing before any float conversion."""
+
+    if not math.isfinite(distance_m):
+        return False, ERR_SAFETY_REJECTED, "distance_m must be a finite number"
+    if distance_m < MIN_FOLLOW_DISTANCE_M or distance_m > MAX_FOLLOW_DISTANCE_M:
+        return False, ERR_SAFETY_REJECTED, (
+            f"distance_m must be between {MIN_FOLLOW_DISTANCE_M} and "
+            f"{MAX_FOLLOW_DISTANCE_M} metres"
+        )
+    return True, ERR_OK, ""
+
+
+def validate_navigate_to(
+    unit_id: str,
+    x: float,
+    y: float,
+    tolerance_m: float,
+) -> tuple[bool, str, str]:
+    """Validate the production x/y-only navigation contract."""
+
+    if not unit_id or not unit_id.strip():
+        return False, ERR_SAFETY_REJECTED, "unit_id is empty"
+    if not unit_id.strip().upper().startswith("G"):
+        return False, ERR_SAFETY_REJECTED, "target-point navigation supports ground units only"
+    if not math.isfinite(x) or not math.isfinite(y):
+        return False, ERR_TARGET_OUT_OF_BOUNDS, "target coordinates must be finite numbers"
+    if abs(x) > MAX_TARGET_COORD or abs(y) > MAX_TARGET_COORD:
+        return False, ERR_TARGET_OUT_OF_BOUNDS, (
+            f"target ({x:.1f}, {y:.1f}) exceeds max coordinate {MAX_TARGET_COORD}"
+        )
+    if not math.isfinite(tolerance_m) or tolerance_m < MIN_TOLERANCE_M:
+        return False, ERR_SAFETY_REJECTED, (
+            f"tolerance_m {tolerance_m} is below minimum {MIN_TOLERANCE_M}"
+        )
+    return True, ERR_OK, ""
 
 
 def validate_goto_pose(
@@ -94,6 +146,7 @@ def validate_goto_pose_batch(
             f"batch size {len(targets)} exceeds max {MAX_BATCH_SIZE}"
         ), None
 
+    seen: set[str] = set()
     for i, t in enumerate(targets):
         if not isinstance(t, dict):
             return False, ERR_SAFETY_REJECTED, f"targets[{i}] is not a JSON object", i
@@ -101,6 +154,9 @@ def validate_goto_pose_batch(
         uid = str(t.get("unit_id", "")).strip()
         if not uid:
             return False, ERR_SAFETY_REJECTED, f"targets[{i}] missing unit_id", i
+        if uid in seen:
+            return False, ERR_SAFETY_REJECTED, f"targets[{i}] duplicates unit_id {uid}", i
+        seen.add(uid)
 
         x_raw = t.get("x")
         y_raw = t.get("y")
@@ -110,7 +166,7 @@ def validate_goto_pose_batch(
         except (TypeError, ValueError):
             return False, ERR_SAFETY_REJECTED, f"targets[{i}] has invalid x or y", i
 
-        passed, err_code, msg = validate_goto_pose(uid, x, y, 0.3, 0.6, tolerance_m)
+        passed, err_code, msg = validate_navigate_to(uid, x, y, tolerance_m)
         if not passed:
             return False, err_code, f"targets[{i}] ({uid}): {msg}", i
 

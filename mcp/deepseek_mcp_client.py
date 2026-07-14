@@ -46,7 +46,13 @@ logger = logging.getLogger("deepseek_mcp_client")
 MCP_PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 DEEPSEEK_CHAT_COMPLETIONS_URL = "https://api.deepseek.com/v1/chat/completions"
-DEFAULT_DEEPSEEK_API_KEY = "sk-213f**************"
+DEFAULT_DEEPSEEK_API_KEY = ""
+
+
+def configured_deepseek_api_key() -> str:
+    """Return the runtime credential without embedding a repository default."""
+
+    return os.getenv("DEEPSEEK_API_KEY", "").strip()
 
 _USER_LINEAR_SPEED_RE = re.compile(
     r"(?P<val>\d+(?:\.\d+)?)\s*(?:m\s*/\s*s|m/s|米/秒|米每秒|ms(?:\s|$))",
@@ -67,7 +73,12 @@ _USER_POINT_GOAL_RE = re.compile(
     r"[（(]\s*(?P<x>-?\d+(?:\.\d+)?)\s*[,，]\s*(?P<y>-?\d+(?:\.\d+)?)\s*[）)]",
     re.IGNORECASE,
 )
-_FORMATION_PLAN_TOOLS = frozenset({"plan_line_targets", "plan_triangle_targets"})
+_PRODUCTION_TASK_TOOLS = frozenset({
+    "getCapabilities", "getFleetSnapshot", "navigateTo", "followPath",
+    "createStaticFormation", "createFollowFormation", "moveFollowFormation",
+    "getFormationStatus", "disbandFormation", "getTaskStatus", "cancelTask", "stopUnits",
+})
+_FORMATION_PLAN_TOOLS = frozenset({"createStaticFormation"})
 _FORMATION_ENTRY_RE = re.compile(r"编队|队形|formation", re.IGNORECASE)
 _FOLLOW_FORMATION_RE = re.compile(
     r"Console\s*跟随|跟随编队|持续跟随|发送队形|车距|间距|Follower|Leader",
@@ -77,32 +88,12 @@ _GEOMETRIC_FORMATION_RE = re.compile(
     r"几何编队|几何队形|排成|摆成|三角形|直线排列|沿[xyXY]轴|锚点|边长",
     re.IGNORECASE,
 )
-GEOMETRIC_FORMATION_TOOLS = frozenset(
-    {
-        "execute_formation",
-        "execute_formation_mission",
-        "execute_geometric_formation",
-        "plan_line_targets",
-        "plan_triangle_targets",
-        "goto_pose",
-        "goto_pose_batch",
-    }
-)
+GEOMETRIC_FORMATION_TOOLS = frozenset({"createStaticFormation"})
 FOLLOW_FORMATION_TOOLS = frozenset(
-    {"send_follow_formation", "goto_follow_formation"}
+    {"createFollowFormation", "moveFollowFormation", "getFormationStatus", "disbandFormation"}
 )
-LEGACY_AMBIGUOUS_FORMATION_TOOLS = frozenset({"execute_formation_mission"})
-AUTO_RECOVERY_TOOLS = frozenset(
-    {
-        "cancel_formation_mission",
-        "cancel_task",
-        "stop_active_formation",
-        "emergency_stop_all",
-        "stop_robot",
-        "reset_unit_relations",
-        "set_group_mode",
-    }
-)
+LEGACY_AMBIGUOUS_FORMATION_TOOLS = frozenset()
+AUTO_RECOVERY_TOOLS = frozenset({"cancelTask", "stopUnits", "disbandFormation"})
 _DONE_INCOMPLETE_MARKERS = (
     "我将",
     "接下来",
@@ -225,30 +216,18 @@ def user_explicitly_requested_recovery(user_text: str) -> bool:
 
 
 def allowed_recovery_tools(user_text: str) -> set[str]:
-    """只授权用户本轮明确要求的恢复动作，避免停止命令顺带授权重试。"""
+    """Authorize only production task-level recovery operations explicitly requested."""
 
     text = user_text.strip()
     allowed: set[str] = set()
     if re.search(r"重试|再试|重新发送|retry", text, re.IGNORECASE):
-        allowed.add("send_follow_formation")
-    if re.search(r"停止编队|停下编队|stop\s+formation", text, re.IGNORECASE):
-        allowed.add("stop_active_formation")
-    if re.search(r"取消编队|cancel\s+formation", text, re.IGNORECASE):
-        allowed.add("cancel_formation_mission")
-    if re.search(r"重置.*(?:编队|关系)|reset.*(?:formation|relation)", text, re.IGNORECASE):
-        allowed.add("reset_unit_relations")
-    if re.search(r"(?:停止|停下|stop)\s*(?:车辆?|机器人)?\s*(?:GV\d+|AV\d+|robot_\d+)", text, re.IGNORECASE):
-        allowed.add("stop_robot")
-    if re.search(r"紧急停止.*(?:所有|全部)|(?:emergency|急停).*\b(?:all|全部|所有)", text, re.IGNORECASE):
-        allowed.add("emergency_stop_all")
-    if re.search(r"(?:取消任务|cancel\s+task)\s*task_[A-Za-z0-9_-]+", text, re.IGNORECASE):
-        allowed.add("cancel_task")
-    if re.search(
-        r"(?:设置|切换|set|switch).*(?:编队|group).*(?:模式|mode).*(?:none|follow|imitate|mate|无|跟随|模仿|协同)",
-        text,
-        re.IGNORECASE,
-    ):
-        allowed.add("set_group_mode")
+        allowed.add("createFollowFormation")
+    if re.search(r"取消编队|解散编队|cancel\s+formation|disband", text, re.IGNORECASE):
+        allowed.add("disbandFormation")
+    if re.search(r"(?:停止|停下|stop|急停)", text, re.IGNORECASE):
+        allowed.add("stopUnits")
+    if re.search(r"(?:取消任务|cancel\s+task)\s*[A-Za-z0-9_-]+", text, re.IGNORECASE):
+        allowed.add("cancelTask")
     return allowed
 
 
@@ -261,37 +240,21 @@ def recovery_tool_call_is_authorized(
 
     if tool_name not in allowed_recovery_tools(user_text):
         return False
-    if tool_name == "stop_robot":
+    if tool_name == "stopUnits":
         requested = {
             item.casefold()
             for item in re.findall(r"(?:GV\d+|AV\d+|robot_\d+)", user_text, re.IGNORECASE)
         }
-        return str(tool_args.get("robot_id", "")).casefold() in requested
-    if tool_name == "cancel_task":
+        outgoing = {
+            str(item).casefold() for item in tool_args.get("unit_ids", [])
+        }
+        return not requested or (bool(outgoing) and outgoing <= requested)
+    if tool_name == "cancelTask":
         requested = {
             item.casefold()
-            for item in re.findall(r"task_[A-Za-z0-9_-]+", user_text, re.IGNORECASE)
+            for item in re.findall(r"[A-Za-z]+-[A-Za-z0-9_-]+", user_text, re.IGNORECASE)
         }
-        return str(tool_args.get("task_id", "")).casefold() in requested
-    if tool_name == "cancel_formation_mission":
-        requested = re.findall(r"task_[A-Za-z0-9_-]+", user_text, re.IGNORECASE)
-        return not requested or str(tool_args.get("task_id", "")).casefold() in {
-            item.casefold() for item in requested
-        }
-    if tool_name == "set_group_mode":
-        mode_aliases = {
-            "none": (r"\bnone\b|无模式|关闭.*模式",),
-            "follow": (r"\bfollow\b|跟随模式",),
-            "imitate": (r"\bimitate\b|模仿模式",),
-            "mate": (r"\bmate\b|协同模式",),
-        }
-        requested_modes = {
-            mode
-            for mode, patterns in mode_aliases.items()
-            if any(re.search(pattern, user_text, re.IGNORECASE) for pattern in patterns)
-        }
-        outgoing_mode = str(tool_args.get("mode", "")).casefold()
-        return bool(requested_modes) and outgoing_mode in requested_modes
+        return not requested or str(tool_args.get("task_id", "")).casefold() in requested
     return True
 
 
@@ -344,12 +307,16 @@ def follow_spacing_args_are_user_supplied(
     tool_args: dict[str, Any],
     state: FormationDialogState,
 ) -> bool:
-    """要求 send_follow_formation 的每个距离逐一匹配用户明确输入。"""
+    """要求 createFollowFormation 的每个距离逐一匹配用户明确输入。"""
 
-    try:
-        followers = json.loads(str(tool_args.get("followers_json", "")))
-    except json.JSONDecodeError:
-        return False
+    request = tool_args.get("request")
+    if isinstance(request, dict):
+        followers = request.get("followers")
+    else:
+        try:
+            followers = json.loads(str(tool_args.get("followers_json", "")))
+        except json.JSONDecodeError:
+            return False
     if not isinstance(followers, list) or not followers:
         return False
     outgoing: list[tuple[str, float]] = []
@@ -360,7 +327,7 @@ def follow_spacing_args_are_user_supplied(
             value = float(item["distance_m"])
         except (KeyError, TypeError, ValueError):
             return False
-        robot_id = str(item.get("robot_id", "")).strip().casefold()
+        robot_id = str(item.get("unit_id", item.get("robot_id", ""))).strip().casefold()
         if not robot_id:
             return False
         outgoing.append((robot_id, value))
@@ -422,39 +389,24 @@ def build_system_prompt() -> str:
     @returns {str} Prompt字符串
     """
     return (
-        "You are an intelligent Robot Fleet Commander connected to an MCP tool server.\n"
-        "Your goal is to understand the user's intent and autonomously orchestrate robots using available tools.\n\n"
-        "=== Available Tools: FORMATION HAS TWO DISTINCT MODES ===\n"
-        "1. Console follow formation:\n"
-        "   send_follow_formation(leader_id, followers_json) sends the same chain formation as Console.\n"
-        "   followers_json contains ordered robot_id + distance_m for EVERY follower. Never default spacing.\n"
-        "   goto_follow_formation(x, y) sends a target only to the Console's current Leader.\n"
-        "   get_formation_status() reads durable Console-owned state.\n"
-        "2. Geometric formation:\n"
-        "   execute_geometric_formation(formation_type, unit_ids_csv, spacing_m, ...) independently navigates all vehicles.\n"
-        "   Use only when the user explicitly requests geometric placement such as a line or triangle.\n\n"
-        "For an ambiguous formation request, do not call a formation tool; the client asks the user to choose mode 1 or 2.\n"
-        "In Console follow mode, require Leader, ordered Followers, and every distance before one send_follow_formation call.\n"
-        "If Console reports requested_distance_m different from effective_distance_m, explicitly tell the user the applied value.\n"
-        "After follow formation succeeds, use only goto_follow_formation for a target; never goto_pose followers separately.\n"
-        "Never automatically cancel, stop, reset, retry, or create a second formation after a follow-formation failure.\n"
-        "Legacy plan_line_targets and plan_triangle_targets are geometry helpers, not Console follow tools.\n\n"
-        "=== OTHER TOOLS ===\n"
-        "list_robots, get_robot_status, get_fleet_status, send_move, stop_robot, emergency_stop_all,\n"
-        "goto_pose, goto_pose_batch, set_leader, set_group_mode, set_group_minor_mode.\n\n"
-        "=== SPEED SAFETY (TC-06) ===\n"
-        "Never clamp an explicitly requested speed; send the exact value so the adapter can reject unsafe input.\n"
-        "=== ABSOLUTE POINT GOALS / PREMATURE DONE ===\n"
-        "Outside Console follow mode, execute navigation before claiming an absolute point goal is complete.\n"
-        "- ABSOLUTE POINT GOALS (go to x,y): use goto_pose or compute_navigation_hint + send_move loop.\n"
-        "- RELATIVE/BLIND MOTION (前进/后退/转弯): use send_move directly with velocity×duration.\n"
-        "- ID BINDING: If a tool fails with 'unit_not_bound', call list_robots() first, then use valid unit_id.\n\n"
+        "You are an intelligent Robot Fleet Commander connected to the production MCP task API.\n"
+        "Use only these task-level tools: getCapabilities, getFleetSnapshot, navigateTo, followPath, "
+        "createStaticFormation, createFollowFormation, moveFollowFormation, getFormationStatus, "
+        "disbandFormation, getTaskStatus, cancelTask, stopUnits.\n\n"
+        "Never call raw movement, role, group-mode, task-point, task-path, trap, or reset tools.\n"
+        "navigateTo accepts unit_id plus target={x,y}; final yaw and navigation speed are unsupported.\n"
+        "createStaticFormation accepts request={formation_type,unit_ids,spacing_m,anchor,heading_rad,...}; "
+        "it places vehicles geometrically and does not create follow relationships.\n"
+        "createFollowFormation accepts request={leader_id,followers:[{unit_id,distance_m}]}; require every "
+        "follower distance from the user. moveFollowFormation accepts target={x,y} and moves only the leader.\n"
+        "Use getTaskStatus for asynchronous tasks. cancelTask reports CANCEL_CONFIRMED, STOP_REQUESTED, or "
+        "STATE_ONLY_CANCELLED; never claim immediate physical stop unless the result confirms it.\n"
+        "Use getCapabilities before relying on optional real-RPC or follow behavior, and getFleetSnapshot for valid unit IDs.\n\n"
         "=== OUTPUT FORMAT ===\n"
         "- Tool call: {\"tool\": \"tool_name\", \"args\": {\"arg1\": \"value1\"}}\n"
         "- Multiple calls: [{\"tool\": \"...\", \"args\": {...}}, ...]\n"
         "- Task done: {\"done\": true, \"message\": \"...\"}\n"
-        "- ONLY output valid JSON. NEVER output markdown or explanations outside JSON.\n"
-        "- Use defaults for unspecified parameters — do NOT ask the user for clarification unless truly ambiguous."
+        "- ONLY output valid JSON. NEVER output markdown or explanations outside JSON."
     )
 
 
@@ -742,14 +694,30 @@ def run_mcp_call(server_spec: str, tool: str, args: dict[str, Any]) -> str:
     @param {dict} args 参数字典
     @returns {str} 包含执行结果的 JSON 字符串
     """
-    cmd = ["fastmcp", "call", server_spec, tool, "--json"]
-    for k, v in args.items():
-        cmd.append(f"{k}={v}")
+    cmd = [
+        "fastmcp",
+        "call",
+        server_spec,
+        tool,
+        "--json",
+        "--input-json",
+        json.dumps(args, ensure_ascii=False),
+    ]
 
     logger.info("Executing tool: %s with args %s", tool, args)
     proc = subprocess.run(cmd, capture_output=True, text=True, cwd=MCP_PROJECT_ROOT)
     if proc.returncode != 0:
-        return json.dumps({"success": False, "message": f"fastmcp failed: {proc.stderr or proc.stdout}"})
+        diagnostics = "\n".join(
+            output.strip()
+            for output in (proc.stdout, proc.stderr)
+            if output and output.strip()
+        )
+        if not diagnostics:
+            diagnostics = f"process exited with code {proc.returncode}"
+        return json.dumps(
+            {"success": False, "message": f"fastmcp failed: {diagnostics}"},
+            ensure_ascii=False,
+        )
 
     out = proc.stdout.strip()
     first = out.find("{")
@@ -759,16 +727,10 @@ def run_mcp_call(server_spec: str, tool: str, args: dict[str, Any]) -> str:
 
 
 def normalize_tool_call_args(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
-    """Normalize only unambiguous legacy argument aliases."""
+    """Return production task arguments without legacy alias rewriting."""
 
-    normalized = dict(args)
-    if tool_name != "set_leader" or "unit_id" not in normalized:
-        return normalized
-    unit_id = str(normalized.pop("unit_id"))
-    if "robot_id" in normalized and str(normalized["robot_id"]) != unit_id:
-        raise ValueError("conflicting robot_id and unit_id")
-    normalized["robot_id"] = unit_id
-    return normalized
+    del tool_name
+    return dict(args)
 
 
 def _parse_wizard_tool_payload(raw_result: str) -> dict[str, Any]:
@@ -786,8 +748,8 @@ def start_console_follow_wizard(
     """Discover vehicles and enter the deterministic Console-follow wizard."""
 
     state.phase = FollowWizardPhase.DISCOVERING_UNITS
-    print("[Agent] Calling tool: list_robots({})")
-    raw_result = run_mcp_call(server_spec, "list_robots", {})
+    print("[Agent] Calling tool: getFleetSnapshot({})")
+    raw_result = run_mcp_call(server_spec, "getFleetSnapshot", {})
     payload = _parse_wizard_tool_payload(raw_result)
     print_list_robots_runtime_summary(payload)
     return begin_follow_wizard(state, payload)
@@ -821,7 +783,7 @@ def main() -> int:
     args = parser.parse_args()
 
     setup_client_logging()
-    api_key = DEFAULT_DEEPSEEK_API_KEY or os.getenv("DEEPSEEK_API_KEY", "")
+    api_key = configured_deepseek_api_key()
     
     print("Thin DeepSeek MCP Client started. Type 'exit' to quit.")
     
@@ -840,7 +802,7 @@ def main() -> int:
             requested_recovery_tools = allowed_recovery_tools(user_text)
             deterministic_follow_retry = (
                 follow_wizard_state.formation_send_failed
-                and requested_recovery_tools == {"send_follow_formation"}
+                and requested_recovery_tools == {"createFollowFormation"}
             )
             explicit_follow_recovery = (
                 follow_wizard_state.formation_send_failed
@@ -920,33 +882,10 @@ def main() -> int:
                 
                 # 如果 LLM 判断完成
                 if isinstance(parsed, dict) and parsed.get("done"):
-                    if user_oob_speed and not speed_rejection_seen:
+                    if user_oob_speed:
                         print(
-                            "\n[Agent] [SECURITY] 用户请求含越界速度，但未触发适配层 speed_out_of_bounds 拦截，"
-                            "禁止以成功结束"
-                        )
-                        messages.append(
-                            {
-                                "role": "assistant",
-                                "content": json.dumps(parsed, ensure_ascii=False),
-                            }
-                        )
-                        messages.append(
-                            {
-                                "role": "user",
-                                "content": (
-                                    "Security violation: user requested out-of-bounds speed but no "
-                                    "speed_out_of_bounds rejection occurred. Call send_move with the "
-                                    "exact user speed; do NOT clamp to the safe limit."
-                                ),
-                            }
-                        )
-                        continue
-
-                    if user_oob_speed and speed_rejection_seen:
-                        print(
-                            "\n[Agent] Task Rejected: 越界速度指令已被 MCP 适配层拦截，"
-                            "未下发至主控（TC-06）"
+                            "\n[Agent] Task Rejected: 任务级 navigateTo 不支持导航速度参数，"
+                            "未调用低层 send_move，未向车辆下发速度指令"
                         )
                     elif (
                         not (
@@ -960,7 +899,7 @@ def main() -> int:
                         )
                     ):
                         print(
-                            "\n[Agent] [GUARDRAIL] 用户指定绝对坐标，但尚未执行 send_move，"
+                            "\n[Agent] [GUARDRAIL] 用户指定绝对坐标，但尚未执行 navigateTo，"
                             "禁止 premature done"
                         )
                         messages.append(
@@ -975,9 +914,8 @@ def main() -> int:
                                 "role": "user",
                                 "content": (
                                     f"Premature done rejected. User absolute point goals: {goals_hint}. "
-                                    "Do NOT use plan_line_targets/plan_triangle_targets. "
-                                    "Execute get_fleet_status → compute_navigation_hint(target_x,target_y) "
-                                    "→ send_move for EACH robot until reached, then output done."
+                                    "Use getFleetSnapshot to resolve IDs, then call navigateTo with "
+                                    "target={x,y} for each requested robot and poll getTaskStatus before done."
                                 ),
                             }
                         )
@@ -986,8 +924,8 @@ def main() -> int:
                         print(f"\n[Agent] Task Done: {parsed.get('message', 'OK')}")
                     
                     print("[Agent] 正在获取各车辆最终状态...")
-                    final_res = run_mcp_call(args.server_spec, "get_fleet_status", {"robot_ids_csv": ""})
-                    print_final_fleet_poses(final_res)
+                    final_res = run_mcp_call(args.server_spec, "getFleetSnapshot", {})
+                    print_list_robots_runtime_summary(_parse_wizard_tool_payload(final_res))
                         
                     messages.append({"role": "assistant", "content": json.dumps(parsed, ensure_ascii=False)})
                     break
@@ -1004,6 +942,14 @@ def main() -> int:
                     tool_args = call.get("args", {})
                     if not tool_name:
                         continue
+                    if tool_name not in _PRODUCTION_TASK_TOOLS:
+                        guard_msg = f"Production MCP rejects non-task tool: {tool_name}"
+                        print(f"[Agent] [GUARDRAIL] {guard_msg}")
+                        all_results.append({
+                            "tool": tool_name,
+                            "result": {"success": False, "message": guard_msg, "data": None},
+                        })
+                        continue
                     try:
                         tool_args = normalize_tool_call_args(tool_name, tool_args)
                     except (TypeError, ValueError) as exc:
@@ -1015,7 +961,7 @@ def main() -> int:
                         })
                         continue
                         
-                    robot_id = tool_args.get("robot_id")
+                    robot_id = tool_args.get("unit_id") or tool_args.get("robot_id")
 
                     if not allowed_formation_tool(tool_name, formation_state):
                         guard_msg = f"Cross-mode tool rejected: {tool_name}"
@@ -1027,7 +973,7 @@ def main() -> int:
                         continue
 
                     if (
-                        tool_name == "send_follow_formation"
+                        tool_name == "createFollowFormation"
                         and not follow_spacing_args_are_user_supplied(tool_args, formation_state)
                     ):
                         guard_msg = "Follow spacing rejected: every distance must come from explicit user input"
@@ -1050,7 +996,7 @@ def main() -> int:
                         and not recovery_authorized
                     )
                     repeated_follow_send = (
-                        tool_name == "send_follow_formation"
+                        tool_name == "createFollowFormation"
                         and formation_state.follow_send_seen_this_turn
                         and not recovery_authorized
                     )
@@ -1067,7 +1013,7 @@ def main() -> int:
                         goals_hint = format_point_goals_hint(user_point_goals)
                         guard_msg = (
                             f"Guardrail rejected: {tool_name} does not accept absolute (x,y) goals ({goals_hint}). "
-                            "Use compute_navigation_hint(robot_id, target_x, target_y) then send_move."
+                            "Use navigateTo(unit_id, target={x,y}) for each absolute point goal."
                         )
                         print(f"[Agent] [GUARDRAIL] 用户指定绝对坐标，禁止调用 {tool_name}")
                         res_obj = {"success": False, "message": guard_msg, "data": None}
@@ -1101,9 +1047,9 @@ def main() -> int:
                             break
 
                     print(f"[Agent] Calling tool: {tool_name}({tool_args})")
-                    if tool_name == "send_move":
+                    if tool_name == "navigateTo":
                         send_move_call_count += 1
-                    if tool_name == "send_follow_formation":
+                    if tool_name == "createFollowFormation":
                         formation_state.follow_send_seen_this_turn = True
                     try:
                         requests.post("http://127.0.0.1:9001/api/monitor/mcp_log", json={"func": tool_name, "params": tool_args}, timeout=0.5)
@@ -1112,7 +1058,7 @@ def main() -> int:
                     res = run_mcp_call(args.server_spec, tool_name, tool_args)
                     res_obj = json.loads(res) if res.startswith("{") else {"result": res}
                     inner_payload = unwrap_tool_payload(res_obj)
-                    if tool_name == "list_robots":
+                    if tool_name == "getFleetSnapshot":
                         print_list_robots_runtime_summary(inner_payload)
 
                     if tool_name == "send_move":
@@ -1127,9 +1073,9 @@ def main() -> int:
                                 all_results.append({"tool": tool_name, "result": res_obj})
                                 break
 
-                    if tool_name == "send_follow_formation":
+                    if tool_name == "createFollowFormation":
                         formation_state.follow_failure_seen = not bool(inner_payload.get("success"))
-                    if tool_name == "goto_follow_formation" and inner_payload.get("success"):
+                    if tool_name == "moveFollowFormation" and inner_payload.get("success"):
                         follow_target_call_count += 1
 
                     if tool_name == "send_move" and robot_id and inner_payload.get("success"):
@@ -1196,8 +1142,8 @@ def main() -> int:
                     else:
                         print(f"\n[Agent] [ABORT] 任务已中止：{abort_task_reason}")
                     print("[Agent] 正在获取各车辆最终状态...")
-                    final_res = run_mcp_call(args.server_spec, "get_fleet_status", {"robot_ids_csv": ""})
-                    print_final_fleet_poses(final_res)
+                    final_res = run_mcp_call(args.server_spec, "getFleetSnapshot", {})
+                    print_list_robots_runtime_summary(_parse_wizard_tool_payload(final_res))
                     break
                     
                 # 将观测结果回传给 LLM

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-import json
 import math
 import re
 from typing import Any
@@ -44,7 +43,7 @@ def begin_follow_wizard(
     state: ConsoleFollowWizardState,
     payload: dict[str, Any],
 ) -> WizardTurnResult:
-    """Populate the wizard from a normalized list_robots payload."""
+    """Populate the wizard from a normalized getFleetSnapshot payload."""
 
     state.phase = FollowWizardPhase.DISCOVERING_UNITS
     state.unit_ids.clear()
@@ -111,11 +110,17 @@ def handle_follow_wizard_input(
     state.spacings_m.clear()
     state.formation_ready = False
     state.formation_send_failed = False
-    return WizardTurnResult(
-        message=f"正在将 {leader_id} 设置为 Leader。",
-        tool_name="set_leader",
-        tool_args={"robot_id": leader_id},
-    )
+    if len(state.follower_ids) == 1:
+        state.phase = FollowWizardPhase.AWAITING_SPACING
+        return WizardTurnResult(
+            message=(
+                f"{leader_id} 已选为 Leader，{state.follower_ids[0]} 自动作为 Follower。"
+                "请输入间距，例如 0.5。"
+            )
+        )
+    state.phase = FollowWizardPhase.AWAITING_FOLLOWER_ORDER
+    choices = "、".join(state.follower_ids)
+    return WizardTurnResult(message=f"Leader 已选择。请按跟随顺序输入：{choices}。")
 
 
 def apply_follow_tool_result(
@@ -127,27 +132,12 @@ def apply_follow_tool_result(
 
     success = payload.get("success") is True
     message = str(payload.get("message", ""))
-    if tool_name == "set_leader" and not success:
-        state.phase = FollowWizardPhase.AWAITING_LEADER
-        return WizardTurnResult(message=f"Leader 设置失败：{message or 'unknown error'}")
-    if tool_name == "set_leader":
-        if len(state.follower_ids) == 1:
-            state.phase = FollowWizardPhase.AWAITING_SPACING
-            return WizardTurnResult(
-                message=(
-                    f"{state.leader_id} 已设为 Leader，{state.follower_ids[0]} 自动作为 Follower。"
-                    "请输入间距，例如 0.5。"
-                )
-            )
-        state.phase = FollowWizardPhase.AWAITING_FOLLOWER_ORDER
-        choices = "、".join(state.follower_ids)
-        return WizardTurnResult(message=f"Leader 设置成功。请按跟随顺序输入：{choices}。")
-    if tool_name == "send_follow_formation" and not success:
+    if tool_name == "createFollowFormation" and not success:
         state.phase = FollowWizardPhase.AWAITING_SEND_CONFIRMATION
         state.formation_ready = False
         state.formation_send_failed = True
         return WizardTurnResult(message=f"队形发送失败：{message or 'unknown error'}")
-    if tool_name == "send_follow_formation":
+    if tool_name == "createFollowFormation":
         state.phase = FollowWizardPhase.READY_FOR_TARGET
         state.formation_ready = True
         state.formation_send_failed = False
@@ -167,7 +157,7 @@ def apply_follow_tool_result(
         return WizardTurnResult(
             message=f"队形发送成功{spacing_message}。请输入目标点，例如 (5,6)。"
         )
-    if tool_name == "goto_follow_formation":
+    if tool_name == "moveFollowFormation":
         if success:
             return WizardTurnResult(message="目标点已发送给当前 Leader。")
         return WizardTurnResult(message=f"目标点发送失败：{message or 'unknown error'}")
@@ -302,19 +292,17 @@ def _handle_send_confirmation(
         state.phase = FollowWizardPhase.AWAITING_SEND_CONFIRMATION
         return WizardTurnResult(message="队形尚未发送。请输入“发送队形”确认，或重新输入间距。")
     followers_payload = [
-        {"robot_id": follower_id, "distance_m": state.spacings_m[follower_id]}
+        {"unit_id": follower_id, "distance_m": state.spacings_m[follower_id]}
         for follower_id in state.follower_ids
     ]
     return WizardTurnResult(
         message="正在发送 Console 跟随队形。",
-        tool_name="send_follow_formation",
+        tool_name="createFollowFormation",
         tool_args={
-            "leader_id": state.leader_id,
-            "followers_json": json.dumps(
-                followers_payload,
-                ensure_ascii=False,
-                separators=(",", ":"),
-            ),
+            "request": {
+                "leader_id": state.leader_id,
+                "followers": followers_payload,
+            }
         },
     )
 
@@ -337,6 +325,6 @@ def _handle_target(
         return WizardTurnResult(message="目标点必须是有限数值，请重新输入。")
     return WizardTurnResult(
         message=f"正在将目标点 ({x:g},{y:g}) 发送给 Leader。",
-        tool_name="goto_follow_formation",
-        tool_args={"x": x, "y": y},
+        tool_name="moveFollowFormation",
+        tool_args={"target": {"x": x, "y": y}},
     )

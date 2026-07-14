@@ -64,6 +64,8 @@ SOURCES += \
     HttpApiExecutor.cpp \
     HttpPlugin.cpp \
     MockRobotSimulator.cpp \
+    LegacyIdlAdapter.cpp \
+    TaskOrchestrator.cpp \
     TaskManager.cpp \
     SafetyValidator.cpp \
     mainwindow.cpp \
@@ -91,6 +93,8 @@ HEADERS += \
     HttpApiExecutor.h \
     HttpPlugin.h \
     MockRobotSimulator.h \
+    LegacyIdlAdapter.h \
+    TaskOrchestrator.h \
     TaskManager.h \
     SafetyValidator.h \
     mainwindow.h \

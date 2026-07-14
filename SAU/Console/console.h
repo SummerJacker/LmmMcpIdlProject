@@ -205,19 +205,36 @@ struct FormationResult {
 
 struct ConsoleFollowFormationRecord {
     bool ready;
+    bool physicalSetupAttempted;
+    QString state;
+    QString ownerId;
+    QString activeMoveTaskId;
+    QString message;
+    QString errorCode;
     QString leaderId;
     QStringList followerIds;
     QVector<float> requestedDistances;
     QVector<float> effectiveDistances;
+    QStringList physicalMembers;
 
-    ConsoleFollowFormationRecord() : ready(false) {}
+    ConsoleFollowFormationRecord()
+        : ready(false)
+        , physicalSetupAttempted(false)
+        , state(QStringLiteral("IDLE")) {}
 
     void clear() {
         ready = false;
+        physicalSetupAttempted = false;
+        state = QStringLiteral("IDLE");
+        ownerId.clear();
+        activeMoveTaskId.clear();
+        message.clear();
+        errorCode.clear();
         leaderId.clear();
         followerIds.clear();
         requestedDistances.clear();
         effectiveDistances.clear();
+        physicalMembers.clear();
     }
 };
 
@@ -248,6 +265,10 @@ QString describeIluServerIdConflict(const char* uidA, const char* sbhA,
 
 // Console GUI 与 HTTP 跟随编队共用的链式 Unit_Formation 构造逻辑。
 float effectiveGroundFollowDistance(float requestedDistance);
+QStringList groundFollowParentIds(
+    const QString &leaderId,
+    const QStringList &followerIds,
+    QString *errorMessage);
 Unit_Formation *buildGroundFollowFormation(
     const QString &leaderId,
     const QStringList &followerIds,
@@ -255,6 +276,32 @@ Unit_Formation *buildGroundFollowFormation(
     QString *errorMessage);
 void freeUnitFormation(Unit_Formation *value);
 bool followFormationDispatchIsReady(int successCount, int failCount, int expectedCount);
+
+struct ScopedFollowResult {
+    bool success;
+    bool physicalSetupAttempted;
+    bool rollbackSucceeded;
+    int successCount;
+    int failCount;
+    QStringList failedUnits;
+    QStringList physicalMembers;
+    QString message;
+
+    ScopedFollowResult()
+        : success(false)
+        , physicalSetupAttempted(false)
+        , rollbackSucceeded(true)
+        , successCount(0)
+        , failCount(0) {}
+};
+
+// Task-level scoped follow helpers. Legacy setToLeader/setGroupMode keep their
+// existing all-bound-unit behavior for GUI and compatibility callers.
+ScopedFollowResult createScopedGroundFollow(
+    const QString &leaderId,
+    const QStringList &followerIds,
+    const QVector<float> &distances);
+ScopedFollowResult clearScopedGroundFollow(const QStringList &unitIds);
 
 // 拓扑策略枚举
 enum TopologyStrategy {

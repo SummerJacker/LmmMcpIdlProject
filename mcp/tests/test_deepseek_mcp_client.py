@@ -56,13 +56,64 @@ def _wizard_fleet_response():
         },
     })
 
+
+def test_run_mcp_call_serializes_nested_arguments_with_input_json(monkeypatch):
+    import deepseek_mcp_client as client
+
+    captured = {}
+
+    def fake_run(cmd, *, capture_output, text, cwd):
+        captured["cmd"] = cmd
+        captured["cwd"] = cwd
+        return Mock(returncode=0, stdout='{"content": []}', stderr="")
+
+    monkeypatch.setattr(client.subprocess, "run", fake_run)
+    args = {
+        "request": {
+            "leader_id": "GV3",
+            "followers": [{"unit_id": "GV1", "distance_m": 0.5}],
+        }
+    }
+
+    client.run_mcp_call("main.py", "createFollowFormation", args)
+
+    cmd = captured["cmd"]
+    input_index = cmd.index("--input-json")
+    assert json.loads(cmd[input_index + 1]) == args
+    assert not any(part.startswith("request=") for part in cmd)
+
+
+def test_run_mcp_call_failure_preserves_stdout_and_stderr(monkeypatch):
+    import deepseek_mcp_client as client
+
+    monkeypatch.setattr(
+        client.subprocess,
+        "run",
+        lambda *args, **kwargs: Mock(
+            returncode=1,
+            stdout="Error: Argument request: Expected JSON object",
+            stderr="transport cleanup warning",
+        ),
+    )
+
+    result = json.loads(
+        client.run_mcp_call(
+            "main.py",
+            "createFollowFormation",
+            {"request": {"leader_id": "GV3", "followers": []}},
+        )
+    )
+
+    assert "Expected JSON object" in result["message"]
+    assert "transport cleanup warning" in result["message"]
+
 def test_build_system_prompt():
     prompt = build_system_prompt()
-    assert "Available Tools:" in prompt
-    assert "plan_triangle_targets" in prompt
-    assert "SPEED SAFETY (TC-06)" in prompt
-    assert "ABSOLUTE POINT GOALS" in prompt
-    assert "PREMATURE DONE" in prompt
+    assert "production MCP task API" in prompt
+    assert "createStaticFormation" in prompt
+    assert "createFollowFormation" in prompt
+    assert "Never call raw movement" in prompt
+    assert "navigateTo accepts unit_id plus target={x,y}" in prompt
 
 
 def test_extract_user_absolute_point_goals():
@@ -153,28 +204,31 @@ def test_cross_mode_tool_guard():
     follow = FormationDialogState(mode=FormationMode.CONSOLE_FOLLOW)
     geometric = FormationDialogState(mode=FormationMode.GEOMETRIC)
 
-    assert allowed_formation_tool("send_follow_formation", follow)
-    assert allowed_formation_tool("goto_follow_formation", follow)
-    assert not allowed_formation_tool("execute_geometric_formation", follow)
-    assert not allowed_formation_tool("goto_pose_batch", follow)
-    assert allowed_formation_tool("execute_geometric_formation", geometric)
-    assert not allowed_formation_tool("execute_formation_mission", geometric)
-    assert not allowed_formation_tool("send_follow_formation", geometric)
+    assert allowed_formation_tool("createFollowFormation", follow)
+    assert allowed_formation_tool("moveFollowFormation", follow)
+    assert not allowed_formation_tool("createStaticFormation", follow)
+    assert allowed_formation_tool("createStaticFormation", geometric)
+    assert not allowed_formation_tool("createFollowFormation", geometric)
+    assert not allowed_formation_tool("moveFollowFormation", geometric)
 
 
 def test_follow_spacing_must_come_from_user_input():
     state = FormationDialogState(mode=FormationMode.CONSOLE_FOLLOW)
     args = {
-        "leader_id": "GV1",
-        "followers_json": '[{"robot_id":"GV2","distance_m":1.0}]',
+        "request": {
+            "leader_id": "GV1",
+            "followers": [{"unit_id": "GV2", "distance_m": 1.0}],
+        },
     }
 
     assert not follow_spacing_args_are_user_supplied(args, state)
 
     record_explicit_follow_spacings("GV2 的间距为 0.3 米", state)
     matching = {
-        "leader_id": "GV1",
-        "followers_json": '[{"robot_id":"GV2","distance_m":0.3}]',
+        "request": {
+            "leader_id": "GV1",
+            "followers": [{"unit_id": "GV2", "distance_m": 0.3}],
+        },
     }
     assert follow_spacing_args_are_user_supplied(matching, state)
     assert not follow_spacing_args_are_user_supplied(args, state)
@@ -185,18 +239,22 @@ def test_follow_spacing_is_bound_to_each_follower():
     record_explicit_follow_spacings("GV2 间距 0.3 米，GV3 间距 0.5 米", state)
 
     matching = {
-        "leader_id": "GV1",
-        "followers_json": (
-            '[{"robot_id":"GV2","distance_m":0.3},'
-            '{"robot_id":"GV3","distance_m":0.5}]'
-        ),
+        "request": {
+            "leader_id": "GV1",
+            "followers": [
+                {"unit_id": "GV2", "distance_m": 0.3},
+                {"unit_id": "GV3", "distance_m": 0.5},
+            ],
+        },
     }
     swapped = {
-        "leader_id": "GV1",
-        "followers_json": (
-            '[{"robot_id":"GV2","distance_m":0.5},'
-            '{"robot_id":"GV3","distance_m":0.3}]'
-        ),
+        "request": {
+            "leader_id": "GV1",
+            "followers": [
+                {"unit_id": "GV2", "distance_m": 0.5},
+                {"unit_id": "GV3", "distance_m": 0.3},
+            ],
+        },
     }
 
     assert follow_spacing_args_are_user_supplied(matching, state)
@@ -207,36 +265,33 @@ def test_unrelated_meter_value_is_not_accepted_as_multi_follower_spacing():
     state = FormationDialogState(mode=FormationMode.CONSOLE_FOLLOW)
     record_explicit_follow_spacings("目标点距离当前位置 2 米", state)
     args = {
-        "leader_id": "GV1",
-        "followers_json": (
-            '[{"robot_id":"GV2","distance_m":2.0},'
-            '{"robot_id":"GV3","distance_m":2.0}]'
-        ),
+        "request": {
+            "leader_id": "GV1",
+            "followers": [
+                {"unit_id": "GV2", "distance_m": 2.0},
+                {"unit_id": "GV3", "distance_m": 2.0},
+            ],
+        },
     }
 
     assert not follow_spacing_args_are_user_supplied(args, state)
 
 
 def test_recovery_authorization_is_action_specific():
-    assert allowed_recovery_tools("停止编队") == {"stop_active_formation"}
-    assert allowed_recovery_tools("重试发送队形") == {"send_follow_formation"}
-    assert allowed_recovery_tools("重置编队关系") == {"reset_unit_relations"}
-    assert "send_follow_formation" not in allowed_recovery_tools("停止编队")
-    assert recovery_tool_call_is_authorized("stop_robot", {"robot_id": "GV1"}, "停止GV1")
-    assert not recovery_tool_call_is_authorized("stop_robot", {"robot_id": "GV2"}, "停止GV1")
-    assert recovery_tool_call_is_authorized("emergency_stop_all", {}, "紧急停止所有车辆")
+    assert allowed_recovery_tools("停止编队") == {"stopUnits"}
+    assert allowed_recovery_tools("重试发送队形") == {"createFollowFormation"}
+    assert allowed_recovery_tools("解散编队") == {"disbandFormation"}
+    assert "createFollowFormation" not in allowed_recovery_tools("停止编队")
+    assert recovery_tool_call_is_authorized("stopUnits", {"unit_ids": ["GV1"]}, "停止GV1")
+    assert not recovery_tool_call_is_authorized("stopUnits", {"unit_ids": ["GV2"]}, "停止GV1")
+    assert recovery_tool_call_is_authorized("stopUnits", {"unit_ids": ["GV1", "GV2"]}, "紧急停止所有车辆")
     assert recovery_tool_call_is_authorized(
-        "cancel_task", {"task_id": "task_123"}, "取消任务 task_123"
+        "cancelTask", {"task_id": "task-123"}, "取消任务 task-123"
     )
     assert not recovery_tool_call_is_authorized(
-        "cancel_task", {"task_id": "task_456"}, "取消任务 task_123"
+        "cancelTask", {"task_id": "task-456"}, "取消任务 task-123"
     )
-    assert recovery_tool_call_is_authorized(
-        "set_group_mode", {"mode": "none"}, "设置编队模式为无模式"
-    )
-    assert not recovery_tool_call_is_authorized(
-        "set_group_mode", {"mode": "follow"}, "设置编队模式为无模式"
-    )
+    assert recovery_tool_call_is_authorized("disbandFormation", {}, "解散编队")
     state = FormationDialogState(mode=FormationMode.CONSOLE_FOLLOW, follow_failure_seen=True)
     routed = route_formation_input("停止编队", state)
     assert routed.prompt_only is False
@@ -281,7 +336,7 @@ def test_console_follow_wizard_replays_reported_transcript_without_llm(monkeypat
 
     def fake_mcp(server, tool, args):
         calls.append((tool, args))
-        if tool == "list_robots":
+        if tool == "getFleetSnapshot":
             return json.dumps({
                 "success": True,
                 "message": "ok",
@@ -300,13 +355,14 @@ def test_console_follow_wizard_replays_reported_transcript_without_llm(monkeypat
 
     llm.assert_not_called()
     assert calls == [
-        ("list_robots", {}),
-        ("set_leader", {"robot_id": "GV1"}),
+        ("getFleetSnapshot", {}),
         (
-            "send_follow_formation",
+            "createFollowFormation",
             {
-                "leader_id": "GV1",
-                "followers_json": '[{"robot_id":"GV2","distance_m":0.5}]',
+                "request": {
+                    "leader_id": "GV1",
+                    "followers": [{"unit_id": "GV2", "distance_m": 0.5}],
+                },
             },
         ),
     ]
@@ -352,7 +408,7 @@ def test_cancelled_follow_wizard_returns_to_normal_agent_mode(monkeypatch):
 
     def fake_mcp(server, tool, args):
         calls.append(tool)
-        if tool == "list_robots":
+        if tool == "getFleetSnapshot":
             return _wizard_fleet_response()
         return json.dumps({"success": True, "message": "ok", "data": {}})
 
@@ -360,7 +416,7 @@ def test_cancelled_follow_wizard_returns_to_normal_agent_mode(monkeypatch):
 
     client.main()
 
-    assert calls.count("list_robots") == 1
+    assert calls.count("getFleetSnapshot") == 2
     assert llm.call_count == 1
 
 
@@ -380,14 +436,14 @@ def test_follow_send_without_user_spacing_is_rejected(monkeypatch, capsys):
 
     def fake_mcp(server, tool, args):
         calls.append(tool)
-        if tool == "list_robots":
+        if tool == "getFleetSnapshot":
             return _wizard_fleet_response()
         return json.dumps({"success": True, "message": "ok", "data": {}})
 
     monkeypatch.setattr(client, "run_mcp_call", fake_mcp)
     client.main()
 
-    assert "send_follow_formation" not in calls
+    assert "createFollowFormation" not in calls
     assert "间距无效" in capsys.readouterr().out
 
 
@@ -407,7 +463,7 @@ def test_follow_mode_blocks_geometric_tool_call(monkeypatch, capsys):
 
     def fake_mcp(server, tool, args):
         calls.append(tool)
-        if tool == "list_robots":
+        if tool == "getFleetSnapshot":
             return _wizard_fleet_response()
         return json.dumps({"success": True, "message": "ok", "data": {}})
 
@@ -415,7 +471,7 @@ def test_follow_mode_blocks_geometric_tool_call(monkeypatch, capsys):
 
     client.main()
 
-    assert "execute_geometric_formation" not in calls
+    assert "createStaticFormation" not in calls
     assert "间距无效" in capsys.readouterr().out
 
 
@@ -435,9 +491,9 @@ def test_failed_follow_send_blocks_automatic_recovery(monkeypatch, capsys):
 
     def fake_mcp(server, tool, args):
         calls.append(tool)
-        if tool == "list_robots":
+        if tool == "getFleetSnapshot":
             return _wizard_fleet_response()
-        if tool == "send_follow_formation":
+        if tool == "createFollowFormation":
             return json.dumps({"success": False, "message": "GV2 RPC failed", "data": None})
         return json.dumps({"success": True, "message": "ok", "data": {}})
 
@@ -445,8 +501,8 @@ def test_failed_follow_send_blocks_automatic_recovery(monkeypatch, capsys):
 
     client.main()
 
-    assert calls.count("send_follow_formation") == 1
-    assert "stop_active_formation" not in calls
+    assert calls.count("createFollowFormation") == 1
+    assert "stopUnits" not in calls
     assert "队形发送失败" in capsys.readouterr().out
 
 
@@ -460,7 +516,7 @@ def test_failed_follow_send_allows_explicit_stop_recovery(monkeypatch):
     ])
     monkeypatch.setattr("builtins.input", lambda prompt="": next(inputs))
     llm_results = iter([
-        {"tool": "stop_active_formation", "args": {}},
+        {"tool": "stopUnits", "args": {"unit_ids": ["GV1", "GV2"]}},
         {"done": True, "message": "已按要求停止编队。"},
     ])
     monkeypatch.setattr(client, "call_llm", lambda *args: next(llm_results))
@@ -468,9 +524,9 @@ def test_failed_follow_send_allows_explicit_stop_recovery(monkeypatch):
 
     def fake_mcp(server, tool, args):
         calls.append(tool)
-        if tool == "list_robots":
+        if tool == "getFleetSnapshot":
             return _wizard_fleet_response()
-        if tool == "send_follow_formation":
+        if tool == "createFollowFormation":
             return json.dumps({"success": False, "message": "GV2 RPC failed", "data": None})
         return json.dumps({"success": True, "message": "ok", "data": {}})
 
@@ -478,8 +534,8 @@ def test_failed_follow_send_allows_explicit_stop_recovery(monkeypatch):
 
     client.main()
 
-    assert calls.count("send_follow_formation") == 1
-    assert calls.count("stop_active_formation") == 1
+    assert calls.count("createFollowFormation") == 1
+    assert calls.count("stopUnits") == 1
 
 
 def test_failed_follow_send_retries_deterministically_when_explicitly_requested(monkeypatch):
@@ -497,10 +553,10 @@ def test_failed_follow_send_retries_deterministically_when_explicitly_requested(
 
     def fake_mcp(server, tool, args):
         calls.append((tool, args))
-        if tool == "list_robots":
+        if tool == "getFleetSnapshot":
             return _wizard_fleet_response()
-        if tool == "send_follow_formation" and sum(
-            name == "send_follow_formation" for name, _ in calls
+        if tool == "createFollowFormation" and sum(
+            name == "createFollowFormation" for name, _ in calls
         ) == 1:
             return json.dumps({"success": False, "message": "GV2 RPC failed", "data": None})
         return json.dumps({"success": True, "message": "ok", "data": {}})
@@ -509,7 +565,7 @@ def test_failed_follow_send_retries_deterministically_when_explicitly_requested(
 
     client.main()
 
-    send_calls = [args for tool, args in calls if tool == "send_follow_formation"]
+    send_calls = [args for tool, args in calls if tool == "createFollowFormation"]
     assert len(send_calls) == 2
     assert send_calls[0] == send_calls[1]
     llm.assert_not_called()
@@ -531,7 +587,7 @@ def test_follow_target_uses_leader_only_tool_without_premature_done(monkeypatch,
 
     def fake_mcp(server, tool, args):
         calls.append(tool)
-        if tool == "list_robots":
+        if tool == "getFleetSnapshot":
             return _wizard_fleet_response()
         return json.dumps({"success": True, "message": "ok", "data": {}})
 
@@ -539,9 +595,9 @@ def test_follow_target_uses_leader_only_tool_without_premature_done(monkeypatch,
 
     client.main()
 
-    assert calls.count("goto_follow_formation") == 1
-    assert "goto_pose" not in calls
-    assert "goto_pose_batch" not in calls
+    assert calls.count("moveFollowFormation") == 1
+    assert "navigateTo" not in calls
+    assert "followPath" not in calls
     assert "禁止 premature done" not in capsys.readouterr().out
 
 
@@ -582,13 +638,13 @@ class MockSession:
 
 
 def test_call_llm_json_parsing(monkeypatch):
-    mock_resp = MockResponse('```json\n{"tool": "get_fleet_status", "args": {"robot_ids_csv": ""}}\n```')
+    mock_resp = MockResponse('```json\n{"tool": "getFleetSnapshot", "args": {}}\n```')
     import requests
     monkeypatch.setattr(requests, "Session", lambda: MockSession(mock_resp))
 
     res = call_llm([], "dummy_key", "dummy_model")
     assert isinstance(res, dict)
-    assert res.get("tool") == "get_fleet_status"
+    assert res.get("tool") == "getFleetSnapshot"
 
 
 def test_call_llm_done_parsing(monkeypatch):
@@ -612,25 +668,21 @@ def test_call_llm_wraps_nonempty_prose_as_done(monkeypatch):
     }
 
 
-def test_normalize_set_leader_unit_id_alias():
+def test_normalize_task_arguments_preserves_structured_request():
     import deepseek_mcp_client as client
 
-    assert client.normalize_tool_call_args("set_leader", {"unit_id": "GV1"}) == {
-        "robot_id": "GV1"
-    }
+    args = {"request": {"leader_id": "GV1", "followers": []}}
+    assert client.normalize_tool_call_args("createFollowFormation", args) == args
 
 
-def test_conflicting_set_leader_alias_is_rejected():
+def test_normalize_task_arguments_does_not_rewrite_unit_ids():
     import deepseek_mcp_client as client
-    import pytest
 
-    with pytest.raises(ValueError):
-        client.normalize_tool_call_args(
-            "set_leader", {"robot_id": "GV1", "unit_id": "GV2"}
-        )
+    args = {"unit_id": "GV1", "target": {"x": 1.0, "y": 2.0}}
+    assert client.normalize_tool_call_args("navigateTo", args) == args
 
 
-def test_generic_agent_normalizes_set_leader_unit_id_before_fastmcp(monkeypatch):
+def test_generic_agent_rejects_low_level_tool_before_fastmcp(monkeypatch, capsys):
     import deepseek_mcp_client as client
     import sys
 
@@ -652,11 +704,11 @@ def test_generic_agent_normalizes_set_leader_unit_id_before_fastmcp(monkeypatch)
 
     client.main()
 
-    assert ("set_leader", {"robot_id": "GV1"}) in calls
-    assert ("set_leader", {"unit_id": "GV1"}) not in calls
+    assert all(tool != "set_leader" for tool, _ in calls)
+    assert "Production MCP rejects non-task tool: set_leader" in capsys.readouterr().out
 
-def test_guardrail_blocks_plan_line_for_absolute_goals(monkeypatch, capsys):
-    """绝对坐标任务禁止 plan_line_targets，且 premature done 被驳回"""
+def test_guardrail_blocks_legacy_planner_and_requires_navigate_to(monkeypatch, capsys):
+    """绝对坐标任务拒绝旧规划工具，并要求任务级 navigateTo。"""
     import deepseek_mcp_client
     import sys
 
@@ -683,24 +735,19 @@ def test_guardrail_blocks_plan_line_for_absolute_goals(monkeypatch, capsys):
                 "message": "plan_line_targets 不符，我将直接使用 compute_navigation_hint",
             }
         if call_count[0] == 3:
-            return {
-                "tool": "send_move",
-                "args": {
-                    "robot_id": "GV1",
-                    "linear_velocity": 0.5,
-                    "angular_velocity": 0.0,
-                    "duration_ms": 1000,
-                },
-            }
+            return [
+                {"tool": "navigateTo", "args": {"unit_id": "GV1", "target": {"x": 1.0, "y": 1.0}}},
+                {"tool": "navigateTo", "args": {"unit_id": "GV2", "target": {"x": 2.0, "y": 2.0}}},
+            ]
         return {"done": True, "message": "moves executed"}
 
     monkeypatch.setattr(deepseek_mcp_client, "call_llm", mock_call_llm)
 
     def mock_run_mcp(*args, **kwargs):
-        if args[1] == "get_fleet_status":
-            return json.dumps({"success": True, "data": {"items": []}})
-        if args[1] == "send_move":
-            return json.dumps({"success": True, "message": "accepted", "data": {"duration_ms": 1000}})
+        if args[1] == "getFleetSnapshot":
+            return json.dumps({"success": True, "data": {"units": []}})
+        if args[1] == "navigateTo":
+            return json.dumps({"success": True, "message": "accepted", "data": {"state": "COMPLETED"}})
         return json.dumps({"success": True, "data": {}})
 
     monkeypatch.setattr(deepseek_mcp_client, "run_mcp_call", mock_run_mcp)
@@ -712,12 +759,12 @@ def test_guardrail_blocks_plan_line_for_absolute_goals(monkeypatch, capsys):
     deepseek_mcp_client.main()
 
     out = capsys.readouterr().out
-    assert "禁止调用 plan_line_targets" in out
+    assert "Production MCP rejects non-task tool: plan_line_targets" in out
     assert "premature done" in out.lower() or "Premature done" in out or "禁止 premature done" in out
 
 
-def test_guardrail_oob_speed_rejection(monkeypatch, capsys):
-    """TC-06：用户越界速度被 LLM 截断时，客户端还原原值并中止任务"""
+def test_guardrail_rejects_low_level_speed_tool(monkeypatch, capsys):
+    """生产客户端不把导航速度降级为低层 send_move。"""
     import deepseek_mcp_client
     import sys
 
@@ -767,14 +814,13 @@ def test_guardrail_oob_speed_rejection(monkeypatch, capsys):
     deepseek_mcp_client.main()
 
     out = capsys.readouterr().out
-    assert "还原原值以触发适配层越界校验" in out
-    assert "越界速度已在适配层拦截" in out
-    assert "Task Rejected" in out
-    assert "Task completed successfully" not in out
+    assert "Production MCP rejects non-task tool: send_move" in out
+    assert "navigateTo 不支持导航速度参数" in out
+    assert "Task Done: Task completed successfully" not in out
 
 
-def test_guardrail_distance_tolerance(monkeypatch, capsys):
-    """测试距离容差护栏拦截（单车到达后拒绝其移动指令）"""
+def test_guardrail_rejects_legacy_navigation_helpers(monkeypatch, capsys):
+    """旧导航提示与原始移动工具均不得进入生产 MCP。"""
     import deepseek_mcp_client
     import sys
     monkeypatch.setattr(sys, "argv", ["deepseek_mcp_client.py"])
@@ -808,10 +854,11 @@ def test_guardrail_distance_tolerance(monkeypatch, capsys):
     deepseek_mcp_client.main()
     
     out = capsys.readouterr().out
-    assert "已到达目标，跳过移动" in out
+    assert "Production MCP rejects non-task tool: compute_navigation_hint" in out
+    assert "Production MCP rejects non-task tool: send_move" in out
 
-def test_guardrail_max_iterations(monkeypatch, capsys):
-    """测试最大迭代轮次护栏拦截"""
+def test_guardrail_rejects_repeated_low_level_move_without_dispatch(monkeypatch, capsys):
+    """低层移动被拒绝后不会调用 MCP，LLM 可结束当前轮次。"""
     import deepseek_mcp_client
     
     import sys
@@ -821,9 +868,12 @@ def test_guardrail_max_iterations(monkeypatch, capsys):
         return inputs.pop(0)
     monkeypatch.setattr("builtins.input", mock_input)
     
-    # 模拟 LLM 疯狂发送 send_move
+    llm_count = [0]
     def mock_call_llm(*args, **kwargs):
-        return {"tool": "send_move", "args": {"robot_id": "GV2", "duration_ms": 100}}
+        llm_count[0] += 1
+        if llm_count[0] == 1:
+            return {"tool": "send_move", "args": {"robot_id": "GV2", "duration_ms": 100}}
+        return {"done": True, "message": "legacy move rejected"}
     monkeypatch.setattr(deepseek_mcp_client, "call_llm", mock_call_llm)
     
     # 模拟 MCP 返回正常的位移，但是 LLM 依旧发 send_move
@@ -842,10 +892,10 @@ def test_guardrail_max_iterations(monkeypatch, capsys):
     deepseek_mcp_client.main()
     
     out = capsys.readouterr().out
-    assert "达到最大迭代轮次(12)" in out
-    assert "任务已中止" in out
+    assert "Production MCP rejects non-task tool: send_move" in out
+    assert call_count[0] == 1
 
-def test_guardrail_stuck_detection(monkeypatch, capsys):
+def test_guardrail_allows_task_status_tool(monkeypatch, capsys):
     """测试位置停滞检测护栏拦截"""
     import deepseek_mcp_client
     
@@ -856,15 +906,21 @@ def test_guardrail_stuck_detection(monkeypatch, capsys):
         return inputs.pop(0)
     monkeypatch.setattr("builtins.input", mock_input)
     
+    llm_count = [0]
     def mock_call_llm(*args, **kwargs):
-        return {"tool": "send_move", "args": {"robot_id": "GV3", "duration_ms": 100}}
+        llm_count[0] += 1
+        if llm_count[0] == 1:
+            return {"tool": "getTaskStatus", "args": {"task_id": "task-123"}}
+        return {"done": True, "message": "status checked"}
     monkeypatch.setattr(deepseek_mcp_client, "call_llm", mock_call_llm)
     
     # 模拟 MCP 返回原地不动的位姿
+    calls = []
     def mock_run_mcp(*args, **kwargs):
+        calls.append(args[1])
         return json.dumps({
             "success": True, 
-            "data": {"current_pose": {"x": 5.0, "y": 5.0}}
+            "data": {"task_id": "task-123", "state": "COMPLETED"}
         })
     monkeypatch.setattr(deepseek_mcp_client, "run_mcp_call", mock_run_mcp)
     
@@ -874,5 +930,5 @@ def test_guardrail_stuck_detection(monkeypatch, capsys):
     deepseek_mcp_client.main()
     
     out = capsys.readouterr().out
-    assert "物理卡死或打滑" in out
-    assert "任务已中止" in out
+    assert "Calling tool: getTaskStatus" in out
+    assert calls[0] == "getTaskStatus"

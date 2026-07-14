@@ -28,6 +28,8 @@ extern "C" {
 #include "HttpApiExecutor.h"
 #include "HttpPlugin.h"
 #include "MockRobotSimulator.h"
+#include "TaskManager.h"
+#include "TaskOrchestrator.h"
 #include "agents/identity/AgentDirectory.h"
 #include "agents/status/AgentStatusService.h"
 #include "agents/http/AgentHttpController.h"
@@ -1798,21 +1800,28 @@ static bool configureUnitMode(Unit_rpc unitObj, const char* uid,
         // 使用外部设备可回连的控制台SBH，避免把127.0.0.1发给车辆。
         QByteArray consoleSbh =
             normalizePublishedConsoleSbh(ILU_C_SBHOfObject(serviceObj), host);
-        Unit_rpc_setRole(unitObj, Unit_UR_Leader,
-                         consoleSbh.data(), &ev);
+        const CORBA_boolean roleResult = Unit_rpc_setRole(
+            unitObj, Unit_UR_Leader, consoleSbh.data(), &ev);
         if (!ILU_C_SUCCESSFUL(&ev)) {
             LOG_ERROR("setGroupMode", QString::fromUtf8("[%1] 设置Leader角色失败: %2").arg(uid).arg(ev.returnCode));
             ILU_C_EXCEPTION_FREE(&ev);
+            success = false;
+        } else if (roleResult != ilu_TRUE) {
+            LOG_ERROR("setGroupMode", QString::fromUtf8("[%1] 设置Leader角色被单元拒绝").arg(uid));
             success = false;
         } else {
             LOG_INFO("setGroupMode", QString::fromUtf8("[%1] Leader角色设置成功").arg(uid));
         }
     } else {
         LOG_INFO("setGroupMode", QString::fromUtf8("[%1] 设置为Follower角色").arg(uid));
-        Unit_rpc_setRole(unitObj, Unit_UR_Follower, "null", &ev);
+        const CORBA_boolean roleResult = Unit_rpc_setRole(
+            unitObj, Unit_UR_Follower, "null", &ev);
         if (!ILU_C_SUCCESSFUL(&ev)) {
             LOG_ERROR("setGroupMode", QString::fromUtf8("[%1] 设置Follower角色失败: %2").arg(uid).arg(ev.returnCode));
             ILU_C_EXCEPTION_FREE(&ev);
+            success = false;
+        } else if (roleResult != ilu_TRUE) {
+            LOG_ERROR("setGroupMode", QString::fromUtf8("[%1] 设置Follower角色被单元拒绝").arg(uid));
             success = false;
         } else {
             LOG_INFO("setGroupMode", QString::fromUtf8("[%1] Follower角色设置成功").arg(uid));
@@ -1820,10 +1829,14 @@ static bool configureUnitMode(Unit_rpc unitObj, const char* uid,
 
         // 设置Leader SBH
         if (leaderSBH != NULL) {
-            Unit_rpc_setALeader(unitObj, (Unit_UnitSBH)leaderSBH, &ev);
+            const CORBA_boolean leaderResult = Unit_rpc_setALeader(
+                unitObj, (Unit_UnitSBH)leaderSBH, &ev);
             if (!ILU_C_SUCCESSFUL(&ev)) {
                 LOG_ERROR("setGroupMode", QString::fromUtf8("[%1] 设置Leader失败: %2").arg(uid).arg(ev.returnCode));
                 ILU_C_EXCEPTION_FREE(&ev);
+                success = false;
+            } else if (leaderResult != ilu_TRUE) {
+                LOG_ERROR("setGroupMode", QString::fromUtf8("[%1] 设置Leader被单元拒绝").arg(uid));
                 success = false;
             } else {
                 LOG_INFO("setGroupMode", QString::fromUtf8("[%1] Leader已设置为 %2").arg(uid).arg(currentLeaderUID));
@@ -2118,17 +2131,314 @@ bool followFormationDispatchIsReady(int successCount, int failCount, int expecte
     return expectedCount > 0 && failCount == 0 && successCount == expectedCount;
 }
 
+static Ground_Unit_rpc scopedGroundObject(const QString &unitId,
+                                          CORBA_Environment *environment)
+{
+    if (!Units_Hash_Table)
+        return NULL;
+    QByteArray key = unitId.toUtf8();
+    char *sbh = (char *)ilu_hash_FindInTable(
+        Units_Hash_Table, reinterpret_cast<ilu_refany>(key.data()));
+    if (sbh == NULL)
+        return NULL;
+    return (Ground_Unit_rpc)ILU_C_SBHToObject(
+        sbh, Ground_Unit_rpc__MSType, environment);
+}
+
+ScopedFollowResult clearScopedGroundFollow(const QStringList &unitIds)
+{
+    ScopedFollowResult result;
+    CORBA_Environment ev;
+    for (const QString &unitId : unitIds) {
+        Ground_Unit_rpc unit = scopedGroundObject(unitId, &ev);
+        if (!ILU_C_SUCCESSFUL(&ev) || unit == NULL) {
+            if (!ILU_C_SUCCESSFUL(&ev))
+                ILU_C_EXCEPTION_FREE(&ev);
+            result.failedUnits.append(unitId);
+            ++result.failCount;
+            continue;
+        }
+
+        bool ok = true;
+        const CORBA_boolean roleResult =
+            Unit_rpc_setRole(unit, Unit_UR_None, "null", &ev);
+        const bool roleTransportOk = ILU_C_SUCCESSFUL(&ev);
+        if (!roleTransportOk) {
+            ILU_C_EXCEPTION_FREE(&ev);
+        }
+        if (!roleTransportOk || roleResult != ilu_TRUE) {
+            ok = false;
+        }
+        const CORBA_boolean modeResult = Unit_rpc_setMode(unit, Unit_UM_None, &ev);
+        if (!ILU_C_SUCCESSFUL(&ev)) {
+            ILU_C_EXCEPTION_FREE(&ev);
+            ok = false;
+        }
+        const CORBA_boolean minorModeResult =
+            Unit_rpc_setMinorMode(unit, Unit_UMM_None, &ev);
+        if (!ILU_C_SUCCESSFUL(&ev)) {
+            ILU_C_EXCEPTION_FREE(&ev);
+            ok = false;
+        }
+        Q_UNUSED(modeResult);
+        Q_UNUSED(minorModeResult);
+        Ground_Unit_rpc__Free(&unit);
+        if (ok) {
+            ++result.successCount;
+        } else {
+            result.failedUnits.append(unitId);
+            ++result.failCount;
+        }
+    }
+
+    if (result.failCount == 0 && currentLeaderUID != NULL) {
+        const QString currentLeader = QString::fromUtf8(currentLeaderUID);
+        if (unitIds.contains(currentLeader)) {
+            ilu_free(currentLeaderUID);
+            currentLeaderUID = NULL;
+            if (currentGUVLeaderObj != NULL) {
+                Ground_Unit_rpc__Free(&currentGUVLeaderObj);
+                currentGUVLeaderObj = NULL;
+            }
+            currentMode = Unit_UM_None;
+            currentMinorMode = Unit_UMM_None;
+            hasLeader = ilu_FALSE;
+        }
+    }
+    result.success = result.failCount == 0;
+    result.message = result.success
+        ? QStringLiteral("scoped follow relations cleared")
+        : QStringLiteral("some scoped follow relations failed to clear");
+    return result;
+}
+
+ScopedFollowResult createScopedGroundFollow(
+    const QString &leaderId,
+    const QStringList &followerIds,
+    const QVector<float> &distances)
+{
+    ScopedFollowResult result;
+    const QStringList members = QStringList() << leaderId << followerIds;
+    if (leaderId.isEmpty() || followerIds.isEmpty() ||
+        followerIds.size() != distances.size()) {
+        result.message = QStringLiteral("leader, followers and matching distances are required");
+        return result;
+    }
+
+    QString parentError;
+    const QStringList parentIds = groundFollowParentIds(
+        leaderId, followerIds, &parentError);
+    if (parentIds.size() != members.size()) {
+        result.message = parentError;
+        return result;
+    }
+
+    auto rollbackPhysicalSetup = [&result]() {
+        if (!result.physicalSetupAttempted)
+            return;
+        const ScopedFollowResult rollback =
+            clearScopedGroundFollow(result.physicalMembers);
+        result.rollbackSucceeded = rollback.success;
+        for (const QString &failedUnit : rollback.failedUnits) {
+            if (!result.failedUnits.contains(failedUnit))
+                result.failedUnits.append(failedUnit);
+        }
+    };
+
+    CORBA_Environment ev;
+    Ground_Unit_rpc leader = scopedGroundObject(leaderId, &ev);
+    if (!ILU_C_SUCCESSFUL(&ev) || leader == NULL) {
+        if (!ILU_C_SUCCESSFUL(&ev))
+            ILU_C_EXCEPTION_FREE(&ev);
+        result.failedUnits.append(leaderId);
+        result.failCount = 1;
+        result.message = QStringLiteral("failed to create leader proxy");
+        return result;
+    }
+
+    const char *leaderSbhRaw = ILU_C_SBHOfObject(leader);
+    QByteArray leaderSbh = leaderSbhRaw ? QByteArray(leaderSbhRaw) : QByteArray();
+    if (leaderSbh.isEmpty()) {
+        Ground_Unit_rpc__Free(&leader);
+        rollbackPhysicalSetup();
+        result.failedUnits.append(leaderId);
+        result.failCount = 1;
+        result.message = QStringLiteral("leader SBH is empty");
+        return result;
+    }
+
+    if (currentGUVLeaderObj != NULL)
+        Ground_Unit_rpc__Free(&currentGUVLeaderObj);
+    currentGUVLeaderObj = (Ground_Unit_rpc)CORBA_Object_duplicate(leader, &ev);
+    if (!ILU_C_SUCCESSFUL(&ev) || currentGUVLeaderObj == NULL) {
+        if (!ILU_C_SUCCESSFUL(&ev))
+            ILU_C_EXCEPTION_FREE(&ev);
+        Ground_Unit_rpc__Free(&leader);
+        rollbackPhysicalSetup();
+        result.failedUnits.append(leaderId);
+        result.failCount = 1;
+        result.message = QStringLiteral("failed to retain scoped leader proxy");
+        return result;
+    }
+    if (currentLeaderUID != NULL)
+        ilu_free(currentLeaderUID);
+    const QByteArray leaderIdBytes = leaderId.toUtf8();
+    currentLeaderUID = (Unit_UnitID)ilu_malloc(leaderIdBytes.size() + 1);
+    strcpy(currentLeaderUID, leaderIdBytes.constData());
+    hasLeader = ilu_TRUE;
+
+    // Configure roles, direct chain parents and Follow mode before dispatching
+    // rear vehicles. Vehicle-side setRole/setMode clears active rear-position
+    // streams, so setFormationWithResult must remain the final setup step.
+    result.physicalSetupAttempted = true;
+    bool modeSuccess = true;
+    for (int memberIndex = 0; memberIndex < members.size(); ++memberIndex) {
+        const QString memberId = members.at(memberIndex);
+        Ground_Unit_rpc member = scopedGroundObject(memberId, &ev);
+        if (!ILU_C_SUCCESSFUL(&ev) || member == NULL) {
+            if (!ILU_C_SUCCESSFUL(&ev))
+                ILU_C_EXCEPTION_FREE(&ev);
+            result.failedUnits.append(memberId);
+            modeSuccess = false;
+            continue;
+        }
+        if (!result.physicalMembers.contains(memberId))
+            result.physicalMembers.append(memberId);
+
+        QByteArray directParentSbh;
+        if (memberIndex > 0) {
+            Ground_Unit_rpc directParent =
+                scopedGroundObject(parentIds.at(memberIndex), &ev);
+            if (!ILU_C_SUCCESSFUL(&ev) || directParent == NULL) {
+                if (!ILU_C_SUCCESSFUL(&ev))
+                    ILU_C_EXCEPTION_FREE(&ev);
+                result.failedUnits.append(memberId);
+                modeSuccess = false;
+                Ground_Unit_rpc__Free(&member);
+                continue;
+            }
+            const char *directParentSbhRaw = ILU_C_SBHOfObject(directParent);
+            if (directParentSbhRaw != NULL)
+                directParentSbh = QByteArray(directParentSbhRaw);
+            Ground_Unit_rpc__Free(&directParent);
+            if (directParentSbh.isEmpty()) {
+                result.failedUnits.append(memberId);
+                modeSuccess = false;
+                Ground_Unit_rpc__Free(&member);
+                continue;
+            }
+        }
+
+        const bool isLeader = memberIndex == 0;
+        const char *parentSbh = isLeader
+            ? leaderSbh.data()
+            : directParentSbh.data();
+        if (!configureUnitMode(member, memberId.toUtf8().constData(), isLeader,
+                               parentSbh, Unit_UM_Follow)) {
+            result.failedUnits.append(memberId);
+            modeSuccess = false;
+        }
+        Ground_Unit_rpc__Free(&member);
+    }
+
+    if (!modeSuccess) {
+        Ground_Unit_rpc__Free(&leader);
+        rollbackPhysicalSetup();
+        result.failCount = result.failedUnits.size();
+        result.message = QStringLiteral("failed to configure scoped Follow mode");
+        return result;
+    }
+
+    QString buildError;
+    Unit_Formation *follow = buildGroundFollowFormation(
+        leaderId, followerIds, distances, &buildError);
+    if (follow == NULL) {
+        Ground_Unit_rpc__Free(&leader);
+        rollbackPhysicalSetup();
+        result.failCount = members.size();
+        result.failedUnits = members;
+        result.message = buildError;
+        return result;
+    }
+
+    const QString formationOwnerId = consoleFollowFormationRecord.ownerId;
+    const FormationResult formationResult = setFormationWithResult(follow);
+    consoleFollowFormationRecord.ownerId = formationOwnerId;
+    freeUnitFormation(follow);
+    if (!followFormationDispatchIsReady(
+            formationResult.airResult.successCount + formationResult.groundResult.successCount,
+            formationResult.airResult.failCount + formationResult.groundResult.failCount,
+            members.size())) {
+        Ground_Unit_rpc__Free(&leader);
+        rollbackPhysicalSetup();
+        const std::vector<UnitResult> failed = formationResult.getAllFailedUnits();
+        for (const UnitResult &unit : failed)
+            result.failedUnits.append(QString::fromUtf8(unit.uid));
+        result.failCount = qMax(1, result.failedUnits.size());
+        result.message = QStringLiteral("scoped formation dispatch failed");
+        return result;
+    }
+
+    Ground_Unit_rpc__Free(&leader);
+
+    currentMode = Unit_UM_Follow;
+    currentMinorMode = Unit_UMM_FW_Object;
+    result.success = true;
+    result.successCount = members.size();
+    result.message = QStringLiteral("scoped follow formation READY");
+    return result;
+}
+
+QStringList groundFollowParentIds(
+    const QString &leaderId,
+    const QStringList &followerIds,
+    QString *errorMessage)
+{
+    QStringList parents;
+    if (leaderId.trimmed().isEmpty() || followerIds.isEmpty()) {
+        if (errorMessage != NULL)
+            *errorMessage = QStringLiteral("leader and followers are required");
+        return parents;
+    }
+
+    QStringList seen;
+    seen.append(leaderId);
+    parents.append(QString());
+    QString directParent = leaderId;
+    for (const QString &followerId : followerIds) {
+        if (followerId.trimmed().isEmpty() || seen.contains(followerId)) {
+            if (errorMessage != NULL) {
+                *errorMessage = followerId.trimmed().isEmpty()
+                    ? QStringLiteral("follower id must not be empty")
+                    : QStringLiteral("formation member ids must be unique");
+            }
+            return QStringList();
+        }
+        parents.append(directParent);
+        seen.append(followerId);
+        directParent = followerId;
+    }
+
+    if (errorMessage != NULL)
+        errorMessage->clear();
+    return parents;
+}
+
 Unit_Formation *buildGroundFollowFormation(
     const QString &leaderId,
     const QStringList &followerIds,
     const QVector<float> &distances,
     QString *errorMessage)
 {
-    if (leaderId.isEmpty() || followerIds.isEmpty() ||
-        followerIds.size() != distances.size()) {
+    QString parentError;
+    const QStringList parents = groundFollowParentIds(
+        leaderId, followerIds, &parentError);
+    if (parents.isEmpty() || followerIds.size() != distances.size()) {
         if (errorMessage != NULL) {
-            *errorMessage = QStringLiteral(
-                "leader, followers, and matching distances are required");
+            *errorMessage = !parentError.isEmpty()
+                ? parentError
+                : QStringLiteral(
+                    "leader, followers, and matching distances are required");
         }
         return NULL;
     }
@@ -2205,11 +2515,17 @@ static GroupResult _setGroundFormation(Unit_Formation* formation)
     ilu_Error error;
     
     // 先将 formation 下发给 Leader
-    Unit_rpc_setFormation(currentGUVLeaderObj, formation, &en);
-    if (!ILU_C_SUCCESSFUL(&en)) {
-        LOG_ERROR_S("_setGroundFormation", 
-            QString::fromUtf8("Leader setFormation 失败: %1").arg(en.returnCode));
-        ILU_C_EXCEPTION_FREE(&en);
+    const CORBA_boolean formationAccepted =
+        Unit_rpc_setFormation(currentGUVLeaderObj, formation, &en);
+    const bool formationTransportOk = ILU_C_SUCCESSFUL(&en);
+    if (!formationTransportOk || formationAccepted != ilu_TRUE) {
+        const int returnCode = formationTransportOk ? -1 : (int)en.returnCode;
+        LOG_ERROR_S("_setGroundFormation",
+            formationTransportOk
+                ? QString::fromUtf8("Leader setFormation rejected")
+                : QString::fromUtf8("Leader setFormation failed: %1").arg(returnCode));
+        if (!formationTransportOk)
+            ILU_C_EXCEPTION_FREE(&en);
         
         // 记录 Leader 失败
         UnitResult leaderResult;
@@ -2219,7 +2535,7 @@ static GroupResult _setGroundFormation(Unit_Formation* formation)
             leaderResult.uid[MAX_UNITID_LENGTH - 1] = '\0';
         }
         leaderResult.success = false;
-        leaderResult.errorCode = (int)en.returnCode;
+        leaderResult.errorCode = returnCode;
         strncpy(leaderResult.errorMsg, "Leader setFormation failed", 255);
         result.unitResults.push_back(leaderResult);
         result.calculateCounts();
@@ -2706,6 +3022,8 @@ FormationResult setFormationWithResult(Unit_Formation* formation) {
     if (pureGroundFormation &&
         followFormationDispatchIsReady(totalSuccess, totalFail, expectedCount)) {
         consoleFollowFormationRecord.ready = true;
+        consoleFollowFormationRecord.state = QStringLiteral("READY");
+        consoleFollowFormationRecord.message = QStringLiteral("legacy formation dispatch READY");
         const Unit_Formation &ground = splitResult.groundGroup;
         if (ground.robot_ids._length > 0) {
             consoleFollowFormationRecord.leaderId =
@@ -2799,14 +3117,25 @@ bool setTaskPoint(float x, float y) {
 
 //重置单元间关系
 bool setDefault() {
-    consoleFollowFormationRecord.clear();
+    const QString formationOwnerId = consoleFollowFormationRecord.ownerId;
+    const QString activeMoveTaskId = consoleFollowFormationRecord.activeMoveTaskId;
+    const QString formationLeaderId = consoleFollowFormationRecord.leaderId;
+    if (!activeMoveTaskId.isEmpty()) {
+        QVector<TaskRpcResult> stopResults;
+        stopResults.append(TaskOrchestrator::instance().stopUnit(formationLeaderId));
+        TaskManager::instance().cancelTask(
+            activeMoveTaskId, TaskOrchestrator::cancellationEffect(stopResults));
+    }
     ilu_refany uid, sbh;
     ilu_HashEnumerator_s he;
     CORBA_Environment ev;
     bool allSucceeded = true;
     
-    if (currentGUVNum == 0 && currentAUVNum == 0)
+    if (currentGUVNum == 0 && currentAUVNum == 0) {
+        TaskManager::instance().releaseReservations(formationOwnerId);
+        consoleFollowFormationRecord.clear();
         return true;
+    }
     
     ilu_hash_BeginEnumeration(Units_Hash_Table, &he);
     while (ilu_hash_Next(&he, &uid, &sbh)) {
@@ -2902,6 +3231,15 @@ bool setDefault() {
         qDebug() << QString::fromUtf8("已清除文件%1").arg(backupCosNamingServerFileName);
     else
         qDebug() << QString::fromUtf8("文件%1不存在或正在被使用").arg(backupCosNamingServerFileName);
+    if (allSucceeded) {
+        TaskManager::instance().releaseReservations(formationOwnerId);
+        consoleFollowFormationRecord.clear();
+    } else {
+        consoleFollowFormationRecord.ready = false;
+        consoleFollowFormationRecord.state = QStringLiteral("FAILED");
+        consoleFollowFormationRecord.message = QStringLiteral("legacy reset did not clear every unit");
+        consoleFollowFormationRecord.errorCode = QStringLiteral("INTERNAL_ERROR");
+    }
     return allSucceeded;
 }
 

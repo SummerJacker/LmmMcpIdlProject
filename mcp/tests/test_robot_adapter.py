@@ -11,15 +11,146 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from robot_adapter import RobotAdapter
+from console_client.console_task_client import ConsoleTaskClient
+from config import load_robot_configs
+import task_api.contracts as contracts
+from task_api.contracts import task_payload_has_contract_shape
 
 
 def _parse_response(resp: str) -> dict[str, Any]:
     """@param resp: JSON 字符串 @returns: dict"""
     obj = json.loads(resp)
-    assert set(obj.keys()) == {"success", "message", "data"}
+    assert {"success", "message", "data"} <= set(obj.keys())
+    assert set(obj.keys()) <= {"success", "message", "data", "error_code"}
     assert isinstance(obj["success"], bool)
     assert isinstance(obj["message"], str)
     return obj
+
+
+def test_gv3_deployment_intent_is_real() -> None:
+    gv3 = next(config for config in load_robot_configs() if config.unit_id == "GV3")
+    assert gv3.mode == "real"
+
+
+@pytest.mark.asyncio
+async def test_console_task_client_normalizes_failed_navigate_response() -> None:
+    adapter = AsyncMock()
+    adapter.navigate_to.return_value = json.dumps(
+        {
+            "success": False,
+            "message": "unit not bound",
+            "data": None,
+            "error_code": "UNIT_NOT_FOUND",
+        }
+    )
+
+    result = _parse_response(
+        await ConsoleTaskClient(adapter).navigate_to(
+            unit_id="GV404",
+            x=1.0,
+            y=2.0,
+            tolerance_m=0.15,
+            timeout_ms=1000,
+        )
+    )
+
+    assert result["success"] is False
+    assert task_payload_has_contract_shape(result["data"])
+    assert result["data"]["task_type"] == "navigate_to"
+    assert result["data"]["state"] == "REJECTED"
+    assert result["data"]["error_code"] == "UNIT_NOT_FOUND"
+
+
+@pytest.mark.asyncio
+async def test_console_task_client_normalizes_all_task_method_failures() -> None:
+    adapter = AsyncMock()
+    failure = json.dumps(
+        {
+            "success": False,
+            "message": "request rejected",
+            "data": None,
+            "error_code": "SAFETY_REJECTED",
+        }
+    )
+    for method in (
+        "follow_path",
+        "create_static_formation",
+        "move_follow_formation",
+        "get_task_status",
+        "cancel_task",
+        "stop_units",
+    ):
+        getattr(adapter, method).return_value = failure
+    client = ConsoleTaskClient(adapter)
+
+    calls = (
+        ("follow_path", client.follow_path(
+            unit_id="GV1", points_json='[{"x":1,"y":2}]',
+            tolerance_m=0.15, timeout_ms=1000)),
+        ("create_static_formation", client.create_static_formation(
+            formation_type="line", unit_ids_csv="GV1,GV2", spacing_m=1.0,
+            anchor_x=0.0, anchor_y=0.0, heading_rad=0.0,
+            tolerance_m=0.15, timeout_ms=1000)),
+        ("move_follow_formation", client.move_follow_formation(x=1.0, y=2.0)),
+        ("get_task_status", client.get_task_status(task_id="missing")),
+        ("cancel_task", client.cancel_task(task_id="missing")),
+        ("stop_units", client.stop_units(unit_ids_csv="GV1")),
+    )
+
+    for expected_task_type, pending_call in calls:
+        result = _parse_response(await pending_call)
+        assert result["success"] is False
+        assert task_payload_has_contract_shape(result["data"])
+        assert result["data"]["task_type"] == expected_task_type
+        assert result["data"]["state"] == "REJECTED"
+
+
+@pytest.mark.asyncio
+async def test_console_task_client_normalizes_formation_failure() -> None:
+    adapter = AsyncMock()
+    adapter.create_follow_formation.return_value = json.dumps(
+        {
+            "success": False,
+            "message": "invalid follower distance",
+            "data": None,
+            "error_code": "SAFETY_REJECTED",
+        }
+    )
+    result = _parse_response(
+        await ConsoleTaskClient(adapter).create_follow_formation(
+            leader_id="GV1",
+            followers_json='[{"unit_id":"GV2","distance_m":21}]',
+        )
+    )
+    assert result["success"] is False
+    assert contracts.formation_payload_has_contract_shape(result["data"])
+    assert result["data"]["error_code"] == "SAFETY_REJECTED"
+
+
+@pytest.mark.asyncio
+async def test_move_follow_formation_rejects_out_of_bounds_target() -> None:
+    adapter = RobotAdapter()
+    with patch("robot_adapter.http_request") as request:
+        result = _parse_response(await adapter.move_follow_formation(x=1000.01, y=0.0))
+    assert result["success"] is False
+    assert result["error_code"] == "TARGET_OUT_OF_BOUNDS"
+    request.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_create_follow_formation_rejects_distance_above_twenty_metres() -> None:
+    adapter = RobotAdapter()
+    adapter._resolve_to_unit_id = AsyncMock(side_effect=["GV1", "GV2"])
+    with patch("robot_adapter.http_request") as request:
+        result = _parse_response(
+            await adapter.create_follow_formation(
+                leader_id="GV1",
+                followers_json='[{"unit_id":"GV2","distance_m":20.01}]',
+            )
+        )
+    assert result["success"] is False
+    assert result["error_code"] == "SAFETY_REJECTED"
+    request.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -155,6 +286,85 @@ async def test_list_robots_run_mode_all_sim_when_mock_and_rpc_off() -> None:
     assert "mode_mismatch" in gv1
     assert "mode" not in gv1
     assert obj["data"]["fleet_summary"]["sim_count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_fleet_snapshot_uses_task_route_and_keeps_real_binding_when_rpc_off() -> None:
+    adapter = RobotAdapter()
+    with patch(
+        "robot_adapter.http_request",
+        return_value=(
+            200,
+            {
+                "success": True,
+                "message": "ok",
+                "data": {
+                    "rpc_enabled": False,
+                    "units": [{"mock": False, "unit_id": "GV1", "online": True, "busy": False}],
+                },
+            },
+            "",
+        ),
+    ) as request:
+        obj = _parse_response(await adapter.get_fleet_snapshot())
+
+    assert request.call_args.kwargs["url"].endswith("/api/task/fleet_snapshot")
+    unit = obj["data"]["units"][0]
+    assert unit["run_mode"] == "real"
+    assert unit["rpc_available"] is False
+
+
+@pytest.mark.asyncio
+async def test_capabilities_uses_task_route() -> None:
+    adapter = RobotAdapter()
+    with patch(
+        "robot_adapter.http_request",
+        return_value=(200, {"success": True, "message": "ok", "data": {"capabilities": {}}}, ""),
+    ) as request:
+        obj = _parse_response(await adapter.get_capabilities())
+
+    assert obj["success"] is True
+    assert request.call_args.kwargs["url"].endswith("/api/task/capabilities")
+
+
+@pytest.mark.asyncio
+async def test_dynamic_bound_unit_resolves_from_authoritative_console_list() -> None:
+    adapter = RobotAdapter()
+    assert adapter._manager.canonical_robot_id("GV4") is None
+    adapter.list_robots = AsyncMock(
+        return_value=json.dumps(
+            {
+                "success": True,
+                "message": "ok",
+                "data": {"units": [{"unit_id": "GV4", "online": True, "mock": False}]},
+            }
+        )
+    )
+    assert await adapter._resolve_to_unit_id("GV4") == "GV4"
+
+
+@pytest.mark.asyncio
+async def test_http_error_preserves_console_data_without_nested_envelope() -> None:
+    adapter = RobotAdapter()
+    with patch(
+        "robot_adapter.http_request",
+        return_value=(
+            409,
+            {
+                "success": False,
+                "message": "unit is busy",
+                "data": {"error_code": "TASK_CONFLICT", "unit_id": "GV1"},
+            },
+            "",
+        ),
+    ):
+        obj = _parse_response(
+            await adapter.navigate_to(unit_id="GV1", x=1.0, y=2.0, tolerance_m=0.15, timeout_ms=1000)
+        )
+
+    assert obj["success"] is False
+    assert obj["error_code"] == "TASK_CONFLICT"
+    assert obj["data"] == {"error_code": "TASK_CONFLICT", "unit_id": "GV1"}
 
 
 @pytest.mark.asyncio
@@ -510,3 +720,78 @@ async def test_get_follow_formation_status_uses_console_endpoint() -> None:
     assert _parse_response(response)["success"] is True
     assert calls[0]["method"] == "GET"
     assert calls[0]["url"].endswith("/api/formation/status")
+
+
+@pytest.mark.asyncio
+async def test_navigate_to_posts_only_supported_execution_fields() -> None:
+    calls = []
+
+    def fake_http_request(**kwargs: Any) -> tuple[int, dict[str, Any], str]:
+        calls.append(kwargs)
+        return 200, {
+            "success": True,
+            "message": "task accepted",
+            "data": {
+                "task_id": "goto-1",
+                "task_type": "navigate_to",
+                "state": "RUNNING",
+                "progress_pct": 0.0,
+                "unit_results": [],
+                "elapsed_ms": 0,
+                "started_at_ms": 1,
+                "cancellation_effect": "NOT_APPLICABLE",
+            },
+        }, ""
+
+    adapter = RobotAdapter()
+    with patch("robot_adapter.http_request", side_effect=fake_http_request):
+        response = await adapter.navigate_to(
+            unit_id="GV1", x=3.0, y=-2.0, tolerance_m=0.2, timeout_ms=5000
+        )
+
+    assert _parse_response(response)["success"] is True
+    assert calls[0]["url"].endswith("/api/task/navigate")
+    assert calls[0]["json_body"] == {
+        "unit_id": "GV1",
+        "x": 3.0,
+        "y": -2.0,
+        "tolerance_m": 0.2,
+        "timeout_ms": 5000,
+    }
+    assert "yaw" not in calls[0]["json_body"]
+    assert "linear_speed_m_s" not in calls[0]["json_body"]
+    assert "angular_speed_rad_s" not in calls[0]["json_body"]
+
+
+@pytest.mark.asyncio
+async def test_mock_and_real_task_results_keep_the_same_contract_shape() -> None:
+    common = {
+        "task_id": "goto-1",
+        "task_type": "navigate_to",
+        "state": "RUNNING",
+        "progress_pct": 0.0,
+        "unit_results": [],
+        "elapsed_ms": 0,
+        "started_at_ms": 1,
+        "cancellation_effect": "NOT_APPLICABLE",
+    }
+    responses = [
+        (200, {"success": True, "message": "ok", "data": {**common, "mock": True}}, ""),
+        (200, {"success": True, "message": "ok", "data": {**common, "mock": False}}, ""),
+    ]
+    adapter = RobotAdapter()
+    with patch("robot_adapter.http_request", side_effect=responses):
+        mock_result = _parse_response(
+            await adapter.navigate_to(
+                unit_id="GV1", x=1.0, y=1.0, tolerance_m=0.15, timeout_ms=1000
+            )
+        )
+        real_result = _parse_response(
+            await adapter.navigate_to(
+                unit_id="GV1", x=1.0, y=1.0, tolerance_m=0.15, timeout_ms=1000
+            )
+        )
+
+    assert set(mock_result["data"]) == set(real_result["data"])
+    assert mock_result["data"]["mock"] is True
+    assert real_result["data"]["mock"] is False

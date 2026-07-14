@@ -36,10 +36,22 @@ QJsonObject makeJsonErrorBody(const QString &message) {
 }
 
 QByteArray buildHttpResponse(int statusCode, const QByteArray &jsonBody, const char *contentType) {
-    QString statusLine = (statusCode == 200) ? QStringLiteral("200 OK")
-                         : (statusCode == 404) ? QStringLiteral("404 Not Found")
-                         : (statusCode == 400) ? QStringLiteral("400 Bad Request")
-                                               : QStringLiteral("500 Internal Server Error");
+    QString reason;
+    switch (statusCode) {
+    case 200: reason = QStringLiteral("OK"); break;
+    case 400: reason = QStringLiteral("Bad Request"); break;
+    case 404: reason = QStringLiteral("Not Found"); break;
+    case 405: reason = QStringLiteral("Method Not Allowed"); break;
+    case 409: reason = QStringLiteral("Conflict"); break;
+    case 422: reason = QStringLiteral("Unprocessable Entity"); break;
+    case 429: reason = QStringLiteral("Too Many Requests"); break;
+    case 503: reason = QStringLiteral("Service Unavailable"); break;
+    default:
+        statusCode = 500;
+        reason = QStringLiteral("Internal Server Error");
+        break;
+    }
+    const QString statusLine = QStringLiteral("%1 %2").arg(statusCode).arg(reason);
     QByteArray hdr;
     hdr += "HTTP/1.1 " + statusLine.toUtf8() + "\r\n";
     hdr += "Content-Type: ";

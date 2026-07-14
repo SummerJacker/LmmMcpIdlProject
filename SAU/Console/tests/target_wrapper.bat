@@ -1,10 +1,10 @@
 @echo off
 SetLocal EnableDelayedExpansion
-(set PATH=D:\Application\conda\Library\bin;!PATH!)
+(set PATH=D:\Application\Qt\Qt\5.12.4\msvc2017\bin;!PATH!)
 if defined QT_PLUGIN_PATH (
-    set QT_PLUGIN_PATH=D:\Application\conda\Library\plugins;!QT_PLUGIN_PATH!
+    set QT_PLUGIN_PATH=D:\Application\Qt\Qt\5.12.4\msvc2017\plugins;!QT_PLUGIN_PATH!
 ) else (
-    set QT_PLUGIN_PATH=D:\Application\conda\Library\plugins
+    set QT_PLUGIN_PATH=D:\Application\Qt\Qt\5.12.4\msvc2017\plugins
 )
 %*
 EndLocal

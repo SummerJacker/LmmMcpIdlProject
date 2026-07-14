@@ -1,7 +1,14 @@
 """
 MCP-IDL HTTP API test suite — clean, sequential, with proper timing.
 """
-import json, time, requests
+import json, os, time, requests
+import pytest
+
+if os.getenv("RUN_LIVE_CONSOLE_TESTS") != "1":
+    pytest.skip(
+        "manual live Console test; set RUN_LIVE_CONSOLE_TESTS=1 explicitly",
+        allow_module_level=True,
+    )
 
 BASE = "http://127.0.0.1:9001"
 pass_count = fail_count = 0
