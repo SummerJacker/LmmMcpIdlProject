@@ -232,6 +232,7 @@ async def test_follow_path_preserves_exact_fastmcp_schema() -> None:
 
     tool = await app.get_tool("followPath")
 
+    assert tool.description == "Execute an ordered x/y task path on one ground unit."
     assert tool.parameters == {
         "additionalProperties": False,
         "properties": {
@@ -301,5 +302,6 @@ async def test_follow_path_unexpected_provider_error_is_sanitized() -> None:
     assert payload["error_code"] == "INTERNAL_ERROR"
     assert payload["data"]["task_type"] == "follow_path"
     assert payload["data"]["state"] == "FAILED"
+    assert payload["data"]["error_code"] == "INTERNAL_ERROR"
     assert task_payload_has_contract_shape(payload["data"])
-    assert "do not leak follow failure" not in payload["message"]
+    assert "do not leak follow failure" not in raw
