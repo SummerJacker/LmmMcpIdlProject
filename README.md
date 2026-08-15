@@ -1,8 +1,14 @@
-# 基于 MCP 与 IDL 的多机器人自然语言控制系统 — 验收交付说明
+# MCP-IDL Swarm Harness — 多机器人自然语言控制系统
+
+当前版本已完成插件化的第一个生产垂直切片：`navigateTo` 由 Navigation
+Capability Plugin 注册，经 `CapabilityExecutor` 解析 Unit 与 Provider，并由
+KIS-ORB SAU Platform Plugin 复用现有 Console 执行链。其余 13 个生产工具
+暂时保持原有 TaskService 路径，SAU Console 与 IDL 均未改动。
 
 ## 1. 模块分层
 - L1 交互层：deepseek_mcp_client.py（Agent Loop + DeepSeek LLM，支持 deepseek-v4-flash / deepseek-v4-pro）
-- L2 协议层：main.py（FastMCP stdio，生产模式固定 12 个任务级工具）
+- L2 协议层：main.py（FastMCP stdio，生产模式固定 14 个任务级工具）
+- L2.5 能力运行时：swarm_runtime/ + plugins/ + profiles/（Capability、Unit、Provider、Policy、Tool 与插件生命周期）
 - L3 适配层：task_api/ + console_client/ + robot_adapter.py + qt_http_client.py（契约、别名解析、安全校验）
 - L4 配置：config.py、robots.json、utils/logging_setup.py
 - L5 安全层：mcp/safety/validator.py（Python）+ SafetyValidator.cpp（C++）双层校验
@@ -15,6 +21,9 @@ pip install -r requirements.txt
 pytest tests/ -q
 fastmcp call main.py getCapabilities --json
 （需先启动 SAU 主控 -httpPort 9001 -mockRobots GV1,GV2,GV3）
+
+# 第二平台插件验收（不进入默认生产 Profile）
+pytest tests/test_mock_navigation_plugin.py tests/test_runtime_main_integration.py -q
 ## 2. 系统分层与模块对应
 
 
@@ -23,6 +32,7 @@ fastmcp call main.py getCapabilities --json
 |------|------|------------------|
 | **L1 交互层** | 自然语言 → Agent Loop → 调用 MCP 工具 | `mcp/deepseek_mcp_client.py` |
 | **L2 协议层** | FastMCP 工具注册、stdio 服务 | `mcp/main.py` |
+| **L2.5 能力运行时** | Unit/Capability/Provider 解析、Policy Pipeline、Profile 与插件回滚 | `mcp/swarm_runtime/`、`mcp/plugins/`、`mcp/profiles/` |
 | **L3 适配层** | ID 映射、别名解析、速度校验、锁、HTTP 封装、编队几何 | `mcp/robot_adapter.py`、`mcp/qt_http_client.py`、`mcp/agents/` |
 | **L4 配置与基础设施** | 端点、阈值、机器人映射、日志 | `mcp/config.py`、`mcp/robots.json`、`mcp/utils/logging_setup.py` |
 | **L5 安全层** | Python + C++ 双层参数与业务校验 | `mcp/safety/validator.py`、`SAU/Console/SafetyValidator.cpp` |
@@ -33,7 +43,10 @@ fastmcp call main.py getCapabilities --json
 ```text
 用户 NL → deepseek_mcp_client (L1)
        → fastmcp call → main.py (L2)
-       → robot_adapter（别名解析 + 安全预检）+ qt_http_client (L3)
+       → navigateTo: Tool Registry → CapabilityExecutor
+                     → KIS-ORB Provider → ConsoleTaskClient
+       → 其余 13 个工具: TaskService → ConsoleTaskClient
+       → robot_adapter（安全预检）+ qt_http_client (L3)
        → HTTP :9001 → SAU Console TaskManager + SafetyValidator (L5/L6)
        → Mock 模拟器 或 IDL/ILU 桩 → 设备
        → 统一 JSON (success/message/data) 回传
@@ -42,6 +55,12 @@ fastmcp call main.py getCapabilities --json
 **核心设计原则**：
 
 > 旧 IDL 是 Console 控制智能体的底层协议；新 MCP-IDL 是大模型控制 Console 的任务级协议。生产模式下大模型只调用 `getCapabilities`、`getFleetSnapshot`、`navigateTo`、`followPath`、静态/持续编队和任务管理接口；Console 再转换为既有底层 IDL/ILU RPC。
+
+插件边界遵循 `Capability = WHAT`、`Provider = HOW`：Capability Plugin 拥有
+稳定的 MCP Tool Schema，Platform Plugin 只注册 Unit 与 Provider。默认
+`profiles/default.json` 启用 Navigation + KIS-ORB；
+`profiles/mock-navigation.json` 额外启用内存 Mock Provider，用于证明新增平台
+无需修改 Core 或 `navigateTo`。
 
 ---
 
@@ -52,6 +71,15 @@ fastmcp call main.py getCapabilities --json
 ├── README.md                 ← 本文件
 ├── mcp/                      ← Python MCP 子系统（验收核心之一）
 │   ├── main.py               L2 协议层入口
+│   ├── swarm_runtime/        L2.5 平台无关运行时
+│   ├── plugins/
+│   │   ├── capabilities/navigation/  navigateTo + navigation.goto2d@1.0
+│   │   └── platforms/
+│   │       ├── kisorb_sau/           现有 SAU Console Provider
+│   │       └── mock_navigation/      第二平台验收 Provider
+│   ├── profiles/
+│   │   ├── default.json              生产 Profile
+│   │   └── mock-navigation.json      测试 Profile
 │   ├── deepseek_mcp_client.py L1 交互层
 │   ├── robot_adapter.py      L3 适配层
 │   ├── qt_http_client.py     L3 HTTP 客户端
