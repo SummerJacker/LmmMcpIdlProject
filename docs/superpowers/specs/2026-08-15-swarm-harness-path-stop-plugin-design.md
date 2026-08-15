@@ -290,4 +290,3 @@ Capability and Platform Plugins, the Mock profile demonstrates both new
 capabilities without Runtime Core changes, all external contracts remain
 compatible, protected paths remain unchanged, and the complete non-live suite
 passes.
-
