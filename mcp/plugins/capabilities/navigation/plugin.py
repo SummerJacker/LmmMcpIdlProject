@@ -1,0 +1,25 @@
+from __future__ import annotations
+
+from typing import Any, Mapping
+
+from swarm_runtime.context import SwarmContext
+from swarm_runtime.models import CapabilitySpec, ToolSpec
+
+from .tools import build_navigate_to
+
+
+class NavigationCapabilityPlugin:
+    plugin_id = "capability.navigation"
+    version = "1.0.0"
+
+    def setup(self, ctx: SwarmContext, config: Mapping[str, Any]) -> None:
+        ctx.capabilities.register(
+            CapabilitySpec(
+                name="navigation.goto2d",
+                version="1.0",
+                description="Navigate one mobile unit to a two-dimensional target",
+                scope="unit",
+                tool_name="navigateTo",
+            )
+        )
+        ctx.tools.register(ToolSpec("navigateTo", build_navigate_to(ctx)))
