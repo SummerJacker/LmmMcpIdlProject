@@ -78,6 +78,7 @@ def build_follow_path(ctx: SwarmContext):
         tolerance_m: float = 0.15,
         timeout_ms: int = 30000,
     ) -> str:
+        """Execute an ordered x/y task path on one ground unit."""
         request = ExecutionRequest(
             request_id=str(uuid.uuid4()),
             capability="navigation.follow_path2d",
