@@ -26,9 +26,15 @@ class CapabilityExecutor:
         except KeyError as exc:
             raise ProviderNotFoundError(request.capability, request.version) from exc
 
+        resolved_by_unit_id: dict[str, UnitDescriptor] = {}
         resolved_units: list[UnitDescriptor] = []
         for unit_id in request.unit_ids:
-            resolved_units.append(await self._resolve_unit(unit_id))
+            logical_unit_id = unit_id.strip().casefold()
+            if logical_unit_id not in resolved_by_unit_id:
+                resolved_by_unit_id[logical_unit_id] = await self._resolve_unit(
+                    unit_id
+                )
+            resolved_units.append(resolved_by_unit_id[logical_unit_id])
         units = tuple(resolved_units)
         provider = self._ctx.providers.resolve(
             request.capability, request.version, units

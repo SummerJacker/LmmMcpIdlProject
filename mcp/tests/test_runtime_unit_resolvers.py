@@ -263,6 +263,52 @@ async def test_executor_preserves_mixed_static_dynamic_unit_order() -> None:
 
 
 @pytest.mark.asyncio
+async def test_executor_resolves_duplicate_logical_unit_once_per_request() -> None:
+    class DuplicateUnitProvider(RecordingProvider):
+        def supports(self, units: tuple[UnitDescriptor, ...]) -> bool:
+            return len(units) == 2 and all(
+                unit.platform == "test-live" for unit in units
+            )
+
+    class OneShotResolver:
+        resolver_id = "one-shot"
+        priority = 100
+
+        def __init__(self, result: UnitDescriptor) -> None:
+            self.result = result
+            self.requested_ids: list[str] = []
+
+        async def resolve(self, unit_id: str) -> UnitDescriptor | None:
+            self.requested_ids.append(unit_id)
+            if len(self.requested_ids) > 1:
+                raise RuntimeError("second lookup must not occur")
+            return self.result
+
+    ctx = SwarmContext()
+    provider = DuplicateUnitProvider()
+    descriptor = live_unit("GV_DYNAMIC")
+    resolver = OneShotResolver(descriptor)
+    ctx.capabilities.register(
+        CapabilitySpec("navigation.goto2d", "1.0", "test navigation", "unit")
+    )
+    ctx.providers.register(provider)
+    ctx.unit_resolvers.register(resolver)
+    request = ExecutionRequest(
+        request_id="req-live-duplicate",
+        capability="navigation.goto2d",
+        version="1.0",
+        unit_ids=("gv_dynamic", "GV_DYNAMIC"),
+        arguments={"x": 1.0, "y": 2.0},
+    )
+
+    result = await ctx.executor.execute(request)
+
+    assert result.success is True
+    assert resolver.requested_ids == ["gv_dynamic"]
+    assert provider.resolved_units == (descriptor, descriptor)
+
+
+@pytest.mark.asyncio
 async def test_all_resolvers_are_evaluated_and_unique_highest_priority_wins() -> None:
     ctx, provider = execution_context()
     high_unit = live_unit("winner")
