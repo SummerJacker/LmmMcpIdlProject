@@ -1,0 +1,15 @@
+{
+  "api_version": 1,
+  "id": "platform.kisorb-sau",
+  "version": "1.0.0",
+  "type": "platform",
+  "entrypoint": "plugins.platforms.kisorb_sau.plugin:KisorbPlugin",
+  "requires": [
+    "capability.navigation"
+  ],
+  "provides": [
+    "provider:kisorb.navigation.goto2d",
+    "service:legacy.robot_adapter",
+    "service:legacy.console_task_client"
+  ]
+}
