@@ -91,7 +91,7 @@ Resolution semantics are deterministic:
 3. every resolver may return a candidate or abstain;
 4. the candidate from the highest integer priority wins;
 5. equal highest-priority candidates are rejected as ambiguous;
-6. no candidate re-raises the original UnitNotFoundError.
+6. no candidate raises UnitNotFoundError for the original requested identifier.
 
 An ambiguous dynamic resolution uses `UNIT_NOT_FOUND`, because the runtime cannot
 establish one canonical unit identity safely. Resolver exceptions are logged with
