@@ -27,17 +27,22 @@ The first plugin slice registered only configured units. CapabilityExecutor call
 reaches RobotAdapter's live-directory fallback. This affects `navigateTo`,
 `followPath`, and `stopUnits`; for Stop it can suppress a physical safety request.
 
-Compatibility requires all three runtime-owned tools to accept a direct canonical
+Compatibility requires runtime-owned tools to accept a supported direct canonical
 UnitID that is absent from `robots.json` but present in the current Console binding
-table. Unknown identifiers must still return a complete `UNIT_NOT_FOUND` rejected
-TaskResult.
+table. Navigate and FollowPath accept KIS-ORB ground descriptors derived from
+uppercase `G*` UnitIDs. Stop accepts both uppercase `G*` and `A*` KIS-ORB UnitIDs,
+including mixed UGV/UAV requests on that one platform. Unknown identifiers and
+unsupported canonical prefixes must still return complete rejected TaskResults.
 
 ## Architecture
 
 Add a focused asynchronous registry beside the existing static UnitRegistry:
 
 ```text
-ExecutionRequest unit ID
+ExecutionRequest unit IDs
+        |
+        v
+Request-local map keyed by strip().casefold()
         |
         v
 Static UnitRegistry.resolve()
@@ -56,13 +61,20 @@ Static UnitRegistry.resolve()
 ProviderRegistry -> policies -> provider execution
 ```
 
+Each strip- and casefold-equivalent logical identifier is resolved once per
+ExecutionRequest. The executor then reconstructs the UnitDescriptor tuple in the
+request's original order and multiplicity. This memo is request-local; it is not a
+cache and never mutates UnitRegistry.
+
 Runtime Core gains a `UnitResolver` protocol, a UnitResolverRegistry, one context
 field, and asynchronous fallback in CapabilityExecutor. It does not import KIS-ORB,
 RobotAdapter, ConsoleTaskClient, configuration, or SAU modules.
 
 This is the sole exception to the previous phase-two constraint that Runtime Core
 files remain unchanged. SAU Console, IDLs, RobotAdapter, ConsoleTaskClient, existing
-static unit semantics, and provider execution remain unchanged.
+static unit semantics, and external MCP/Console call contracts remain unchanged.
+An approved safety amendment tightens KIS-ORB Navigate/Follow provider selection to
+`kind == "ugv"`; KIS-ORB Stop remains platform-wide.
 
 ## Unit Resolver Contract
 
@@ -80,9 +92,12 @@ The resolver returns a fully formed UnitDescriptor when it owns the identifier o
 `None` to abstain. Platform resolvers may perform I/O. They must not register the
 returned descriptor in UnitRegistry.
 
-The registry enforces non-empty, unique resolver IDs and uses the existing
-RegistrationJournal so plugin setup rollback and unload remove resolver
-registrations. Provision tokens use `unit_resolver:<resolver_id>`.
+The registry enforces non-empty string resolver IDs, integer priorities (excluding
+booleans), and callable `resolve` members. It snapshots the validated resolver ID
+and priority at registration, so later mutation of plugin object attributes cannot
+change selection order or ambiguity. It uses the existing RegistrationJournal so
+plugin setup rollback and unload remove resolver registrations. Provision tokens
+use `unit_resolver:<resolver_id>`.
 
 Resolution semantics are deterministic:
 
@@ -91,7 +106,9 @@ Resolution semantics are deterministic:
 3. every resolver may return a candidate or abstain;
 4. the candidate from the highest integer priority wins;
 5. equal highest-priority candidates are rejected as ambiguous;
-6. no candidate raises UnitNotFoundError for the original requested identifier.
+6. no candidate raises UnitNotFoundError for the original requested identifier;
+7. strip- and casefold-equivalent IDs in one ExecutionRequest reuse the first
+   resolved descriptor while preserving tuple order and multiplicity.
 
 An ambiguous dynamic resolution uses `UNIT_NOT_FOUND`, because the runtime cannot
 establish one canonical unit identity safely. Resolver exceptions are logged with
@@ -107,15 +124,18 @@ platform resolver from overriding an explicitly registered unit.
 `platform.kisorb-sau` adds `KisorbLiveUnitResolver` in its own package. The resolver
 receives the shared RobotAdapter constructed by the plugin and calls its public
 `list_robots()` method. It parses the standard response envelope and reads
-`data.units`.
+`data.units`. Each Console list entry exposes only the canonical `unit_id` and
+`mock` flag; it does not provide a trustworthy unit-kind field.
 
 Resolution matches the requested identifier, after trim and case folding, against
-each non-empty `unit_id`. A match returns:
+each non-empty string `unit_id`. Kind is derived only from the Console's canonical
+spelling: uppercase `G*` maps to `ugv`, uppercase `A*` maps to `uav`, and an unknown
+or lowercase canonical prefix makes the resolver abstain. A supported match returns:
 
 ```text
 UnitDescriptor(
   unit_id=<Console canonical spelling>,
-  kind="ugv",
+  kind=<"ugv" for uppercase G*; "uav" for uppercase A*>,
   platform="kisorb-sau",
   provider_plugin_id="platform.kisorb-sau",
   aliases=(),
@@ -129,11 +149,25 @@ existing live fallback for direct canonical UnitIDs without adding new alias
 semantics.
 
 Invalid JSON, an unsuccessful envelope, missing `data.units`, malformed entries, an
-empty request, or no matching UnitID returns `None`. The resolver does not cache or
+empty request, no matching UnitID, or a matched canonical ID with an unknown or
+lowercase prefix returns `None`. The resolver does not cache across requests or
 mutate UnitRegistry, so binding removal and changes remain visible on subsequent
-requests. It may cause one extra live-directory call before RobotAdapter performs
-its existing authoritative resolution; avoiding that duplicate I/O requires a
-larger client contract change and is outside this amendment.
+requests. The executor only memoizes equivalent IDs within one request. In a mocked
+provider integration, Navigate, FollowPath, and duplicate-ID Stop therefore perform
+three resolver directory calls total. That count is not a public contract: the full
+RobotAdapter/provider path may perform its own authoritative lookup before the
+Console operation.
+
+## KIS-ORB Provider Selection Safety Amendment
+
+The live resolver's descriptor kind participates in provider selection:
+
+- KIS-ORB Navigate and FollowPath require exactly one `kisorb-sau` unit whose kind
+  is `ugv`; a live `A*`/`uav` descriptor is rejected as unsupported.
+- KIS-ORB Stop requires one or more `kisorb-sau` units and intentionally does not
+  restrict kind, so same-platform UGV/UAV mixtures can still receive Stop.
+- A mixed KIS-ORB/Mock Stop remains unsupported because one provider must support
+  the entire multi-unit tuple.
 
 The KIS-ORB plugin registers the resolver against the same RobotAdapter instance
 used by its providers and the eleven legacy tools. Its manifest adds:
@@ -153,7 +187,8 @@ test fixtures.
 - Resolver exception: log internally, abstain, and return `UNIT_NOT_FOUND` if no
   other resolver succeeds.
 - Equal-priority resolver candidates: deterministic `UNIT_NOT_FOUND` / `REJECTED`.
-- Provider and policy behavior after resolution is unchanged.
+- Policy ordering and external provider call contracts are unchanged; provider
+  eligibility follows the approved kind-aware safety amendment above.
 
 Temporary descriptors are request-scoped values. They create no registration undo
 entries, survive no request boundary, and cannot leak after plugin unload. Resolver
@@ -170,22 +205,29 @@ Runtime unit tests cover:
 - static UnitRegistry precedence without calling a resolver;
 - asynchronous fallback returning a temporary descriptor;
 - priority selection and equal-priority ambiguity;
+- registration-time priority validation and immutable selection snapshots;
 - resolver exceptions treated as abstentions without leaked messages;
 - no successful fallback preserving the original UnitNotFoundError;
-- no mutation of the static UnitRegistry after dynamic resolution.
+- no mutation of the static UnitRegistry after dynamic resolution;
+- one resolution per strip- and casefold-equivalent ID within an ExecutionRequest,
+  with descriptor tuple order and multiplicity preserved.
 
 KIS-ORB tests cover:
 
 - case-insensitive direct canonical UnitID matching from `list_robots()`;
+- uppercase `G*`/`A*` kind derivation and lowercase/unknown-prefix abstention;
 - canonical spelling and platform metadata in the returned descriptor;
 - malformed, unsuccessful, missing, and non-matching responses abstaining;
-- plugin registration, manifest provision, rollback, and shared-adapter identity.
+- plugin registration, manifest provision, rollback, and shared-adapter identity;
+- Navigate/Follow UGV-only selection and same-platform mixed-kind Stop support.
 
 Production integration tests patch the shared adapter's live directory and prove:
 
 - `navigateTo` accepts a live-bound unit absent from `robots.json`;
 - `followPath` accepts it and forwards the canonical UnitID;
 - `stopUnits` accepts it, preserves canonical de-duplication, and issues Stop;
+- a live UAV is rejected by Navigate/Follow but remains eligible for KIS-ORB Stop;
+- duplicate logical Stop IDs perform one resolver lookup within that request;
 - an absent unit still returns a complete rejected `UNIT_NOT_FOUND` TaskResult;
 - configured aliases continue to resolve without live-directory lookup;
 - the default and Mock tool sets remain exactly fourteen names.
@@ -197,12 +239,14 @@ remains `2EA71279A5FD8C0AD1157ED38F5EA7E04621EF439DB16E86CBEA65FEDB625F1A`.
 ## Scope and Completion Criteria
 
 Expected implementation files are limited to Runtime unit-resolution protocol,
-registry, context, executor and tests; the KIS-ORB resolver, plugin, manifest and
-tests; runtime integration tests; and the phase documentation. RobotAdapter,
-ConsoleTaskClient, SAU Console, IDLs, Mock provider behavior, and public MCP schemas
-remain unchanged.
+registry, context, executor and tests; the KIS-ORB resolver, plugin, manifest,
+kind-aware KIS-ORB provider predicates and tests; runtime integration tests; and the
+phase documentation. RobotAdapter, ConsoleTaskClient, SAU Console, IDLs, Mock
+provider behavior, and public MCP schemas remain unchanged.
 
-This amendment is complete when all three runtime-owned tools preserve the legacy
-live-bound canonical UnitID behavior, resolver selection is deterministic and
-transactional, no dynamic descriptor pollutes static state, all previous plugin
-acceptance tests pass, and protected paths remain unchanged.
+This amendment is complete when supported live-bound canonical UnitIDs preserve the
+legacy behavior, Navigate/Follow reject non-UGV KIS-ORB descriptors, same-platform
+mixed-kind Stop remains available, resolver selection is deterministic and
+transactional, equivalent IDs resolve once per request, no dynamic descriptor
+pollutes static state, all previous plugin acceptance tests pass, and protected
+paths remain unchanged.
