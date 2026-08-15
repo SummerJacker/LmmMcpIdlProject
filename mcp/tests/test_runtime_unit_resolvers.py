@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass
+from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -91,6 +94,20 @@ def resolver_registry() -> UnitResolverRegistry:
     return UnitResolverRegistry(RegistrationJournal())
 
 
+async def abstaining_resolve(unit_id: str) -> None:
+    return None
+
+
+def malformed_resolver(**overrides: Any) -> Any:
+    values = {
+        "resolver_id": "malformed",
+        "priority": 100,
+        "resolve": abstaining_resolve,
+    }
+    values.update(overrides)
+    return SimpleNamespace(**values)
+
+
 def test_duplicate_resolver_ids_are_rejected() -> None:
     registry = resolver_registry()
     registry.register(StubResolver("live", 100))
@@ -99,11 +116,51 @@ def test_duplicate_resolver_ids_are_rejected() -> None:
         registry.register(StubResolver("live", 50))
 
 
-def test_blank_resolver_id_is_rejected() -> None:
+@pytest.mark.parametrize("resolver_id", [None, 7, object(), "   "])
+def test_non_string_or_blank_resolver_id_is_rejected(resolver_id: object) -> None:
     registry = resolver_registry()
 
-    with pytest.raises(RuntimeRegistrationError):
-        registry.register(StubResolver("   ", 100))
+    with pytest.raises(
+        RuntimeRegistrationError,
+        match="^resolver_id must be a nonempty string$",
+    ):
+        registry.register(malformed_resolver(resolver_id=resolver_id))
+
+
+@pytest.mark.parametrize("priority", [None, "100", 1.0, True, False])
+def test_non_integer_or_boolean_resolver_priority_is_rejected(
+    priority: object,
+) -> None:
+    registry = resolver_registry()
+
+    with pytest.raises(
+        RuntimeRegistrationError,
+        match="^resolver priority must be an integer$",
+    ):
+        registry.register(malformed_resolver(priority=priority))
+
+
+@pytest.mark.parametrize("resolve", [None, "resolve"])
+def test_noncallable_resolve_is_rejected(resolve: object) -> None:
+    registry = resolver_registry()
+
+    with pytest.raises(
+        RuntimeRegistrationError,
+        match="^resolver resolve must be callable$",
+    ):
+        registry.register(malformed_resolver(resolve=resolve))
+
+
+def test_missing_resolve_is_rejected() -> None:
+    registry = resolver_registry()
+    resolver = malformed_resolver()
+    del resolver.resolve
+
+    with pytest.raises(
+        RuntimeRegistrationError,
+        match="^resolver resolve must be callable$",
+    ):
+        registry.register(resolver)
 
 
 def test_resolver_registration_rolls_back_with_setup_transaction() -> None:
@@ -116,6 +173,18 @@ def test_resolver_registration_rolls_back_with_setup_transaction() -> None:
             assert transaction.provisions == {"unit_resolver:live"}
             raise ValueError("setup failed")
 
+    assert registry.list() == ()
+
+
+def test_successful_registration_transaction_can_be_rolled_back() -> None:
+    journal = RegistrationJournal()
+    registry = UnitResolverRegistry(journal)
+
+    with journal.activate("temporary") as transaction:
+        registry.register(StubResolver("live", 100))
+
+    assert registry.list() != ()
+    transaction.rollback()
     assert registry.list() == ()
 
 
@@ -145,6 +214,52 @@ async def test_dynamic_unit_executes_without_mutating_static_registry() -> None:
     assert result.success is True
     assert provider.resolved_units == (dynamic,)
     assert ctx.units.list() == ()
+
+
+@pytest.mark.asyncio
+async def test_executor_preserves_mixed_static_dynamic_unit_order() -> None:
+    class MultiUnitProvider(RecordingProvider):
+        def supports(self, units: tuple[UnitDescriptor, ...]) -> bool:
+            return len(units) == 3 and all(
+                unit.platform == "test-live" for unit in units
+            )
+
+    class OrderedResolver(StubResolver):
+        def __init__(self, result: UnitDescriptor) -> None:
+            super().__init__("ordered", 100, result)
+            self.requested_ids: list[str] = []
+
+        async def resolve(self, unit_id: str) -> UnitDescriptor | None:
+            self.requested_ids.append(unit_id)
+            return await super().resolve(unit_id)
+
+    ctx = SwarmContext()
+    provider = MultiUnitProvider()
+    first = live_unit("static-first")
+    middle = live_unit("dynamic-middle")
+    last = live_unit("static-last")
+    resolver = OrderedResolver(middle)
+    ctx.capabilities.register(
+        CapabilitySpec("navigation.goto2d", "1.0", "test navigation", "unit")
+    )
+    ctx.providers.register(provider)
+    ctx.units.register(first)
+    ctx.units.register(last)
+    ctx.unit_resolvers.register(resolver)
+    request = ExecutionRequest(
+        request_id="req-live-many",
+        capability="navigation.goto2d",
+        version="1.0",
+        unit_ids=("static-first", "dynamic-middle", "static-last"),
+        arguments={"x": 1.0, "y": 2.0},
+    )
+
+    result = await ctx.executor.execute(request)
+
+    assert result.success is True
+    assert provider.resolved_units == (first, middle, last)
+    assert resolver.calls == 1
+    assert resolver.requested_ids == ["dynamic-middle"]
 
 
 @pytest.mark.asyncio
@@ -199,6 +314,37 @@ async def test_resolver_exception_is_logged_and_treated_as_abstention(
     )
     assert "resolver secret" not in result.message
     assert "resolver secret" not in str(result.data)
+
+
+@pytest.mark.asyncio
+async def test_invalid_descriptor_is_logged_without_secret_and_abstains(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    registry = resolver_registry()
+    secret = "private-descriptor-secret"
+    resolver = StubResolver("invalid", 100, {"secret": secret})  # type: ignore[arg-type]
+    registry.register(resolver)
+
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(UnitNotFoundError, match="^unit not found: missing$"):
+            await registry.resolve("missing")
+
+    assert any(
+        record.getMessage() == "unit resolver invalid returned invalid descriptor"
+        for record in caplog.records
+    )
+    assert secret not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_resolver_cancellation_propagates() -> None:
+    registry = resolver_registry()
+    registry.register(
+        StubResolver("cancelled", 100, error=asyncio.CancelledError())
+    )
+
+    with pytest.raises(asyncio.CancelledError):
+        await registry.resolve("missing")
 
 
 @pytest.mark.asyncio
