@@ -5,6 +5,8 @@ MCP tool → RobotAdapter → HTTP → Console 的完整路径
 import asyncio, json, os, sys
 import pytest
 
+pytestmark = pytest.mark.live_console
+
 if os.getenv("RUN_LIVE_CONSOLE_TESTS") != "1":
     pytest.skip(
         "manual live Console test may actuate units; set RUN_LIVE_CONSOLE_TESTS=1 explicitly",
