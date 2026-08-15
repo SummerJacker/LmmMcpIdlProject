@@ -111,7 +111,8 @@ changes, then rerun the focused test and the full offline suite. Final
 acceptance requires:
 
 - `python -m pytest tests/test_repository_test_contract.py -q` passes;
-- `python -m pytest tests -q` reports `328 passed` with no live skips;
+- `python -m pytest tests -q` reports `329 passed` with no live skips (the
+  existing 328 offline tests plus the new repository contract test);
 - the documented live files remain protected by the opt-in gate;
 - the specified `compileall` command exits successfully;
 - `git diff --check` and the tracked worktree status are clean after commit.
