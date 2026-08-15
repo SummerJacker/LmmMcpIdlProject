@@ -7,11 +7,15 @@ from `mcp`; each command requires `RUN_LIVE_CONSOLE_TESTS=1` explicitly.
 ## PowerShell
 
 ```powershell
-$env:RUN_LIVE_CONSOLE_TESTS = "1"
-python manual_tests/test_api_v2.py
-python manual_tests/test_api_full.py
-python -m pytest manual_tests/test_mcp_tools.py -q -m live_console
-Remove-Item env:RUN_LIVE_CONSOLE_TESTS
+try {
+    $env:RUN_LIVE_CONSOLE_TESTS = "1"
+    python manual_tests/test_api_v2.py
+    python manual_tests/test_api_full.py
+    python -m pytest manual_tests/test_mcp_tools.py -q -m live_console
+}
+finally {
+    Remove-Item Env:RUN_LIVE_CONSOLE_TESTS -ErrorAction SilentlyContinue
+}
 ```
 
 ## Bash
