@@ -29,14 +29,27 @@ def _assert_live_console_guard(source):
             and len(statement.targets) == 1
             and isinstance(statement.targets[0], ast.Name)
             and statement.targets[0].id == "pytestmark"
+            and _is_live_console_marker(statement.value)
         ):
             continue
         assert isinstance(statement, ast.If)
         assert _is_live_console_condition(statement.test)
+        assert not statement.orelse
         assert _has_module_level_skip(statement)
         return
 
     raise AssertionError("missing live Console environment guard")
+
+
+def _is_live_console_marker(value):
+    return (
+        isinstance(value, ast.Attribute)
+        and value.attr == "live_console"
+        and isinstance(value.value, ast.Attribute)
+        and value.value.attr == "mark"
+        and isinstance(value.value.value, ast.Name)
+        and value.value.value.id == "pytest"
+    )
 
 
 def _is_live_console_condition(condition):
@@ -59,25 +72,25 @@ def _is_live_console_condition(condition):
 
 
 def _has_module_level_skip(guard):
-    for statement in guard.body:
-        if not (isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Call)):
-            continue
-        call = statement.value
-        if not (
-            isinstance(call.func, ast.Attribute)
-            and isinstance(call.func.value, ast.Name)
-            and call.func.value.id == "pytest"
-            and call.func.attr == "skip"
-        ):
-            continue
-        if any(
-            keyword.arg == "allow_module_level"
-            and isinstance(keyword.value, ast.Constant)
-            and keyword.value.value is True
-            for keyword in call.keywords
-        ):
-            return True
-    return False
+    if len(guard.body) != 1:
+        return False
+    statement = guard.body[0]
+    if not (isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Call)):
+        return False
+    call = statement.value
+    if not (
+        isinstance(call.func, ast.Attribute)
+        and isinstance(call.func.value, ast.Name)
+        and call.func.value.id == "pytest"
+        and call.func.attr == "skip"
+    ):
+        return False
+    return any(
+        keyword.arg == "allow_module_level"
+        and isinstance(keyword.value, ast.Constant)
+        and keyword.value.value is True
+        for keyword in call.keywords
+    )
 
 
 def _active_workflow_lines(workflow):
@@ -134,6 +147,8 @@ def _assert_offline_workflow(workflow):
     assert "manual_tests" not in active_text
 
     block = _offline_tests_block(lines)
+    assert not any(text.lstrip("- ").startswith("if:") for text in block)
+    assert not any(text.lstrip("- ").startswith("continue-on-error:") for text in block)
     for expected in (
         "runs-on: ubuntu-latest",
         "working-directory: mcp",
@@ -173,6 +188,24 @@ def test_default_ci_boundary_excludes_live_console_checks():
         )
     with pytest.raises(AssertionError):
         _assert_live_console_guard("# RUN_LIVE_CONSOLE_TESTS\nprint('unsafe')\n")
+    with pytest.raises(AssertionError):
+        _assert_live_console_guard(
+            "import os\n"
+            "import pytest\n"
+            "import requests\n"
+            "pytestmark = requests.post('http://127.0.0.1:9001')\n"
+            "if os.getenv('RUN_LIVE_CONSOLE_TESTS') != '1':\n"
+            "    pytest.skip('unsafe', allow_module_level=True)\n"
+        )
+    with pytest.raises(AssertionError):
+        _assert_live_console_guard(
+            "import os\n"
+            "import pytest\n"
+            "import requests\n"
+            "if os.getenv('RUN_LIVE_CONSOLE_TESTS') != '1':\n"
+            "    requests.post('http://127.0.0.1:9001')\n"
+            "    pytest.skip('unsafe', allow_module_level=True)\n"
+        )
 
     mcp_tools = MCP_ROOT / "manual_tests" / "test_mcp_tools.py"
     assert "pytestmark = pytest.mark.live_console" in mcp_tools.read_text(encoding="utf-8")
@@ -206,6 +239,23 @@ def test_default_ci_boundary_excludes_live_console_checks():
         )
     with pytest.raises(AssertionError):
         _assert_offline_workflow(
+            workflow.replace(
+                "      - run: python -m pytest tests -q",
+                "      - if: ${{ false }}\n        run: python -m pytest tests -q",
+            )
+        )
+    with pytest.raises(AssertionError):
+        _assert_offline_workflow(
+            workflow.replace(
+                "      - run: python -m pytest tests -q",
+                "      - continue-on-error: true\n        run: python -m pytest tests -q",
+            )
+        )
+    with pytest.raises(AssertionError):
+        _assert_offline_workflow(
             workflow.replace(f"      - run: {COMPILE_COMMAND}\n", "")
-            + f"\n- run: {COMPILE_COMMAND}\n"
+            + "\n  other-job:\n"
+            "    runs-on: ubuntu-latest\n"
+            "    steps:\n"
+            f"      - run: {COMPILE_COMMAND}\n"
         )
