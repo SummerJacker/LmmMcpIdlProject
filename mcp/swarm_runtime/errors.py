@@ -37,6 +37,14 @@ class UnitNotFoundError(RuntimeResolutionError):
         super().__init__(f"unit not found: {unit_id}", error_code="UNIT_NOT_FOUND")
 
 
+class AmbiguousUnitResolutionError(RuntimeResolutionError):
+    def __init__(self, unit_id: str) -> None:
+        super().__init__(
+            f"ambiguous unit resolution: {unit_id}",
+            error_code="UNIT_NOT_FOUND",
+        )
+
+
 class ProviderNotFoundError(RuntimeResolutionError):
     def __init__(self, capability: str, version: str) -> None:
         super().__init__(

@@ -10,6 +10,7 @@ from .registry import (
     ServiceRegistry,
     ToolRegistry,
     UnitRegistry,
+    UnitResolverRegistry,
 )
 
 
@@ -17,6 +18,7 @@ class SwarmContext:
     def __init__(self) -> None:
         self.registration_journal = RegistrationJournal()
         self.units = UnitRegistry(self.registration_journal)
+        self.unit_resolvers = UnitResolverRegistry(self.registration_journal)
         self.capabilities = CapabilityRegistry(self.registration_journal)
         self.providers = ProviderRegistry(self.registration_journal)
         self.policies = PolicyRegistry(self.registration_journal)

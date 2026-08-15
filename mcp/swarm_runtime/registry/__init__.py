@@ -4,6 +4,7 @@ from .provider import ProviderRegistry
 from .service import ServiceRegistry
 from .tool import ToolRegistry
 from .unit import UnitRegistry
+from .unit_resolver import UnitResolverRegistry
 
 __all__ = [
     "CapabilityRegistry",
@@ -12,4 +13,5 @@ __all__ = [
     "ServiceRegistry",
     "ToolRegistry",
     "UnitRegistry",
+    "UnitResolverRegistry",
 ]
