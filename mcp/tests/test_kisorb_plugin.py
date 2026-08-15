@@ -8,7 +8,11 @@ import pytest
 
 from console_client import ConsoleTaskClient
 from plugins.platforms.kisorb_sau.plugin import KisorbPlugin
-from plugins.platforms.kisorb_sau.providers import KisorbGoto2DProvider
+from plugins.platforms.kisorb_sau.providers import (
+    KisorbFollowPath2DProvider,
+    KisorbGoto2DProvider,
+    KisorbStopProvider,
+)
 from swarm_runtime.context import SwarmContext
 from swarm_runtime.errors import RuntimeExecutionError
 from swarm_runtime.models import ExecutionRequest, UnitDescriptor
@@ -20,7 +24,7 @@ PLUGIN_ROOT = MCP_ROOT / "plugins"
 DEFAULT_PROFILE = MCP_ROOT / "profiles" / "default.json"
 
 
-def complete_running_task_json() -> str:
+def complete_running_task_json(task_type: str = "navigate_to") -> str:
     return json.dumps(
         {
             "success": True,
@@ -28,7 +32,7 @@ def complete_running_task_json() -> str:
             "data": {
                 "success": True,
                 "task_id": "goto-1",
-                "task_type": "navigate_to",
+                "task_type": task_type,
                 "state": "RUNNING",
                 "progress_pct": 0.0,
                 "message": "task accepted",
@@ -105,6 +109,75 @@ def test_kisorb_provider_supports_only_one_kisorb_unit() -> None:
     assert provider.supports((kisorb,)) is True
     assert provider.supports((mock,)) is False
     assert provider.supports((kisorb, kisorb)) is False
+
+
+@pytest.mark.asyncio
+async def test_follow_path_provider_forwards_canonical_unit_and_arguments() -> None:
+    client = AsyncMock(spec=ConsoleTaskClient)
+    client.follow_path.return_value = complete_running_task_json("follow_path")
+    provider = KisorbFollowPath2DProvider(client)
+    request = ExecutionRequest(
+        request_id="req-follow-path",
+        capability="navigation.follow_path2d",
+        version="1.0",
+        unit_ids=("robot_1",),
+        arguments={
+            "points": [{"x": 0.0, "y": 1.0}, {"x": 2.0, "y": 3.0}],
+            "tolerance_m": 0.2,
+            "timeout_ms": 5000,
+        },
+    )
+    unit = UnitDescriptor("GV1", "ugv", "kisorb-sau", "platform.kisorb-sau")
+
+    result = await provider.execute(request, (unit,))
+
+    assert result.success is True
+    client.follow_path.assert_awaited_once_with(
+        unit_id="GV1",
+        points_json='[{"x": 0.0, "y": 1.0}, {"x": 2.0, "y": 3.0}]',
+        tolerance_m=0.2,
+        timeout_ms=5000,
+    )
+
+
+@pytest.mark.asyncio
+async def test_stop_provider_deduplicates_canonical_units_in_first_occurrence_order() -> None:
+    client = AsyncMock(spec=ConsoleTaskClient)
+    client.stop_units.return_value = complete_running_task_json("stop_units")
+    provider = KisorbStopProvider(client)
+    request = ExecutionRequest(
+        request_id="req-stop",
+        capability="motion.stop",
+        version="1.0",
+        unit_ids=("robot_2", "GV1", "robot_1"),
+        arguments={},
+    )
+    units = (
+        UnitDescriptor("GV2", "ugv", "kisorb-sau", "platform.kisorb-sau"),
+        UnitDescriptor("GV1", "ugv", "kisorb-sau", "platform.kisorb-sau"),
+        UnitDescriptor("GV1", "ugv", "kisorb-sau", "platform.kisorb-sau"),
+    )
+
+    result = await provider.execute(request, units)
+
+    assert result.success is True
+    client.stop_units.assert_awaited_once_with(unit_ids_csv="GV2,GV1")
+
+
+def test_follow_path_and_stop_provider_support_semantics() -> None:
+    client = AsyncMock(spec=ConsoleTaskClient)
+    follow = KisorbFollowPath2DProvider(client)
+    stop = KisorbStopProvider(client)
+    kisorb = UnitDescriptor("GV1", "ugv", "kisorb-sau", "platform.kisorb-sau")
+    mock = UnitDescriptor("MOCK1", "ugv", "mock-navigation", "platform.mock")
+
+    assert follow.supports((kisorb,)) is True
+    assert follow.supports((kisorb, kisorb)) is False
+    assert follow.supports((mock,)) is False
+    assert stop.supports((kisorb,)) is True
+    assert stop.supports((kisorb, kisorb)) is True
+    assert stop.supports(()) is False
+    assert stop.supports((kisorb, mock)) is False
 
 
 @pytest.mark.asyncio
