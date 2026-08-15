@@ -72,6 +72,11 @@ Plugin 注册 Unit、Provider 和平台专属的动态 Unit Resolver。
 当前一个多 Unit 请求必须由同一个 Provider 完整支持，因此混合 KIS-ORB/Mock
 的 `stopUnits` 会被确定性拒绝；跨平台 fan-out 与聚合结果组合留待后续阶段。
 
+能力选择方面，KIS-ORB 的 Navigate/Follow Provider 只接受平台为 `kisorb-sau`
+且类型为 `ugv` 的描述符；
+KIS-ORB Stop 由该平台 Provider 负责，可在同一平台内接受 `ugv`、`uav` 及二者
+混合的请求。KIS-ORB 与 Mock 混合平台的 Stop 仍不受支持。
+
 ---
 
 ## 3. 目录结构说明
@@ -145,20 +150,25 @@ Plugin 注册 Unit、Provider 和平台专属的动态 Unit Resolver。
 
 ## 4. MCP 工具清单（`main.py` 注册）
 
-| 类别 | 工具名 | 作用 |
-|------|--------|------|
-| 能力/车队 | `getCapabilities` | 返回八项真实能力及限制原因 |
-| | `getFleetSnapshot` | 返回 mock/real、online、busy、rpc_available |
-| 单车任务 | `navigateTo` | 使用既有 `setTaskPoint(x,y)` 导航 |
-| | `followPath` | 使用既有 `setTaskPath`，按最终点判断完成 |
-| 静态编队 | `createStaticFormation` | 旋转/平移几何目标并逐车导航 |
-| 持续跟随 | `createFollowFormation` | 建立限定成员的 Leader/Follower/Formation/Follow 关系 |
-| | `moveFollowFormation` | 只向当前 Leader 下发目标点 |
-| | `getFormationStatus` | 查询 IDLE/CREATING/READY/MOVING/FAILED |
-| | `disbandFormation` | 解散当前持续跟随关系 |
-| 任务管理 | `getTaskStatus` | 查询父任务与逐车状态 |
-| | `cancelTask` | 取消状态机并请求 Stop，返回取消效果 |
-| | `stopUnits` | 只发送停止动作，不取消任务或解散编队 |
+| 类别 | 工具名 | 作用 | 所有权/状态 |
+|------|--------|------|-------------|
+| 能力/车队 | `getCapabilities` | 返回八项真实能力及限制原因 | Legacy（`main.py` → CapabilityService） |
+| | `getFleetSnapshot` | 返回 mock/real、online、busy、rpc_available | Legacy（`main.py` → CapabilityService） |
+| 单车任务 | `navigateTo` | 使用既有 `setTaskPoint(x,y)` 导航 | Swarm Runtime（Navigation） |
+| | `followPath` | 使用既有 `setTaskPath`，按最终点判断完成 | Swarm Runtime（Navigation） |
+| 静态编队 | `createStaticFormation` | 旋转/平移几何目标并逐车导航 | Legacy（`main.py` → TaskService） |
+| 持续跟随 | `createFollowFormation` | 建立限定成员的 Leader/Follower/Formation/Follow 关系 | Legacy（`main.py` → TaskService） |
+| | `moveFollowFormation` | 只向当前 Leader 下发目标点 | Legacy（`main.py` → TaskService） |
+| | `moveFollowFormationSequence` | 对当前 Leader 顺序执行开环速度段 | Legacy（`main.py` → TaskService） |
+| 单车运动 | `executeMotion` | 对绑定地面单元执行一次有类型的开环速度命令 | Legacy（`main.py` → TaskService） |
+| 持续跟随 | `getFormationStatus` | 查询 IDLE/CREATING/READY/MOVING/FAILED | Legacy（`main.py` → TaskService） |
+| | `disbandFormation` | 解散当前持续跟随关系 | Legacy（`main.py` → TaskService） |
+| 任务管理 | `getTaskStatus` | 查询父任务与逐车状态 | Legacy（`main.py` → TaskService） |
+| | `cancelTask` | 取消状态机并请求 Stop，返回取消效果 | Legacy（`main.py` → TaskService） |
+| | `stopUnits` | 只发送停止动作，不取消任务或解散编队 | Swarm Runtime（Motion） |
+
+以上固定生产面共 14 个工具：3 个由 Swarm Runtime 拥有，11 个保留在 Legacy
+TaskService 接缝。
 
 低层和旧 snake_case 工具仅在 `MCP_EXPOSE_LOW_LEVEL_TOOLS=1` 时用于调试，默认不注册到生产 MCP 工具列表。
 
