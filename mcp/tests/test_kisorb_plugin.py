@@ -102,11 +102,29 @@ async def test_live_unit_resolver_returns_canonical_console_unit() -> None:
 
 
 @pytest.mark.asyncio
+async def test_live_unit_resolver_propagates_transport_type_error() -> None:
+    adapter = AsyncMock(spec=RobotAdapter)
+    adapter.list_robots.side_effect = TypeError("transport failed")
+
+    with pytest.raises(TypeError, match="transport failed"):
+        await KisorbLiveUnitResolver(adapter).resolve("GV_DYNAMIC")
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("raw_directory", "requested_unit"),
     [
         ("not-json", "GV_DYNAMIC"),
         (json.dumps({"success": False, "data": {"units": []}}), "GV_DYNAMIC"),
+        (
+            json.dumps(
+                {
+                    "success": "false",
+                    "data": {"units": [{"unit_id": "GV_DYNAMIC"}]},
+                }
+            ),
+            "GV_DYNAMIC",
+        ),
         (json.dumps({"success": True}), "GV_DYNAMIC"),
         (json.dumps({"success": True, "data": {}}), "GV_DYNAMIC"),
         (
