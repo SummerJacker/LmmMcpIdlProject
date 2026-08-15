@@ -12,6 +12,7 @@
     "provider:kisorb.navigation.goto2d",
     "provider:kisorb.navigation.follow_path2d",
     "provider:kisorb.motion.stop",
+    "unit_resolver:kisorb.live",
     "service:legacy.robot_adapter",
     "service:legacy.console_task_client"
   ]

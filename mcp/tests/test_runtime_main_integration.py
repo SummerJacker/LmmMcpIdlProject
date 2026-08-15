@@ -8,6 +8,7 @@ import pytest
 
 from console_client import ConsoleTaskClient
 from main import create_app, create_runtime
+from robot_adapter import RobotAdapter
 from task_api.contracts import PRODUCTION_TOOL_NAMES, task_payload_has_contract_shape
 
 
@@ -82,6 +83,21 @@ def complete_running_task_json(task_type: str = "navigate_to") -> str:
     )
 
 
+def live_directory_json(*unit_ids: str) -> str:
+    return json.dumps(
+        {
+            "success": True,
+            "message": "ok",
+            "data": {
+                "units": [
+                    {"unit_id": unit_id, "online": True, "mock": False}
+                    for unit_id in unit_ids
+                ]
+            },
+        }
+    )
+
+
 @pytest.mark.asyncio
 async def test_runtime_navigate_to_preserves_exact_fastmcp_schema() -> None:
     tool = await create_app().get_tool("navigateTo")
@@ -146,10 +162,87 @@ async def test_production_navigate_to_routes_through_kisorb_provider(
 
 
 @pytest.mark.asyncio
+async def test_production_tools_resolve_dynamic_console_units(
+    monkeypatch,
+) -> None:
+    directory_call = AsyncMock(return_value=live_directory_json("GV_DYNAMIC"))
+    navigate_call = AsyncMock(return_value=complete_running_task_json())
+    follow_call = AsyncMock(
+        return_value=complete_running_task_json("follow_path")
+    )
+    stop_call = AsyncMock(return_value=complete_running_task_json("stop_units"))
+    monkeypatch.setattr(RobotAdapter, "list_robots", directory_call)
+    monkeypatch.setattr(ConsoleTaskClient, "navigate_to", navigate_call)
+    monkeypatch.setattr(ConsoleTaskClient, "follow_path", follow_call)
+    monkeypatch.setattr(ConsoleTaskClient, "stop_units", stop_call)
+    points = [{"x": 0.0, "y": 1.0}, {"x": 2.0, "y": 3.0}]
+    app = create_app()
+
+    navigate = await app.call_tool(
+        "navigateTo",
+        {"unit_id": "gv_dynamic", "target": {"x": 3.0, "y": 5.0}},
+    )
+    follow = await app.call_tool(
+        "followPath",
+        {"unit_id": "GV_DYNAMIC", "points": points},
+    )
+    stop = await app.call_tool(
+        "stopUnits",
+        {"unit_ids": ["gv_dynamic", "GV_DYNAMIC"]},
+    )
+
+    assert json.loads(navigate.content[0].text)["success"] is True
+    assert json.loads(follow.content[0].text)["success"] is True
+    assert json.loads(stop.content[0].text)["success"] is True
+    navigate_call.assert_awaited_once_with(
+        unit_id="GV_DYNAMIC",
+        x=3.0,
+        y=5.0,
+        tolerance_m=0.15,
+        timeout_ms=30000,
+    )
+    follow_call.assert_awaited_once_with(
+        unit_id="GV_DYNAMIC",
+        points_json=json.dumps(points),
+        tolerance_m=0.15,
+        timeout_ms=30000,
+    )
+    stop_call.assert_awaited_once_with(unit_ids_csv="GV_DYNAMIC")
+    assert directory_call.await_count == 4
+
+
+@pytest.mark.asyncio
+async def test_unknown_live_unit_returns_complete_follow_path_rejection(
+    monkeypatch,
+) -> None:
+    directory_call = AsyncMock(return_value=live_directory_json("GV_DYNAMIC"))
+    follow_call = AsyncMock(
+        return_value=complete_running_task_json("follow_path")
+    )
+    monkeypatch.setattr(RobotAdapter, "list_robots", directory_call)
+    monkeypatch.setattr(ConsoleTaskClient, "follow_path", follow_call)
+
+    result = await create_app().call_tool(
+        "followPath",
+        {"unit_id": "GV_UNKNOWN", "points": [{"x": 1.0, "y": 2.0}]},
+    )
+
+    payload = json.loads(result.content[0].text)
+    assert payload["success"] is False
+    assert payload["error_code"] == "UNIT_NOT_FOUND"
+    assert task_payload_has_contract_shape(payload["data"])
+    assert payload["data"]["task_type"] == "follow_path"
+    assert payload["data"]["state"] == "REJECTED"
+    follow_call.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_production_follow_path_routes_through_kisorb_provider(
     monkeypatch,
 ) -> None:
     call = AsyncMock(return_value=complete_running_task_json("follow_path"))
+    directory_call = AsyncMock(return_value=live_directory_json("GV_DYNAMIC"))
+    monkeypatch.setattr(RobotAdapter, "list_robots", directory_call)
     monkeypatch.setattr(ConsoleTaskClient, "follow_path", call)
     points = [{"x": 0.0, "y": 1.0}, {"x": 2.0, "y": 3.0}]
 
@@ -171,6 +264,7 @@ async def test_production_follow_path_routes_through_kisorb_provider(
         tolerance_m=0.2,
         timeout_ms=5000,
     )
+    directory_call.assert_not_awaited()
 
 
 @pytest.mark.asyncio
