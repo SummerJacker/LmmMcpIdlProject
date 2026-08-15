@@ -69,3 +69,46 @@ def build_navigate_to(ctx: SwarmContext):
             )
 
     return navigateTo
+
+
+def build_follow_path(ctx: SwarmContext):
+    async def followPath(
+        unit_id: str,
+        points: list[dict[str, float]],
+        tolerance_m: float = 0.15,
+        timeout_ms: int = 30000,
+    ) -> str:
+        request = ExecutionRequest(
+            request_id=str(uuid.uuid4()),
+            capability="navigation.follow_path2d",
+            version="1.0",
+            unit_ids=(unit_id,),
+            arguments={
+                "points": points,
+                "tolerance_m": tolerance_m,
+                "timeout_ms": timeout_ms,
+            },
+            metadata={"tool_name": "followPath"},
+        )
+        try:
+            return (await ctx.executor.execute(request)).to_json()
+        except RuntimeResolutionError as exc:
+            return rejected_task_response(
+                task_type="follow_path",
+                error_code=exc.error_code,
+                message=exc.message,
+            )
+        except RuntimeExecutionError as exc:
+            return response(
+                success=False,
+                message=exc.message,
+                error_code=exc.error_code,
+                data=empty_task_result(
+                    task_type="follow_path",
+                    state="FAILED",
+                    message=exc.message,
+                    error_code=exc.error_code,
+                ),
+            )
+
+    return followPath
