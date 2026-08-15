@@ -41,6 +41,24 @@ class ConsoleTaskClient:
             timeout_ms=timeout_ms,
         ), task_type="follow_path")
 
+    async def execute_motion(
+        self,
+        *,
+        unit_id: str,
+        linear_velocity: float,
+        angular_velocity: float,
+        duration_ms: int,
+    ) -> str:
+        return normalize_task_response(
+            await self._adapter.execute_motion_task(
+                unit_id=unit_id,
+                linear_velocity=linear_velocity,
+                angular_velocity=angular_velocity,
+                duration_ms=duration_ms,
+            ),
+            task_type="execute_motion",
+        )
+
     async def create_static_formation(
         self,
         *,
@@ -76,6 +94,14 @@ class ConsoleTaskClient:
         return normalize_task_response(
             await self._adapter.move_follow_formation(x=x, y=y),
             task_type="move_follow_formation",
+        )
+
+    async def move_follow_formation_sequence(
+        self, *, segments: list[dict[str, object]]
+    ) -> str:
+        return normalize_task_response(
+            await self._adapter.move_follow_formation_sequence(segments=segments),
+            task_type="move_follow_formation_sequence",
         )
 
     async def get_formation_status(self) -> str:

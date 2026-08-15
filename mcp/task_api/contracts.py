@@ -39,6 +39,8 @@ PRODUCTION_TOOL_NAMES = frozenset(
         "createStaticFormation",
         "createFollowFormation",
         "moveFollowFormation",
+        "moveFollowFormationSequence",
+        "executeMotion",
         "getFormationStatus",
         "disbandFormation",
         "getTaskStatus",

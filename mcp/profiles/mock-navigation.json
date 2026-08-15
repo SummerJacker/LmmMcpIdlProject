@@ -1,0 +1,25 @@
+{
+  "profile_api_version": 1,
+  "plugins": [
+    {
+      "id": "capability.navigation",
+      "enabled": true,
+      "config": {}
+    },
+    {
+      "id": "capability.motion",
+      "enabled": true,
+      "config": {}
+    },
+    {
+      "id": "platform.kisorb-sau",
+      "enabled": true,
+      "config": {}
+    },
+    {
+      "id": "platform.mock-navigation",
+      "enabled": true,
+      "config": {}
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "api_version": 1,
+  "id": "platform.mock-navigation",
+  "version": "1.1.0",
+  "type": "platform",
+  "entrypoint": "plugins.platforms.mock_navigation.plugin:MockNavigationPlugin",
+  "requires": [
+    "capability.navigation",
+    "capability.motion"
+  ],
+  "provides": [
+    "provider:mock.navigation.goto2d",
+    "provider:mock.navigation.follow_path2d",
+    "provider:mock.motion.stop",
+    "unit:MOCK1"
+  ]
+}

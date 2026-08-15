@@ -15,6 +15,7 @@ import asyncio
 import itertools
 import json
 import math
+import os
 import time
 from dataclasses import dataclass
 from typing import Any, TYPE_CHECKING
@@ -56,9 +57,11 @@ from config import (
     QT_STATIC_FORMATION_PATH,
     QT_FOLLOW_FORMATION_CREATE_PATH,
     QT_FOLLOW_FORMATION_MOVE_PATH,
+    QT_FOLLOW_FORMATION_MOVE_SEQUENCE_PATH,
     QT_FOLLOW_FORMATION_STATUS_V2_PATH,
     QT_FOLLOW_FORMATION_DISBAND_PATH,
     QT_STOP_UNITS_PATH,
+    QT_MOTION_TASK_PATH,
     load_robot_configs,
     qt_url,
 )
@@ -79,6 +82,29 @@ def make_tool_response(
     effective_error = error_code or str(nested_error or "")
     if not success and effective_error:
         payload["error_code"] = effective_error
+    return json.dumps(payload, ensure_ascii=False)
+
+
+def _benchmark_timings_enabled() -> bool:
+    return os.getenv("SAU_BENCHMARK_TIMINGS", "0").strip() == "1"
+
+
+def _with_benchmark_timing(raw: str, name: str, elapsed_ms: float) -> str:
+    """Add namespaced timing only in an explicitly enabled benchmark run."""
+
+    if not _benchmark_timings_enabled():
+        return raw
+    try:
+        payload = json.loads(raw)
+    except (TypeError, json.JSONDecodeError):
+        return raw
+    if not isinstance(payload, dict) or not isinstance(payload.get("data"), dict):
+        return raw
+    timing = payload["data"].get("_benchmark_timing")
+    if not isinstance(timing, dict):
+        timing = {}
+        payload["data"]["_benchmark_timing"] = timing
+    timing[name] = max(0.0, float(elapsed_ms))
     return json.dumps(payload, ensure_ascii=False)
 
 from qt_http_client import http_request
@@ -553,28 +579,38 @@ class RobotAdapter:
         @returns: JSON 字符串
         """
 
-        async def _call() -> tuple[int, dict[str, Any] | None, str]:
-            return await asyncio.wait_for(
+        async def _call() -> tuple[int, dict[str, Any] | None, str, float]:
+            http_started_ns = time.perf_counter_ns()
+            result = await asyncio.wait_for(
                 asyncio.to_thread(http_request, method=method, url=url, json_body=json_body, timeout=QT_HTTP_TIMEOUT_S),
                 timeout=self._manager.tool_timeout_s,
             )
+            elapsed_ms = (time.perf_counter_ns() - http_started_ns) / 1_000_000.0
+            return result[0], result[1], result[2], elapsed_ms
 
         try:
             if robot_id_for_lock:
                 lock = self._manager.get_lock(robot_id_for_lock)
                 async with lock:
-                    status, body, err = await _call()
+                    status, body, err, roundtrip_ms = await _call()
             else:
                 async with self._fleet_lock:
-                    status, body, err = await _call()
+                    status, body, err, roundtrip_ms = await _call()
         except asyncio.TimeoutError:
             self._logger.error("%s adapter timeout url=%s", op_name, url)
-            return make_tool_response(
+            raw = make_tool_response(
                 success=False,
                 message=f"{op_name} timed out after {self._manager.tool_timeout_s} s (adapter)",
             )
+            return _with_benchmark_timing(
+                raw, "python_console_roundtrip_ms",
+                self._manager.tool_timeout_s * 1000.0,
+            )
 
-        return self._map_http_to_tool_response(status, body, err, op_name)
+        raw = self._map_http_to_tool_response(status, body, err, op_name)
+        return _with_benchmark_timing(
+            raw, "python_console_roundtrip_ms", roundtrip_ms
+        )
 
     def _map_http_to_tool_response(
         self,
@@ -1013,6 +1049,75 @@ class RobotAdapter:
             op_name="get_capabilities",
         )
 
+    async def execute_motion_task(
+        self,
+        *,
+        unit_id: str,
+        linear_velocity: float,
+        angular_velocity: float,
+        duration_ms: int,
+    ) -> str:
+        contract_started_ns = time.perf_counter_ns()
+
+        def with_contract_timing(raw: str) -> str:
+            elapsed_ms = (
+                time.perf_counter_ns() - contract_started_ns
+            ) / 1_000_000.0
+            return _with_benchmark_timing(raw, "python_contract_ms", elapsed_ms)
+
+        resolved = await self._resolve_to_unit_id(unit_id)
+        if resolved is None:
+            return with_contract_timing(make_tool_response(
+                success=False,
+                message=_message_unit_not_bound(unit_id),
+                error_code="UNIT_NOT_FOUND",
+            ))
+        ok_linear, linear, linear_error = _finite_float(
+            linear_velocity, "linear_velocity"
+        )
+        ok_angular, angular, angular_error = _finite_float(
+            angular_velocity, "angular_velocity"
+        )
+        if not ok_linear or not ok_angular:
+            return with_contract_timing(make_tool_response(
+                success=False,
+                message=linear_error or angular_error,
+                error_code="SAFETY_REJECTED",
+            ))
+        if abs(linear) > LINEAR_VELOCITY_MAX_ABS_M_S:
+            return with_contract_timing(make_tool_response(
+                success=False,
+                message=_message_speed_linear_out_of_bounds(linear),
+                error_code="SAFETY_REJECTED",
+            ))
+        if abs(angular) > ANGULAR_VELOCITY_MAX_ABS_RAD_S:
+            return with_contract_timing(make_tool_response(
+                success=False,
+                message=_message_speed_angular_out_of_bounds(angular),
+                error_code="SAFETY_REJECTED",
+            ))
+        if isinstance(duration_ms, bool) or not isinstance(duration_ms, int) or duration_ms <= 0:
+            return with_contract_timing(make_tool_response(
+                success=False,
+                message="Validation failed: duration_ms must be a positive integer",
+                error_code="SAFETY_REJECTED",
+            ))
+        contract_ms = (
+            time.perf_counter_ns() - contract_started_ns
+        ) / 1_000_000.0
+        raw = await self._post_qt(
+            path=QT_MOTION_TASK_PATH,
+            json_body={
+                "unit_id": resolved,
+                "linear_velocity": linear,
+                "angular_velocity": angular,
+                "duration_ms": duration_ms,
+            },
+            robot_id_for_lock=resolved,
+            op_name="execute_motion",
+        )
+        return _with_benchmark_timing(raw, "python_contract_ms", contract_ms)
+
     async def get_fleet_snapshot(self) -> str:
         raw = await self._run_http(
             method="GET",
@@ -1223,6 +1328,16 @@ class RobotAdapter:
             json_body={"x": target_x, "y": target_y},
             robot_id_for_lock=None,
             op_name="move_follow_formation",
+        )
+
+    async def move_follow_formation_sequence(
+        self, *, segments: list[dict[str, object]]
+    ) -> str:
+        return await self._post_qt(
+            path=QT_FOLLOW_FORMATION_MOVE_SEQUENCE_PATH,
+            json_body={"segments": segments},
+            robot_id_for_lock=None,
+            op_name="move_follow_formation_sequence",
         )
 
     async def get_formation_status(self) -> str:

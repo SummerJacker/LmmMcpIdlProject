@@ -41,6 +41,7 @@ from config import (
     DEFAULT_TOOL_TIMEOUT_S,
     LINEAR_VELOCITY_MAX_ABS_M_S,
 )
+from task_api.contracts import PRODUCTION_TOOL_NAMES
 
 logger = logging.getLogger("deepseek_mcp_client")
 MCP_PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -73,11 +74,7 @@ _USER_POINT_GOAL_RE = re.compile(
     r"[（(]\s*(?P<x>-?\d+(?:\.\d+)?)\s*[,，]\s*(?P<y>-?\d+(?:\.\d+)?)\s*[）)]",
     re.IGNORECASE,
 )
-_PRODUCTION_TASK_TOOLS = frozenset({
-    "getCapabilities", "getFleetSnapshot", "navigateTo", "followPath",
-    "createStaticFormation", "createFollowFormation", "moveFollowFormation",
-    "getFormationStatus", "disbandFormation", "getTaskStatus", "cancelTask", "stopUnits",
-})
+_PRODUCTION_TASK_TOOLS = PRODUCTION_TOOL_NAMES
 _FORMATION_PLAN_TOOLS = frozenset({"createStaticFormation"})
 _FORMATION_ENTRY_RE = re.compile(r"编队|队形|formation", re.IGNORECASE)
 _FOLLOW_FORMATION_RE = re.compile(
@@ -90,7 +87,8 @@ _GEOMETRIC_FORMATION_RE = re.compile(
 )
 GEOMETRIC_FORMATION_TOOLS = frozenset({"createStaticFormation"})
 FOLLOW_FORMATION_TOOLS = frozenset(
-    {"createFollowFormation", "moveFollowFormation", "getFormationStatus", "disbandFormation"}
+    {"createFollowFormation", "moveFollowFormation", "moveFollowFormationSequence",
+     "getFormationStatus", "disbandFormation"}
 )
 LEGACY_AMBIGUOUS_FORMATION_TOOLS = frozenset()
 AUTO_RECOVERY_TOOLS = frozenset({"cancelTask", "stopUnits", "disbandFormation"})
@@ -388,17 +386,19 @@ def build_system_prompt() -> str:
     
     @returns {str} Prompt字符串
     """
+    production_tool_names = ", ".join(sorted(PRODUCTION_TOOL_NAMES))
     return (
         "You are an intelligent Robot Fleet Commander connected to the production MCP task API.\n"
-        "Use only these task-level tools: getCapabilities, getFleetSnapshot, navigateTo, followPath, "
-        "createStaticFormation, createFollowFormation, moveFollowFormation, getFormationStatus, "
-        "disbandFormation, getTaskStatus, cancelTask, stopUnits.\n\n"
+        f"Use only these task-level tools: {production_tool_names}.\n\n"
         "Never call raw movement, role, group-mode, task-point, task-path, trap, or reset tools.\n"
         "navigateTo accepts unit_id plus target={x,y}; final yaw and navigation speed are unsupported.\n"
+        "executeMotion accepts request={unit_id,linear_velocity,angular_velocity,duration_ms}; use it for a typed "
+        "open-loop motion command on one bound ground unit.\n"
         "createStaticFormation accepts request={formation_type,unit_ids,spacing_m,anchor,heading_rad,...}; "
         "it places vehicles geometrically and does not create follow relationships.\n"
         "createFollowFormation accepts request={leader_id,followers:[{unit_id,distance_m}]}; require every "
         "follower distance from the user. moveFollowFormation accepts target={x,y} and moves only the leader.\n"
+        "moveFollowFormationSequence accepts ordered velocity segments and moves only the active Leader.\n"
         "Use getTaskStatus for asynchronous tasks. cancelTask reports CANCEL_CONFIRMED, STOP_REQUESTED, or "
         "STATE_ONLY_CANCELLED; never claim immediate physical stop unless the result confirms it.\n"
         "Use getCapabilities before relying on optional real-RPC or follow behavior, and getFleetSnapshot for valid unit IDs.\n\n"

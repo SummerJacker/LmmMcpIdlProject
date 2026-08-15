@@ -1,8 +1,14 @@
-# 基于 MCP 与 IDL 的多机器人自然语言控制系统 — 验收交付说明
+# MCP-IDL Swarm Harness — 多机器人自然语言控制系统
+
+Profile 加载的 Swarm Runtime 现在拥有 3 个带类型的生产工具：`navigateTo`、
+`followPath` 和 `stopUnits`。它们在执行前解析带版本的 Capability、规范 Unit、
+Policy 与平台 Provider；其余 11 个生产工具继续通过旧 `task_api` 服务接缝执行，
+其中 2 个经 CapabilityService、9 个经 TaskService。SAU Console 与 IDL 均未改动。
 
 ## 1. 模块分层
 - L1 交互层：deepseek_mcp_client.py（Agent Loop + DeepSeek LLM，支持 deepseek-v4-flash / deepseek-v4-pro）
-- L2 协议层：main.py（FastMCP stdio，生产模式固定 12 个任务级工具）
+- L2 协议层：main.py（FastMCP stdio，生产模式固定 14 个任务级工具）
+- L2.5 能力运行时：swarm_runtime/ + plugins/ + profiles/（Capability、Unit、Provider、Policy、Tool 与插件生命周期）
 - L3 适配层：task_api/ + console_client/ + robot_adapter.py + qt_http_client.py（契约、别名解析、安全校验）
 - L4 配置：config.py、robots.json、utils/logging_setup.py
 - L5 安全层：mcp/safety/validator.py（Python）+ SafetyValidator.cpp（C++）双层校验
@@ -15,6 +21,9 @@ pip install -r requirements.txt
 pytest tests/ -q
 fastmcp call main.py getCapabilities --json
 （需先启动 SAU 主控 -httpPort 9001 -mockRobots GV1,GV2,GV3）
+
+# 第二平台插件验收（不进入默认生产 Profile）
+pytest tests/test_mock_navigation_plugin.py tests/test_runtime_main_integration.py -q
 ## 2. 系统分层与模块对应
 
 
@@ -23,6 +32,7 @@ fastmcp call main.py getCapabilities --json
 |------|------|------------------|
 | **L1 交互层** | 自然语言 → Agent Loop → 调用 MCP 工具 | `mcp/deepseek_mcp_client.py` |
 | **L2 协议层** | FastMCP 工具注册、stdio 服务 | `mcp/main.py` |
+| **L2.5 能力运行时** | Unit/Capability/Provider 解析、Policy Pipeline、Profile 与插件回滚 | `mcp/swarm_runtime/`、`mcp/plugins/`、`mcp/profiles/` |
 | **L3 适配层** | ID 映射、别名解析、速度校验、锁、HTTP 封装、编队几何 | `mcp/robot_adapter.py`、`mcp/qt_http_client.py`、`mcp/agents/` |
 | **L4 配置与基础设施** | 端点、阈值、机器人映射、日志 | `mcp/config.py`、`mcp/robots.json`、`mcp/utils/logging_setup.py` |
 | **L5 安全层** | Python + C++ 双层参数与业务校验 | `mcp/safety/validator.py`、`SAU/Console/SafetyValidator.cpp` |
@@ -33,7 +43,11 @@ fastmcp call main.py getCapabilities --json
 ```text
 用户 NL → deepseek_mcp_client (L1)
        → fastmcp call → main.py (L2)
-       → robot_adapter（别名解析 + 安全预检）+ qt_http_client (L3)
+       → navigateTo/followPath/stopUnits:
+         Tool Registry → CapabilityExecutor → KIS-ORB Provider → ConsoleTaskClient
+       → 其余 11 个工具: 2 个经 CapabilityService、9 个经 TaskService
+                         → ConsoleTaskClient
+       → robot_adapter（安全预检）+ qt_http_client (L3)
        → HTTP :9001 → SAU Console TaskManager + SafetyValidator (L5/L6)
        → Mock 模拟器 或 IDL/ILU 桩 → 设备
        → 统一 JSON (success/message/data) 回传
@@ -41,7 +55,29 @@ fastmcp call main.py getCapabilities --json
 
 **核心设计原则**：
 
-> 旧 IDL 是 Console 控制智能体的底层协议；新 MCP-IDL 是大模型控制 Console 的任务级协议。生产模式下大模型只调用 `getCapabilities`、`getFleetSnapshot`、`navigateTo`、`followPath`、静态/持续编队和任务管理接口；Console 再转换为既有底层 IDL/ILU RPC。
+> 旧 IDL 是 Console 控制智能体的底层协议；新 MCP-IDL 是大模型控制 Console 的任务级协议。生产模式下大模型只调用 `getCapabilities`、`getFleetSnapshot`、`navigateTo`、`followPath`、`stopUnits`、静态/持续编队和任务管理接口；Console 再转换为既有底层 IDL/ILU RPC。
+
+插件边界遵循 `Capability = WHAT`、`Provider = HOW`：Navigation Capability
+Plugin 拥有 `navigateTo` 与 `followPath`，Motion Capability Plugin 拥有
+`stopUnits`；这些 Capability Plugin 负责稳定的 MCP Tool Schema。Platform
+Plugin 注册 Unit、Provider 和平台专属的动态 Unit Resolver。
+
+静态 `UnitRegistry` 始终先解析配置中的规范 ID 与别名。仅在静态解析未命中时，
+请求作用域内的 KIS-ORB live resolver 才通过共享 `RobotAdapter` 的公开列表接口
+查询 Console；`G` 前缀识别为 `ugv`，`A` 前缀识别为 `uav`，未知前缀放弃解析，
+且动态结果不写回静态 Registry。
+
+`profiles/default.json` 启用 Navigation、Motion 和 KIS-ORB SAU 平台。
+`profiles/mock-navigation.json` 额外启用内存 Mock 平台，用于架构验收。Loader
+仍会发现该插件并解析 manifest，但默认生产 Profile 不启用、也不加载它。
+KIS-ORB 与 Mock 平台均提供 GoTo2D、FollowPath2D 和 Stop Provider。
+当前一个多 Unit 请求必须由同一个 Provider 完整支持，因此混合 KIS-ORB/Mock
+的 `stopUnits` 会被确定性拒绝；跨平台 fan-out 与聚合结果组合留待后续阶段。
+
+能力选择方面，KIS-ORB 的 Navigate/Follow Provider 只接受平台为 `kisorb-sau`
+且类型为 `ugv` 的描述符；
+KIS-ORB Stop 由该平台 Provider 负责，可在同一平台内接受 `ugv`、`uav` 及二者
+混合的请求。KIS-ORB 与 Mock 混合平台的 Stop 仍不受支持。
 
 ---
 
@@ -52,6 +88,17 @@ fastmcp call main.py getCapabilities --json
 ├── README.md                 ← 本文件
 ├── mcp/                      ← Python MCP 子系统（验收核心之一）
 │   ├── main.py               L2 协议层入口
+│   ├── swarm_runtime/        L2.5 平台无关运行时
+│   ├── plugins/
+│   │   ├── capabilities/
+│   │   │   ├── navigation/  navigateTo/followPath + Navigation capabilities
+│   │   │   └── motion/      stopUnits + motion.stop@1.0
+│   │   └── platforms/
+│   │       ├── kisorb_sau/           现有 SAU Console Provider
+│   │       └── mock_navigation/      第二平台验收 Provider
+│   ├── profiles/
+│   │   ├── default.json              生产 Profile
+│   │   └── mock-navigation.json      测试 Profile
 │   ├── deepseek_mcp_client.py L1 交互层
 │   ├── robot_adapter.py      L3 适配层
 │   ├── qt_http_client.py     L3 HTTP 客户端
@@ -105,20 +152,25 @@ fastmcp call main.py getCapabilities --json
 
 ## 4. MCP 工具清单（`main.py` 注册）
 
-| 类别 | 工具名 | 作用 |
-|------|--------|------|
-| 能力/车队 | `getCapabilities` | 返回八项真实能力及限制原因 |
-| | `getFleetSnapshot` | 返回 mock/real、online、busy、rpc_available |
-| 单车任务 | `navigateTo` | 使用既有 `setTaskPoint(x,y)` 导航 |
-| | `followPath` | 使用既有 `setTaskPath`，按最终点判断完成 |
-| 静态编队 | `createStaticFormation` | 旋转/平移几何目标并逐车导航 |
-| 持续跟随 | `createFollowFormation` | 建立限定成员的 Leader/Follower/Formation/Follow 关系 |
-| | `moveFollowFormation` | 只向当前 Leader 下发目标点 |
-| | `getFormationStatus` | 查询 IDLE/CREATING/READY/MOVING/FAILED |
-| | `disbandFormation` | 解散当前持续跟随关系 |
-| 任务管理 | `getTaskStatus` | 查询父任务与逐车状态 |
-| | `cancelTask` | 取消状态机并请求 Stop，返回取消效果 |
-| | `stopUnits` | 只发送停止动作，不取消任务或解散编队 |
+| 类别 | 工具名 | 作用 | 所有权/状态 |
+|------|--------|------|-------------|
+| 能力/车队 | `getCapabilities` | 返回八项真实能力及限制原因 | Legacy（`main.py` → CapabilityService） |
+| | `getFleetSnapshot` | 返回 mock/real、online、busy、rpc_available | Legacy（`main.py` → CapabilityService） |
+| 单车任务 | `navigateTo` | 使用既有 `setTaskPoint(x,y)` 导航 | Swarm Runtime（Navigation） |
+| | `followPath` | 使用既有 `setTaskPath`，按最终点判断完成 | Swarm Runtime（Navigation） |
+| 静态编队 | `createStaticFormation` | 旋转/平移几何目标并逐车导航 | Legacy（`main.py` → TaskService） |
+| 持续跟随 | `createFollowFormation` | 建立限定成员的 Leader/Follower/Formation/Follow 关系 | Legacy（`main.py` → TaskService） |
+| | `moveFollowFormation` | 只向当前 Leader 下发目标点 | Legacy（`main.py` → TaskService） |
+| | `moveFollowFormationSequence` | 对当前 Leader 顺序执行开环速度段 | Legacy（`main.py` → TaskService） |
+| 单车运动 | `executeMotion` | 对绑定地面单元执行一次有类型的开环速度命令 | Legacy（`main.py` → TaskService） |
+| 持续跟随 | `getFormationStatus` | 查询 IDLE/CREATING/READY/MOVING/FAILED | Legacy（`main.py` → TaskService） |
+| | `disbandFormation` | 解散当前持续跟随关系 | Legacy（`main.py` → TaskService） |
+| 任务管理 | `getTaskStatus` | 查询父任务与逐车状态 | Legacy（`main.py` → TaskService） |
+| | `cancelTask` | 取消状态机并请求 Stop，返回取消效果 | Legacy（`main.py` → TaskService） |
+| | `stopUnits` | 只发送停止动作，不取消任务或解散编队 | Swarm Runtime（Motion） |
+
+以上固定生产面共 14 个工具：3 个由 Swarm Runtime 拥有，11 个保留在 Legacy
+`task_api` 服务接缝（2 个经 CapabilityService、9 个经 TaskService）。
 
 低层和旧 snake_case 工具仅在 `MCP_EXPOSE_LOW_LEVEL_TOOLS=1` 时用于调试，默认不注册到生产 MCP 工具列表。
 

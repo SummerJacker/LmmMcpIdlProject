@@ -118,9 +118,11 @@ QT_FOLLOW_PATH_PATH: str = "/api/task/follow_path"
 QT_STATIC_FORMATION_PATH: str = "/api/task/formation/static"
 QT_FOLLOW_FORMATION_CREATE_PATH: str = "/api/task/formation/follow/create"
 QT_FOLLOW_FORMATION_MOVE_PATH: str = "/api/task/formation/follow/move"
+QT_FOLLOW_FORMATION_MOVE_SEQUENCE_PATH: str = "/api/task/formation/follow/move_sequence"
 QT_FOLLOW_FORMATION_STATUS_V2_PATH: str = "/api/task/formation/follow/status"
 QT_FOLLOW_FORMATION_DISBAND_PATH: str = "/api/task/formation/follow/disband"
 QT_STOP_UNITS_PATH: str = "/api/task/stop_units"
+QT_MOTION_TASK_PATH: str = "/api/task/motion"
 
 # Low-level and compatibility tools are opt-in. Production defaults to task-only.
 MCP_EXPOSE_LOW_LEVEL_TOOLS: bool = os.getenv("MCP_EXPOSE_LOW_LEVEL_TOOLS", "0").strip() == "1"
@@ -148,6 +150,8 @@ def qt_url(path: str) -> str:
     @returns: 完整 URL
     """
 
-    base = QT_HTTP_BASE.rstrip("/")
+    base = os.getenv("SAU_CONSOLE_HTTP_BASE", QT_HTTP_BASE).strip().rstrip("/")
+    if not base:
+        base = QT_HTTP_BASE.rstrip("/")
     p = path if path.startswith("/") else f"/{path}"
     return f"{base}{p}"
