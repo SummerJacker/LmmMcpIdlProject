@@ -7,6 +7,7 @@ from pathlib import Path
 
 
 MCP_ROOT = Path(__file__).parents[1]
+MAIN_PATH = MCP_ROOT / "main.py"
 RUNTIME_ROOT = MCP_ROOT / "swarm_runtime"
 PLUGINS_ROOT = MCP_ROOT / "plugins"
 CAPABILITY_ROOT = PLUGINS_ROOT / "capabilities"
@@ -31,6 +32,21 @@ def imported_modules(path: Path) -> set[str]:
         elif isinstance(node, ast.ImportFrom) and node.module:
             modules.add(node.module)
     return modules
+
+
+def top_level_nested_function_names(path: Path, parent_name: str) -> set[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    for node in tree.body:
+        if (
+            isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == parent_name
+        ):
+            return {
+                child.name
+                for child in node.body
+                if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef))
+            }
+    raise AssertionError(f"function not found: {parent_name}")
 
 
 def test_runtime_and_capability_plugins_do_not_import_platform_implementation() -> None:
@@ -70,15 +86,30 @@ def test_live_unit_resolver_keeps_robot_adapter_out_of_runtime_core() -> None:
     assert "robot_adapter" not in imported_modules(runtime_resolver)
 
 
-def test_default_profile_excludes_mock_platform() -> None:
-    profile = json.loads(
-        (MCP_ROOT / "profiles" / "default.json").read_text(encoding="utf-8")
-    )
-    enabled = {
-        item["id"] for item in profile["plugins"] if item.get("enabled", True)
-    }
+def test_path_and_stop_are_not_static_main_tools() -> None:
+    names = top_level_nested_function_names(MAIN_PATH, "create_app")
 
-    assert "platform.mock-navigation" not in enabled
+    assert "followPath" not in names
+    assert "stopUnits" not in names
+
+
+def test_profiles_enable_motion_but_only_mock_profile_enables_mock_platform() -> None:
+    def enabled(name: str) -> set[str]:
+        profile = json.loads(
+            (MCP_ROOT / "profiles" / name).read_text(encoding="utf-8")
+        )
+        return {
+            item["id"]
+            for item in profile["plugins"]
+            if item.get("enabled", True)
+        }
+
+    default = enabled("default.json")
+    mock = enabled("mock-navigation.json")
+    assert "capability.motion" in default
+    assert "capability.motion" in mock
+    assert "platform.mock-navigation" not in default
+    assert "platform.mock-navigation" in mock
 
 
 def test_task_idl_is_unchanged_and_has_no_generic_json_escape_hatch() -> None:

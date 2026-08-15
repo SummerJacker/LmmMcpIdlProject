@@ -1,9 +1,9 @@
 # MCP-IDL Swarm Harness — 多机器人自然语言控制系统
 
-当前版本已完成插件化的第一个生产垂直切片：`navigateTo` 由 Navigation
-Capability Plugin 注册，经 `CapabilityExecutor` 解析 Unit 与 Provider，并由
-KIS-ORB SAU Platform Plugin 复用现有 Console 执行链。其余 13 个生产工具
-暂时保持原有 TaskService 路径，SAU Console 与 IDL 均未改动。
+Profile 加载的 Swarm Runtime 现在拥有 3 个带类型的生产工具：`navigateTo`、
+`followPath` 和 `stopUnits`。它们在执行前解析带版本的 Capability、规范 Unit、
+Policy 与平台 Provider；其余 11 个生产工具继续通过共享的旧 TaskService
+接缝执行。SAU Console 与 IDL 均未改动。
 
 ## 1. 模块分层
 - L1 交互层：deepseek_mcp_client.py（Agent Loop + DeepSeek LLM，支持 deepseek-v4-flash / deepseek-v4-pro）
@@ -43,9 +43,9 @@ pytest tests/test_mock_navigation_plugin.py tests/test_runtime_main_integration.
 ```text
 用户 NL → deepseek_mcp_client (L1)
        → fastmcp call → main.py (L2)
-       → navigateTo: Tool Registry → CapabilityExecutor
-                     → KIS-ORB Provider → ConsoleTaskClient
-       → 其余 13 个工具: TaskService → ConsoleTaskClient
+       → navigateTo/followPath/stopUnits:
+         Tool Registry → CapabilityExecutor → KIS-ORB Provider → ConsoleTaskClient
+       → 其余 11 个工具: TaskService → ConsoleTaskClient
        → robot_adapter（安全预检）+ qt_http_client (L3)
        → HTTP :9001 → SAU Console TaskManager + SafetyValidator (L5/L6)
        → Mock 模拟器 或 IDL/ILU 桩 → 设备
@@ -54,13 +54,23 @@ pytest tests/test_mock_navigation_plugin.py tests/test_runtime_main_integration.
 
 **核心设计原则**：
 
-> 旧 IDL 是 Console 控制智能体的底层协议；新 MCP-IDL 是大模型控制 Console 的任务级协议。生产模式下大模型只调用 `getCapabilities`、`getFleetSnapshot`、`navigateTo`、`followPath`、静态/持续编队和任务管理接口；Console 再转换为既有底层 IDL/ILU RPC。
+> 旧 IDL 是 Console 控制智能体的底层协议；新 MCP-IDL 是大模型控制 Console 的任务级协议。生产模式下大模型只调用 `getCapabilities`、`getFleetSnapshot`、`navigateTo`、`followPath`、`stopUnits`、静态/持续编队和任务管理接口；Console 再转换为既有底层 IDL/ILU RPC。
 
-插件边界遵循 `Capability = WHAT`、`Provider = HOW`：Capability Plugin 拥有
-稳定的 MCP Tool Schema，Platform Plugin 只注册 Unit 与 Provider。默认
-`profiles/default.json` 启用 Navigation + KIS-ORB；
-`profiles/mock-navigation.json` 额外启用内存 Mock Provider，用于证明新增平台
-无需修改 Core 或 `navigateTo`。
+插件边界遵循 `Capability = WHAT`、`Provider = HOW`：Navigation Capability
+Plugin 拥有 `navigateTo` 与 `followPath`，Motion Capability Plugin 拥有
+`stopUnits`；这些 Capability Plugin 负责稳定的 MCP Tool Schema。Platform
+Plugin 注册 Unit、Provider 和平台专属的动态 Unit Resolver。
+
+静态 `UnitRegistry` 始终先解析配置中的规范 ID 与别名。仅在静态解析未命中时，
+请求作用域内的 KIS-ORB live resolver 才通过共享 `RobotAdapter` 的公开列表接口
+查询 Console；`G` 前缀识别为 `ugv`，`A` 前缀识别为 `uav`，未知前缀放弃解析，
+且动态结果不写回静态 Registry。
+
+`profiles/default.json` 启用 Navigation、Motion 和 KIS-ORB SAU 平台。
+`profiles/mock-navigation.json` 额外启用内存 Mock 平台，用于架构验收，不进入
+生产发现。KIS-ORB 与 Mock 平台均提供 GoTo2D、FollowPath2D 和 Stop Provider。
+当前一个多 Unit 请求必须由同一个 Provider 完整支持，因此混合 KIS-ORB/Mock
+的 `stopUnits` 会被确定性拒绝；跨平台 fan-out 与聚合结果组合留待后续阶段。
 
 ---
 
@@ -73,7 +83,9 @@ pytest tests/test_mock_navigation_plugin.py tests/test_runtime_main_integration.
 │   ├── main.py               L2 协议层入口
 │   ├── swarm_runtime/        L2.5 平台无关运行时
 │   ├── plugins/
-│   │   ├── capabilities/navigation/  navigateTo + navigation.goto2d@1.0
+│   │   ├── capabilities/
+│   │   │   ├── navigation/  navigateTo/followPath + Navigation capabilities
+│   │   │   └── motion/      stopUnits + motion.stop@1.0
 │   │   └── platforms/
 │   │       ├── kisorb_sau/           现有 SAU Console Provider
 │   │       └── mock_navigation/      第二平台验收 Provider
