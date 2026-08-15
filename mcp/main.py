@@ -113,21 +113,6 @@ def create_app(profile_path: str | Path | None = None) -> FastMCP:
         return await capabilities.get_fleet_snapshot()
 
     @mcp.tool
-    async def followPath(
-        unit_id: str,
-        points: list[dict[str, float]],
-        tolerance_m: float = 0.15,
-        timeout_ms: int = 30000,
-    ) -> str:
-        """Execute an ordered x/y task path on one ground unit."""
-        return await tasks.follow_path(
-            unit_id=unit_id,
-            points_json=json.dumps(points, ensure_ascii=False),
-            tolerance_m=tolerance_m,
-            timeout_ms=timeout_ms,
-        )
-
-    @mcp.tool
     async def createStaticFormation(request: StaticFormationRequest) -> str:
         """Navigate units to rotated/translated geometric targets.
 
@@ -262,11 +247,6 @@ def create_app(profile_path: str | Path | None = None) -> FastMCP:
         STATE_ONLY_CANCELLED because the base IDLs expose no clear-task RPC.
         """
         return await tasks.cancel_task(task_id=task_id)
-
-    @mcp.tool
-    async def stopUnits(unit_ids: list[str]) -> str:
-        """Request Unit_MA_Stop without cancelling tasks or disbanding formations."""
-        return await tasks.stop_units(unit_ids_csv=",".join(unit_ids))
 
     install_runtime_tools(mcp, ctx.tools)
 

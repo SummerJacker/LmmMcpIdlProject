@@ -79,6 +79,11 @@ def test_kisorb_plugin_registers_configured_units_and_shared_services() -> None:
     client = ctx.services.get("legacy.console_task_client")
     assert client._adapter is adapter
     assert adapter._manager.tool_timeout_s == 7.5
+    assert {provider.provider_id for provider in ctx.providers.list()} == {
+        "kisorb.navigation.goto2d",
+        "kisorb.navigation.follow_path2d",
+        "kisorb.motion.stop",
+    }
 
 
 @pytest.mark.asyncio
@@ -197,10 +202,44 @@ async def test_malformed_console_response_becomes_internal_runtime_error(
     assert error.value.error_code == "INTERNAL_ERROR"
 
 
-def test_default_profile_loads_navigation_and_kisorb_only() -> None:
-    _, loader = load_default_runtime()
+def test_default_profile_loads_capabilities_before_kisorb() -> None:
+    ctx, loader = load_default_runtime()
 
     assert loader.loaded_plugin_ids == (
         "capability.navigation",
+        "capability.motion",
         "platform.kisorb-sau",
     )
+    assert {provider.provider_id for provider in ctx.providers.list()} == {
+        "kisorb.navigation.goto2d",
+        "kisorb.navigation.follow_path2d",
+        "kisorb.motion.stop",
+    }
+
+
+def test_kisorb_manifest_and_default_profile_are_exact() -> None:
+    manifest_path = PLUGIN_ROOT / "platforms" / "kisorb_sau" / "plugin.json"
+
+    assert json.loads(manifest_path.read_text(encoding="utf-8")) == {
+        "api_version": 1,
+        "id": "platform.kisorb-sau",
+        "version": "1.1.0",
+        "type": "platform",
+        "entrypoint": "plugins.platforms.kisorb_sau.plugin:KisorbPlugin",
+        "requires": ["capability.navigation", "capability.motion"],
+        "provides": [
+            "provider:kisorb.navigation.goto2d",
+            "provider:kisorb.navigation.follow_path2d",
+            "provider:kisorb.motion.stop",
+            "service:legacy.robot_adapter",
+            "service:legacy.console_task_client",
+        ],
+    }
+    assert json.loads(DEFAULT_PROFILE.read_text(encoding="utf-8")) == {
+        "profile_api_version": 1,
+        "plugins": [
+            {"id": "capability.navigation", "enabled": True, "config": {}},
+            {"id": "capability.motion", "enabled": True, "config": {}},
+            {"id": "platform.kisorb-sau", "enabled": True, "config": {}},
+        ],
+    }

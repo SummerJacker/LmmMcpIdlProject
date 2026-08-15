@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from pathlib import Path
 
 import pytest
 from fastmcp import FastMCP
 
 from plugins.capabilities.navigation.plugin import NavigationCapabilityPlugin
-from plugins.capabilities.navigation.tools import build_follow_path
 from swarm_runtime.context import SwarmContext
 from swarm_runtime.fastmcp_bridge import install_runtime_tools
 from swarm_runtime.models import (
@@ -16,7 +16,6 @@ from swarm_runtime.models import (
     ExecutionResult,
     PolicyDecision,
     PolicyOutcome,
-    ToolSpec,
     UnitDescriptor,
 )
 from task_api.contracts import task_payload_has_contract_shape
@@ -88,16 +87,7 @@ def context_with_follow_provider(
     provider: CapturingFollowProvider | None = None,
 ) -> tuple[SwarmContext, CapturingFollowProvider]:
     ctx = SwarmContext()
-    ctx.capabilities.register(
-        CapabilitySpec(
-            "navigation.follow_path2d",
-            "1.0",
-            "Follow an ordered two-dimensional path",
-            "unit",
-            "followPath",
-        )
-    )
-    ctx.tools.register(ToolSpec("followPath", build_follow_path(ctx)))
+    NavigationCapabilityPlugin().setup(ctx, {})
     ctx.units.register(
         UnitDescriptor("GV1", "ugv", "test", "platform.test", ("robot_1",))
     )
@@ -113,6 +103,35 @@ def app_with_provider(
     app = FastMCP("test")
     install_runtime_tools(app, ctx.tools)
     return app, selected
+
+
+def test_navigation_plugin_registers_both_capabilities_and_tools() -> None:
+    ctx = SwarmContext()
+
+    NavigationCapabilityPlugin().setup(ctx, {})
+
+    assert ctx.capabilities.get("navigation.goto2d", "1.0") == CapabilitySpec(
+        name="navigation.goto2d",
+        version="1.0",
+        description="Navigate one mobile unit to a two-dimensional target",
+        scope="unit",
+        tool_name="navigateTo",
+    )
+    assert ctx.capabilities.get(
+        "navigation.follow_path2d", "1.0"
+    ) == CapabilitySpec(
+        name="navigation.follow_path2d",
+        version="1.0",
+        description="Follow an ordered two-dimensional path",
+        scope="unit",
+        tool_name="followPath",
+    )
+    assert {tool.name for tool in ctx.tools.list()} == {
+        "navigateTo",
+        "followPath",
+    }
+    assert ctx.tools.get("navigateTo").callable.__name__ == "navigateTo"
+    assert ctx.tools.get("followPath").callable.__name__ == "followPath"
 
 
 @pytest.mark.asyncio
@@ -305,3 +324,30 @@ async def test_follow_path_unexpected_provider_error_is_sanitized() -> None:
     assert payload["data"]["error_code"] == "INTERNAL_ERROR"
     assert task_payload_has_contract_shape(payload["data"])
     assert "do not leak follow failure" not in raw
+
+
+def test_navigation_plugin_manifest_is_exact() -> None:
+    manifest_path = (
+        Path(__file__).parents[1]
+        / "plugins"
+        / "capabilities"
+        / "navigation"
+        / "plugin.json"
+    )
+
+    assert json.loads(manifest_path.read_text(encoding="utf-8")) == {
+        "api_version": 1,
+        "id": "capability.navigation",
+        "version": "1.1.0",
+        "type": "capability",
+        "entrypoint": (
+            "plugins.capabilities.navigation.plugin:NavigationCapabilityPlugin"
+        ),
+        "requires": [],
+        "provides": [
+            "capability:navigation.goto2d@1.0",
+            "capability:navigation.follow_path2d@1.0",
+            "tool:navigateTo",
+            "tool:followPath",
+        ],
+    }

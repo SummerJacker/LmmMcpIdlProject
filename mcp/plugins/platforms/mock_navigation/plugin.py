@@ -5,12 +5,12 @@ from typing import Any, Mapping
 from swarm_runtime.context import SwarmContext
 from swarm_runtime.models import UnitDescriptor
 
-from .providers import MockGoto2DProvider
+from .providers import MockFollowPath2DProvider, MockGoto2DProvider, MockStopProvider
 
 
 class MockNavigationPlugin:
     plugin_id = "platform.mock-navigation"
-    version = "1.0.0"
+    version = "1.1.0"
 
     def setup(self, ctx: SwarmContext, config: Mapping[str, Any]) -> None:
         ctx.units.register(
@@ -24,3 +24,5 @@ class MockNavigationPlugin:
             )
         )
         ctx.providers.register(MockGoto2DProvider())
+        ctx.providers.register(MockFollowPath2DProvider())
+        ctx.providers.register(MockStopProvider())
