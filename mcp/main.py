@@ -7,18 +7,44 @@ Set MCP_EXPOSE_LOW_LEVEL_TOOLS=1 to opt into legacy/debug tools.
 from __future__ import annotations
 
 import json
+import os
+import time
+from pathlib import Path
 from typing import Literal
 from typing_extensions import TypedDict
 
 from fastmcp import FastMCP
 
-from config import DEFAULT_TOOL_TIMEOUT_S, LOG_FILE, expose_low_level_tools
-from console_client import ConsoleTaskClient
+from config import LOG_FILE, expose_low_level_tools
 from debug_tools import register_low_level_tools
-from robot_adapter import RobotAdapter
+from swarm_runtime.context import SwarmContext
+from swarm_runtime.fastmcp_bridge import install_runtime_tools
+from swarm_runtime.plugin_loader import PluginLoader
 from task_api import CapabilityService, TaskService
 from task_api.contracts import failed_formation_response, rejected_task_response
 from utils.logging_setup import setup_logging
+
+
+MCP_ROOT = Path(__file__).resolve().parent
+DEFAULT_PROFILE = MCP_ROOT / "profiles" / "default.json"
+PLUGIN_ROOT = MCP_ROOT / "plugins"
+
+
+def _with_mcp_contract_timing(raw: str, elapsed_ms: float) -> str:
+    if os.getenv("SAU_BENCHMARK_TIMINGS", "0").strip() != "1":
+        return raw
+    try:
+        payload = json.loads(raw)
+    except (TypeError, json.JSONDecodeError):
+        return raw
+    if not isinstance(payload, dict) or not isinstance(payload.get("data"), dict):
+        return raw
+    timing = payload["data"].get("_benchmark_timing")
+    if not isinstance(timing, dict):
+        timing = {}
+        payload["data"]["_benchmark_timing"] = timing
+    timing["mcp_contract_mapping_ms"] = max(0.0, float(elapsed_ms))
+    return json.dumps(payload, ensure_ascii=False)
 
 
 class Point2D(TypedDict):
@@ -46,10 +72,33 @@ class FollowFormationRequest(TypedDict):
     followers: list[FollowMember]
 
 
-def create_app() -> FastMCP:
+class FollowMotionSegment(TypedDict):
+    linear_velocity: float
+    angular_velocity: float
+    duration_ms: int
+    buffer_ms: int
+
+
+class MotionCommandRequest(TypedDict):
+    unit_id: str
+    linear_velocity: float
+    angular_velocity: float
+    duration_ms: int
+
+
+def create_runtime(profile_path: str | Path | None = None) -> SwarmContext:
+    ctx = SwarmContext()
+    loader = PluginLoader(ctx, PLUGIN_ROOT)
+    loader.load_profile(Path(profile_path) if profile_path else DEFAULT_PROFILE)
+    ctx.plugin_loader = loader
+    return ctx
+
+
+def create_app(profile_path: str | Path | None = None) -> FastMCP:
     mcp = FastMCP(name="mcp-swarm-task-server")
-    adapter = RobotAdapter(tool_timeout_s=DEFAULT_TOOL_TIMEOUT_S)
-    client = ConsoleTaskClient(adapter)
+    ctx = create_runtime(profile_path)
+    adapter = ctx.services.get("legacy.robot_adapter")
+    client = ctx.services.get("legacy.console_task_client")
     capabilities = CapabilityService(client)
     tasks = TaskService(client)
 
@@ -62,32 +111,6 @@ def create_app() -> FastMCP:
     async def getFleetSnapshot() -> str:
         """Return bound units, runtime Mock/real mode and real-RPC availability."""
         return await capabilities.get_fleet_snapshot()
-
-    @mcp.tool
-    async def navigateTo(
-        unit_id: str,
-        target: Point2D,
-        tolerance_m: float = 0.15,
-        timeout_ms: int = 30000,
-    ) -> str:
-        """Navigate one ground unit to an x/y target.
-
-        The unchanged Ground_Unit task-point RPC does not support final yaw or
-        task-specific navigation speeds, so neither is accepted here.
-        """
-        if not isinstance(target, dict) or "x" not in target or "y" not in target:
-            return rejected_task_response(
-                task_type="navigate_to",
-                error_code="SAFETY_REJECTED",
-                message="target requires x and y",
-            )
-        return await tasks.navigate_to(
-            unit_id=unit_id,
-            x=target["x"],
-            y=target["y"],
-            tolerance_m=tolerance_m,
-            timeout_ms=timeout_ms,
-        )
 
     @mcp.tool
     async def followPath(
@@ -170,6 +193,53 @@ def create_app() -> FastMCP:
         return await tasks.move_follow_formation(x=target["x"], y=target["y"])
 
     @mcp.tool
+    async def moveFollowFormationSequence(segments: list[FollowMotionSegment]) -> str:
+        """Execute ordered open-loop velocity segments on the current Leader."""
+        if not isinstance(segments, list):
+            return rejected_task_response(
+                task_type="move_follow_formation_sequence",
+                error_code="SAFETY_REJECTED",
+                message="segments must be an array",
+            )
+        return await tasks.move_follow_formation_sequence(segments=segments)
+
+    @mcp.tool
+    async def executeMotion(request: MotionCommandRequest) -> str:
+        """Execute one typed open-loop motion command on a bound ground unit."""
+        contract_started_ns = time.perf_counter_ns()
+        if not isinstance(request, dict):
+            raw = rejected_task_response(
+                task_type="execute_motion",
+                error_code="SAFETY_REJECTED",
+                message="request must be an object",
+            )
+            return _with_mcp_contract_timing(
+                raw, (time.perf_counter_ns() - contract_started_ns) / 1_000_000.0
+            )
+        required = {
+            "unit_id", "linear_velocity", "angular_velocity", "duration_ms"
+        }
+        if not required <= set(request):
+            raw = rejected_task_response(
+                task_type="execute_motion",
+                error_code="SAFETY_REJECTED",
+                message="request requires unit_id, velocities and duration_ms",
+            )
+            return _with_mcp_contract_timing(
+                raw, (time.perf_counter_ns() - contract_started_ns) / 1_000_000.0
+            )
+        contract_ms = (
+            time.perf_counter_ns() - contract_started_ns
+        ) / 1_000_000.0
+        raw = await tasks.execute_motion(
+            unit_id=str(request["unit_id"]),
+            linear_velocity=request["linear_velocity"],
+            angular_velocity=request["angular_velocity"],
+            duration_ms=request["duration_ms"],
+        )
+        return _with_mcp_contract_timing(raw, contract_ms)
+
+    @mcp.tool
     async def getFormationStatus() -> str:
         """Return the Console-owned persistent follow-formation state."""
         return await tasks.get_formation_status()
@@ -197,6 +267,8 @@ def create_app() -> FastMCP:
     async def stopUnits(unit_ids: list[str]) -> str:
         """Request Unit_MA_Stop without cancelling tasks or disbanding formations."""
         return await tasks.stop_units(unit_ids_csv=",".join(unit_ids))
+
+    install_runtime_tools(mcp, ctx.tools)
 
     if expose_low_level_tools():
         register_low_level_tools(mcp, adapter)
