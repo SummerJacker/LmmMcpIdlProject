@@ -7,8 +7,9 @@ from .errors import (
     PolicyRejectedError,
     ProviderNotFoundError,
     RuntimeExecutionError,
+    UnitNotFoundError,
 )
-from .models import ExecutionRequest, ExecutionResult, PolicyDecision
+from .models import ExecutionRequest, ExecutionResult, PolicyDecision, UnitDescriptor
 
 if TYPE_CHECKING:
     from .context import SwarmContext
@@ -25,7 +26,10 @@ class CapabilityExecutor:
         except KeyError as exc:
             raise ProviderNotFoundError(request.capability, request.version) from exc
 
-        units = tuple(self._ctx.units.resolve(unit_id) for unit_id in request.unit_ids)
+        resolved_units: list[UnitDescriptor] = []
+        for unit_id in request.unit_ids:
+            resolved_units.append(await self._resolve_unit(unit_id))
+        units = tuple(resolved_units)
         provider = self._ctx.providers.resolve(
             request.capability, request.version, units
         )
@@ -52,3 +56,9 @@ class CapabilityExecutor:
                 extra={"request_id": request.request_id},
             )
             raise RuntimeExecutionError("capability execution failed") from exc
+
+    async def _resolve_unit(self, unit_id: str) -> UnitDescriptor:
+        try:
+            return self._ctx.units.resolve(unit_id)
+        except UnitNotFoundError:
+            return await self._ctx.unit_resolvers.resolve(unit_id)

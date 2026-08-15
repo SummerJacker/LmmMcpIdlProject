@@ -10,6 +10,14 @@ from .models import (
 )
 
 
+class UnitResolver(Protocol):
+    resolver_id: str
+    priority: int
+
+    async def resolve(self, unit_id: str) -> UnitDescriptor | None:
+        ...
+
+
 class CapabilityProvider(Protocol):
     provider_id: str
     capability: str
