@@ -13,6 +13,7 @@ from .providers import (
     KisorbGoto2DProvider,
     KisorbStopProvider,
 )
+from .unit_resolver import KisorbLiveUnitResolver
 
 
 class KisorbPlugin:
@@ -28,6 +29,7 @@ class KisorbPlugin:
         client = ConsoleTaskClient(adapter)
         ctx.services.register("legacy.robot_adapter", adapter)
         ctx.services.register("legacy.console_task_client", client)
+        ctx.unit_resolvers.register(KisorbLiveUnitResolver(adapter))
 
         for robot in load_robot_configs():
             ctx.units.register(

@@ -13,6 +13,8 @@ from plugins.platforms.kisorb_sau.providers import (
     KisorbGoto2DProvider,
     KisorbStopProvider,
 )
+from plugins.platforms.kisorb_sau.unit_resolver import KisorbLiveUnitResolver
+from robot_adapter import RobotAdapter
 from swarm_runtime.context import SwarmContext
 from swarm_runtime.errors import RuntimeExecutionError
 from swarm_runtime.models import ExecutionRequest, UnitDescriptor
@@ -46,6 +48,21 @@ def complete_running_task_json(task_type: str = "navigate_to") -> str:
     )
 
 
+def live_directory_json(*unit_ids: str) -> str:
+    return json.dumps(
+        {
+            "success": True,
+            "message": "ok",
+            "data": {
+                "units": [
+                    {"unit_id": unit_id, "online": True, "mock": False}
+                    for unit_id in unit_ids
+                ]
+            },
+        }
+    )
+
+
 def request_for(unit_id: str) -> ExecutionRequest:
     return ExecutionRequest(
         request_id="req-kisorb",
@@ -68,6 +85,59 @@ def load_default_runtime() -> tuple[SwarmContext, PluginLoader]:
     return ctx, loader
 
 
+@pytest.mark.asyncio
+async def test_live_unit_resolver_returns_canonical_console_unit() -> None:
+    adapter = AsyncMock(spec=RobotAdapter)
+    adapter.list_robots.return_value = live_directory_json("GV_DYNAMIC")
+
+    resolved = await KisorbLiveUnitResolver(adapter).resolve(" gv_dynamic ")
+
+    assert resolved == UnitDescriptor(
+        unit_id="GV_DYNAMIC",
+        kind="ugv",
+        platform="kisorb-sau",
+        provider_plugin_id="platform.kisorb-sau",
+        metadata={"source": "console-live"},
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("raw_directory", "requested_unit"),
+    [
+        ("not-json", "GV_DYNAMIC"),
+        (json.dumps({"success": False, "data": {"units": []}}), "GV_DYNAMIC"),
+        (json.dumps({"success": True}), "GV_DYNAMIC"),
+        (json.dumps({"success": True, "data": {}}), "GV_DYNAMIC"),
+        (
+            json.dumps(
+                {
+                    "success": True,
+                    "data": {
+                        "units": [
+                            None,
+                            "GV_DYNAMIC",
+                            {"unit_id": None},
+                            {"unit_id": "   "},
+                        ]
+                    },
+                }
+            ),
+            "GV_DYNAMIC",
+        ),
+        (live_directory_json("GV_OTHER"), "GV_DYNAMIC"),
+    ],
+)
+async def test_live_unit_resolver_abstains_from_invalid_or_unmatched_directory(
+    raw_directory: str,
+    requested_unit: str,
+) -> None:
+    adapter = AsyncMock(spec=RobotAdapter)
+    adapter.list_robots.return_value = raw_directory
+
+    assert await KisorbLiveUnitResolver(adapter).resolve(requested_unit) is None
+
+
 def test_kisorb_plugin_registers_configured_units_and_shared_services() -> None:
     ctx = SwarmContext()
 
@@ -79,6 +149,11 @@ def test_kisorb_plugin_registers_configured_units_and_shared_services() -> None:
     client = ctx.services.get("legacy.console_task_client")
     assert client._adapter is adapter
     assert adapter._manager.tool_timeout_s == 7.5
+    resolvers = ctx.unit_resolvers.list()
+    assert len(resolvers) == 1
+    assert resolvers[0].resolver_id == "kisorb.live"
+    assert resolvers[0].priority == 100
+    assert resolvers[0]._adapter is adapter
     assert {provider.provider_id for provider in ctx.providers.list()} == {
         "kisorb.navigation.goto2d",
         "kisorb.navigation.follow_path2d",
@@ -231,6 +306,7 @@ def test_kisorb_manifest_and_default_profile_are_exact() -> None:
             "provider:kisorb.navigation.goto2d",
             "provider:kisorb.navigation.follow_path2d",
             "provider:kisorb.motion.stop",
+            "unit_resolver:kisorb.live",
             "service:legacy.robot_adapter",
             "service:legacy.console_task_client",
         ],

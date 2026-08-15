@@ -61,6 +61,15 @@ def test_only_kisorb_platform_package_imports_legacy_transport_modules() -> None
     assert {"robot_adapter", "console_client"} <= imported
 
 
+def test_live_unit_resolver_keeps_robot_adapter_out_of_runtime_core() -> None:
+    kisorb_resolver = KISORB_ROOT / "unit_resolver.py"
+    runtime_resolver = RUNTIME_ROOT / "registry" / "unit_resolver.py"
+
+    assert kisorb_resolver.is_file()
+    assert "robot_adapter" in imported_modules(kisorb_resolver)
+    assert "robot_adapter" not in imported_modules(runtime_resolver)
+
+
 def test_default_profile_excludes_mock_platform() -> None:
     profile = json.loads(
         (MCP_ROOT / "profiles" / "default.json").read_text(encoding="utf-8")
