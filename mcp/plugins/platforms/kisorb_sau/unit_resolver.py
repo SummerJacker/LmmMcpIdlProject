@@ -44,9 +44,15 @@ class KisorbLiveUnitResolver:
             if not canonical_unit_id:
                 continue
             if canonical_unit_id.casefold() == requested_key:
+                if canonical_unit_id.startswith("G"):
+                    kind = "ugv"
+                elif canonical_unit_id.startswith("A"):
+                    kind = "uav"
+                else:
+                    continue
                 return UnitDescriptor(
                     unit_id=canonical_unit_id,
-                    kind="ugv",
+                    kind=kind,
                     platform="kisorb-sau",
                     provider_plugin_id="platform.kisorb-sau",
                     metadata={"source": "console-live"},

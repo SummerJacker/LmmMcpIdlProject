@@ -16,7 +16,11 @@ class KisorbGoto2DProvider:
         self._client = client
 
     def supports(self, units: tuple[UnitDescriptor, ...]) -> bool:
-        return len(units) == 1 and units[0].platform == "kisorb-sau"
+        return (
+            len(units) == 1
+            and units[0].platform == "kisorb-sau"
+            and units[0].kind == "ugv"
+        )
 
     async def execute(
         self,
@@ -44,7 +48,11 @@ class KisorbFollowPath2DProvider:
         self._client = client
 
     def supports(self, units: tuple[UnitDescriptor, ...]) -> bool:
-        return len(units) == 1 and units[0].platform == "kisorb-sau"
+        return (
+            len(units) == 1
+            and units[0].platform == "kisorb-sau"
+            and units[0].kind == "ugv"
+        )
 
     async def execute(
         self,

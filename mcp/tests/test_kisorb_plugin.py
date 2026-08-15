@@ -54,8 +54,9 @@ def live_directory_json(*unit_ids: str) -> str:
             "success": True,
             "message": "ok",
             "data": {
+                "rpc_enabled": False,
                 "units": [
-                    {"unit_id": unit_id, "online": True, "mock": False}
+                    {"unit_id": unit_id, "mock": False}
                     for unit_id in unit_ids
                 ]
             },
@@ -86,15 +87,24 @@ def load_default_runtime() -> tuple[SwarmContext, PluginLoader]:
 
 
 @pytest.mark.asyncio
-async def test_live_unit_resolver_returns_canonical_console_unit() -> None:
+@pytest.mark.parametrize(
+    ("canonical_unit_id", "kind"),
+    [("GV_DYNAMIC", "ugv"), ("AV_DYNAMIC", "uav")],
+)
+async def test_live_unit_resolver_returns_canonical_typed_console_unit(
+    canonical_unit_id: str,
+    kind: str,
+) -> None:
     adapter = AsyncMock(spec=RobotAdapter)
-    adapter.list_robots.return_value = live_directory_json("GV_DYNAMIC")
+    adapter.list_robots.return_value = live_directory_json(canonical_unit_id)
 
-    resolved = await KisorbLiveUnitResolver(adapter).resolve(" gv_dynamic ")
+    resolved = await KisorbLiveUnitResolver(adapter).resolve(
+        f" {canonical_unit_id.casefold()} "
+    )
 
     assert resolved == UnitDescriptor(
-        unit_id="GV_DYNAMIC",
-        kind="ugv",
+        unit_id=canonical_unit_id,
+        kind=kind,
         platform="kisorb-sau",
         provider_plugin_id="platform.kisorb-sau",
         metadata={"source": "console-live"},
@@ -144,6 +154,8 @@ async def test_live_unit_resolver_propagates_transport_type_error() -> None:
             "GV_DYNAMIC",
         ),
         (live_directory_json("GV_OTHER"), "GV_DYNAMIC"),
+        (live_directory_json("XV_DYNAMIC"), "xv_dynamic"),
+        (live_directory_json("gv_lowercase"), "GV_LOWERCASE"),
     ],
 )
 async def test_live_unit_resolver_abstains_from_invalid_or_unmatched_directory(
@@ -202,9 +214,13 @@ async def test_kisorb_provider_forwards_canonical_unit_and_arguments(
 def test_kisorb_provider_supports_only_one_kisorb_unit() -> None:
     provider = KisorbGoto2DProvider(AsyncMock())
     kisorb = UnitDescriptor("GV1", "ugv", "kisorb-sau", "platform.kisorb-sau")
+    kisorb_uav = UnitDescriptor(
+        "AV1", "uav", "kisorb-sau", "platform.kisorb-sau"
+    )
     mock = UnitDescriptor("MOCK1", "ugv", "mock-navigation", "platform.mock")
 
     assert provider.supports((kisorb,)) is True
+    assert provider.supports((kisorb_uav,)) is False
     assert provider.supports((mock,)) is False
     assert provider.supports((kisorb, kisorb)) is False
 
@@ -267,12 +283,18 @@ def test_follow_path_and_stop_provider_support_semantics() -> None:
     follow = KisorbFollowPath2DProvider(client)
     stop = KisorbStopProvider(client)
     kisorb = UnitDescriptor("GV1", "ugv", "kisorb-sau", "platform.kisorb-sau")
+    kisorb_uav = UnitDescriptor(
+        "AV1", "uav", "kisorb-sau", "platform.kisorb-sau"
+    )
     mock = UnitDescriptor("MOCK1", "ugv", "mock-navigation", "platform.mock")
 
     assert follow.supports((kisorb,)) is True
+    assert follow.supports((kisorb_uav,)) is False
     assert follow.supports((kisorb, kisorb)) is False
     assert follow.supports((mock,)) is False
     assert stop.supports((kisorb,)) is True
+    assert stop.supports((kisorb_uav,)) is True
+    assert stop.supports((kisorb, kisorb_uav)) is True
     assert stop.supports((kisorb, kisorb)) is True
     assert stop.supports(()) is False
     assert stop.supports((kisorb, mock)) is False

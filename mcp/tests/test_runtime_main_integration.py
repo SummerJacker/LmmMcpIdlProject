@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -89,8 +89,9 @@ def live_directory_json(*unit_ids: str) -> str:
             "success": True,
             "message": "ok",
             "data": {
+                "rpc_enabled": False,
                 "units": [
-                    {"unit_id": unit_id, "online": True, "mock": False}
+                    {"unit_id": unit_id, "mock": False}
                     for unit_id in unit_ids
                 ]
             },
@@ -208,7 +209,105 @@ async def test_production_tools_resolve_dynamic_console_units(
         timeout_ms=30000,
     )
     stop_call.assert_awaited_once_with(unit_ids_csv="GV_DYNAMIC")
-    assert directory_call.await_count == 4
+    assert directory_call.await_count == 3
+
+
+@pytest.mark.asyncio
+async def test_dynamic_uav_rejects_navigation_but_dispatches_stop(
+    monkeypatch,
+) -> None:
+    directory_call = AsyncMock(return_value=live_directory_json("AV_DYNAMIC"))
+    navigate_call = AsyncMock(return_value=complete_running_task_json())
+    stop_call = AsyncMock(return_value=complete_running_task_json("stop_units"))
+    monkeypatch.setattr(RobotAdapter, "list_robots", directory_call)
+    monkeypatch.setattr(ConsoleTaskClient, "navigate_to", navigate_call)
+    monkeypatch.setattr(ConsoleTaskClient, "stop_units", stop_call)
+    app = create_app()
+
+    navigate = await app.call_tool(
+        "navigateTo",
+        {"unit_id": "av_dynamic", "target": {"x": 3.0, "y": 5.0}},
+    )
+    stop = await app.call_tool(
+        "stopUnits",
+        {"unit_ids": ["av_dynamic"]},
+    )
+
+    navigate_payload = json.loads(navigate.content[0].text)
+    stop_payload = json.loads(stop.content[0].text)
+    assert navigate_payload["success"] is False
+    assert navigate_payload["error_code"] == "UNSUPPORTED_CAPABILITY"
+    assert task_payload_has_contract_shape(navigate_payload["data"])
+    assert navigate_payload["data"]["task_type"] == "navigate_to"
+    assert navigate_payload["data"]["state"] == "REJECTED"
+    assert stop_payload["success"] is True
+    navigate_call.assert_not_awaited()
+    stop_call.assert_awaited_once_with(unit_ids_csv="AV_DYNAMIC")
+    assert directory_call.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_duplicate_dynamic_stop_ids_use_one_directory_lookup(
+    monkeypatch,
+) -> None:
+    directory_call = AsyncMock(
+        side_effect=[
+            live_directory_json("GV_DYNAMIC"),
+            AssertionError("duplicate logical unit was resolved twice"),
+        ]
+    )
+    stop_call = AsyncMock(return_value=complete_running_task_json("stop_units"))
+    monkeypatch.setattr(RobotAdapter, "list_robots", directory_call)
+    monkeypatch.setattr(ConsoleTaskClient, "stop_units", stop_call)
+
+    result = await create_app().call_tool(
+        "stopUnits",
+        {"unit_ids": [" gv_dynamic ", "GV_DYNAMIC"]},
+    )
+
+    assert json.loads(result.content[0].text)["success"] is True
+    directory_call.assert_awaited_once()
+    stop_call.assert_awaited_once_with(unit_ids_csv="GV_DYNAMIC")
+
+
+@pytest.mark.asyncio
+async def test_dynamic_navigation_uses_shared_adapter_http_stack(
+    monkeypatch,
+) -> None:
+    def console_response(*, method, url, json_body, timeout):
+        del json_body, timeout
+        if method == "GET" and url.endswith("/api/robot/list"):
+            return 200, json.loads(live_directory_json("GV_HTTP")), ""
+        if method == "POST" and url.endswith("/api/task/navigate"):
+            return 200, json.loads(complete_running_task_json()), ""
+        raise AssertionError(f"unexpected Console request: {method} {url}")
+
+    request_call = Mock(side_effect=console_response)
+    monkeypatch.setattr("robot_adapter.http_request", request_call)
+
+    result = await create_app().call_tool(
+        "navigateTo",
+        {"unit_id": "gv_http", "target": {"x": 3.0, "y": 5.0}},
+    )
+
+    assert json.loads(result.content[0].text)["success"] is True
+    requests = request_call.call_args_list
+    assert len(requests) >= 2
+    assert all(
+        request.kwargs["method"] == "GET"
+        and request.kwargs["url"].endswith("/api/robot/list")
+        for request in requests[:-1]
+    )
+    task_request = requests[-1]
+    assert task_request.kwargs["method"] == "POST"
+    assert task_request.kwargs["url"].endswith("/api/task/navigate")
+    assert task_request.kwargs["json_body"] == {
+        "unit_id": "GV_HTTP",
+        "x": 3.0,
+        "y": 5.0,
+        "tolerance_m": 0.15,
+        "timeout_ms": 30000,
+    }
 
 
 @pytest.mark.asyncio
