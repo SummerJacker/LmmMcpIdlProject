@@ -68,6 +68,7 @@ async def test_mock_profile_executes_same_capability_without_core_changes() -> N
     assert result.data["task_type"] == "navigate_to"
     assert result.data["state"] == "COMPLETED"
     assert result.data["unit_results"][0]["unit_id"] == "MOCK1"
+    assert result.data["unit_results"][0]["progress_pct"] == 100.0
     assert loader.loaded_plugin_ids == (
         "capability.navigation",
         "platform.kisorb-sau",
@@ -106,6 +107,7 @@ async def test_mock_follow_path_provider_returns_completed_task() -> None:
         {
             "unit_id": "MOCK1",
             "state": "COMPLETED",
+            "progress_pct": 100.0,
             "message": "mock path completed",
             "error_code": "",
             "target": {"points": points},
@@ -138,6 +140,7 @@ async def test_mock_stop_provider_deduplicates_completed_unit_results() -> None:
         {
             "unit_id": "MOCK1",
             "state": "COMPLETED",
+            "progress_pct": 100.0,
             "message": "mock units stopped",
             "error_code": "",
         }

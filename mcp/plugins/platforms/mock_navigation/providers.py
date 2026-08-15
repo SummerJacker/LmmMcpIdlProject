@@ -20,6 +20,7 @@ def _completed_result(
         unit_result: dict[str, Any] = {
             "unit_id": unit_id,
             "state": "COMPLETED",
+            "progress_pct": 100.0,
             "message": message,
             "error_code": "",
         }
