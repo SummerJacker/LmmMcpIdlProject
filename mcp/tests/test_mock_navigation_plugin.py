@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 
 import pytest
@@ -71,9 +72,18 @@ async def test_mock_profile_executes_same_capability_without_core_changes() -> N
     assert result.data["unit_results"][0]["progress_pct"] == 100.0
     assert loader.loaded_plugin_ids == (
         "capability.navigation",
+        "capability.motion",
         "platform.kisorb-sau",
         "platform.mock-navigation",
     )
+    assert {provider.provider_id for provider in ctx.providers.list()} == {
+        "kisorb.navigation.goto2d",
+        "kisorb.navigation.follow_path2d",
+        "kisorb.motion.stop",
+        "mock.navigation.goto2d",
+        "mock.navigation.follow_path2d",
+        "mock.motion.stop",
+    }
     assert file_hashes() == before
 
 
@@ -171,3 +181,40 @@ def test_default_profile_does_not_register_mock_unit() -> None:
 
     with pytest.raises(UnitNotFoundError):
         ctx.units.resolve("MOCK1")
+
+
+def test_mock_manifest_and_profile_are_exact() -> None:
+    manifest_path = (
+        PLUGIN_ROOT / "platforms" / "mock_navigation" / "plugin.json"
+    )
+    profile_path = PROFILES / "mock-navigation.json"
+
+    assert json.loads(manifest_path.read_text(encoding="utf-8")) == {
+        "api_version": 1,
+        "id": "platform.mock-navigation",
+        "version": "1.1.0",
+        "type": "platform",
+        "entrypoint": (
+            "plugins.platforms.mock_navigation.plugin:MockNavigationPlugin"
+        ),
+        "requires": ["capability.navigation", "capability.motion"],
+        "provides": [
+            "provider:mock.navigation.goto2d",
+            "provider:mock.navigation.follow_path2d",
+            "provider:mock.motion.stop",
+            "unit:MOCK1",
+        ],
+    }
+    assert json.loads(profile_path.read_text(encoding="utf-8")) == {
+        "profile_api_version": 1,
+        "plugins": [
+            {"id": "capability.navigation", "enabled": True, "config": {}},
+            {"id": "capability.motion", "enabled": True, "config": {}},
+            {"id": "platform.kisorb-sau", "enabled": True, "config": {}},
+            {
+                "id": "platform.mock-navigation",
+                "enabled": True,
+                "config": {},
+            },
+        ],
+    }

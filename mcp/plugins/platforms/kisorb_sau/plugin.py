@@ -8,12 +8,16 @@ from robot_adapter import RobotAdapter
 from swarm_runtime.context import SwarmContext
 from swarm_runtime.models import UnitDescriptor
 
-from .providers import KisorbGoto2DProvider
+from .providers import (
+    KisorbFollowPath2DProvider,
+    KisorbGoto2DProvider,
+    KisorbStopProvider,
+)
 
 
 class KisorbPlugin:
     plugin_id = "platform.kisorb-sau"
-    version = "1.0.0"
+    version = "1.1.0"
 
     def setup(self, ctx: SwarmContext, config: Mapping[str, Any]) -> None:
         tool_timeout_s = float(config.get("tool_timeout_s", DEFAULT_TOOL_TIMEOUT_S))
@@ -41,3 +45,5 @@ class KisorbPlugin:
             )
 
         ctx.providers.register(KisorbGoto2DProvider(client))
+        ctx.providers.register(KisorbFollowPath2DProvider(client))
+        ctx.providers.register(KisorbStopProvider(client))
