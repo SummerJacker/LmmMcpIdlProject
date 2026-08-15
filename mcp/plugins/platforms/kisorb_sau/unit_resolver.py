@@ -18,12 +18,13 @@ class KisorbLiveUnitResolver:
         if not requested_unit_id:
             return None
 
+        raw_directory = await self._adapter.list_robots()
         try:
-            payload = json.loads(await self._adapter.list_robots())
+            payload = json.loads(raw_directory)
         except (TypeError, json.JSONDecodeError):
             return None
 
-        if not isinstance(payload, dict) or not payload.get("success"):
+        if not isinstance(payload, dict) or payload.get("success") is not True:
             return None
         data = payload.get("data")
         if not isinstance(data, dict):
