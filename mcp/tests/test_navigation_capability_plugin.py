@@ -232,21 +232,23 @@ async def test_follow_path_preserves_exact_fastmcp_schema() -> None:
 
     tool = await app.get_tool("followPath")
 
-    assert tool.parameters["type"] == "object"
-    assert tool.parameters["additionalProperties"] is False
-    assert tool.parameters["properties"] == {
-        "unit_id": {"type": "string"},
-        "points": {
-            "items": {
-                "additionalProperties": {"type": "number"},
-                "type": "object",
+    assert tool.parameters == {
+        "additionalProperties": False,
+        "properties": {
+            "unit_id": {"type": "string"},
+            "points": {
+                "items": {
+                    "additionalProperties": {"type": "number"},
+                    "type": "object",
+                },
+                "type": "array",
             },
-            "type": "array",
+            "tolerance_m": {"default": 0.15, "type": "number"},
+            "timeout_ms": {"default": 30000, "type": "integer"},
         },
-        "tolerance_m": {"default": 0.15, "type": "number"},
-        "timeout_ms": {"default": 30000, "type": "integer"},
+        "required": ["unit_id", "points"],
+        "type": "object",
     }
-    assert tool.parameters["required"] == ["unit_id", "points"]
 
 
 @pytest.mark.asyncio
