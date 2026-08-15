@@ -2,8 +2,8 @@
 
 Profile 加载的 Swarm Runtime 现在拥有 3 个带类型的生产工具：`navigateTo`、
 `followPath` 和 `stopUnits`。它们在执行前解析带版本的 Capability、规范 Unit、
-Policy 与平台 Provider；其余 11 个生产工具继续通过共享的旧 TaskService
-接缝执行。SAU Console 与 IDL 均未改动。
+Policy 与平台 Provider；其余 11 个生产工具继续通过旧 `task_api` 服务接缝执行，
+其中 2 个经 CapabilityService、9 个经 TaskService。SAU Console 与 IDL 均未改动。
 
 ## 1. 模块分层
 - L1 交互层：deepseek_mcp_client.py（Agent Loop + DeepSeek LLM，支持 deepseek-v4-flash / deepseek-v4-pro）
@@ -45,7 +45,8 @@ pytest tests/test_mock_navigation_plugin.py tests/test_runtime_main_integration.
        → fastmcp call → main.py (L2)
        → navigateTo/followPath/stopUnits:
          Tool Registry → CapabilityExecutor → KIS-ORB Provider → ConsoleTaskClient
-       → 其余 11 个工具: TaskService → ConsoleTaskClient
+       → 其余 11 个工具: 2 个经 CapabilityService、9 个经 TaskService
+                         → ConsoleTaskClient
        → robot_adapter（安全预检）+ qt_http_client (L3)
        → HTTP :9001 → SAU Console TaskManager + SafetyValidator (L5/L6)
        → Mock 模拟器 或 IDL/ILU 桩 → 设备
@@ -168,7 +169,7 @@ KIS-ORB Stop 由该平台 Provider 负责，可在同一平台内接受 `ugv`、
 | | `stopUnits` | 只发送停止动作，不取消任务或解散编队 | Swarm Runtime（Motion） |
 
 以上固定生产面共 14 个工具：3 个由 Swarm Runtime 拥有，11 个保留在 Legacy
-TaskService 接缝。
+`task_api` 服务接缝（2 个经 CapabilityService、9 个经 TaskService）。
 
 低层和旧 snake_case 工具仅在 `MCP_EXPOSE_LOW_LEVEL_TOOLS=1` 时用于调试，默认不注册到生产 MCP 工具列表。
 
