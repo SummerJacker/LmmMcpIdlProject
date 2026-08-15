@@ -70,6 +70,13 @@ def static_fastmcp_tool_names(path: Path, parent_name: str) -> set[str]:
         if child is not parent
         and isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef))
     }
+    decorator_call_ids = {
+        id(decorator)
+        for child in ast.walk(parent)
+        if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef))
+        for decorator in child.decorator_list
+        if isinstance(decorator, ast.Call)
+    }
     names: set[str] = set()
     for child in ast.walk(parent):
         if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -101,11 +108,52 @@ def static_fastmcp_tool_names(path: Path, parent_name: str) -> set[str]:
                             _literal_tool_name(explicit_name, "@mcp.tool")
                         )
                 elif decorator.args:
-                    names.add(
-                        _literal_tool_name(decorator.args[0], "@mcp.tool")
-                    )
+                    if len(decorator.args) != 1:
+                        raise AssertionError(
+                            "unresolvable @mcp.tool registration"
+                        )
+                    positional_name = decorator.args[0]
+                    if (
+                        isinstance(positional_name, ast.Constant)
+                        and positional_name.value is None
+                    ):
+                        names.add(child.name)
+                    else:
+                        names.add(
+                            _literal_tool_name(
+                                positional_name,
+                                "@mcp.tool",
+                            )
+                        )
                 else:
                     names.add(child.name)
+
+        if (
+            isinstance(child, ast.Call)
+            and _is_mcp_member(child.func, "tool")
+            and id(child) not in decorator_call_ids
+        ):
+            explicit_name = next(
+                (
+                    keyword.value
+                    for keyword in child.keywords
+                    if keyword.arg == "name"
+                ),
+                None,
+            )
+            if not (
+                len(child.args) == 1
+                and isinstance(child.args[0], ast.Name)
+                and child.args[0].id in local_function_names
+            ):
+                raise AssertionError("unresolvable mcp.tool registration")
+            if explicit_name is None or (
+                isinstance(explicit_name, ast.Constant)
+                and explicit_name.value is None
+            ):
+                names.add(child.args[0].id)
+            else:
+                names.add(_literal_tool_name(explicit_name, "mcp.tool"))
 
         if not (
             isinstance(child, ast.Call)
@@ -159,6 +207,57 @@ def create_app():
         "directTool",
         "followPath",
     }
+
+
+def test_static_fastmcp_tool_names_uses_function_name_for_none_decorator(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "sample.py"
+    source.write_text(
+        """
+def create_app():
+    @mcp.tool(None)
+    async def stopUnits():
+        pass
+""",
+        encoding="utf-8",
+    )
+
+    assert static_fastmcp_tool_names(source, "create_app") == {"stopUnits"}
+
+
+def test_static_fastmcp_tool_names_detects_direct_tool_call(tmp_path: Path) -> None:
+    source = tmp_path / "sample.py"
+    source.write_text(
+        """
+def create_app():
+    async def stopUnits():
+        pass
+
+    if enabled:
+        mcp.tool(stopUnits)
+""",
+        encoding="utf-8",
+    )
+
+    assert static_fastmcp_tool_names(source, "create_app") == {"stopUnits"}
+
+
+def test_static_fastmcp_tool_names_rejects_unresolvable_direct_tool_call(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "sample.py"
+    source.write_text(
+        """
+def create_app():
+    dynamic_tool = build_tool()
+    mcp.tool(dynamic_tool)
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(AssertionError, match="unresolvable mcp.tool"):
+        static_fastmcp_tool_names(source, "create_app")
 
 
 def test_static_fastmcp_tool_names_detects_direct_add_tool(tmp_path: Path) -> None:
