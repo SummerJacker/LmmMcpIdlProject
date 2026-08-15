@@ -68,8 +68,9 @@ Plugin 注册 Unit、Provider 和平台专属的动态 Unit Resolver。
 且动态结果不写回静态 Registry。
 
 `profiles/default.json` 启用 Navigation、Motion 和 KIS-ORB SAU 平台。
-`profiles/mock-navigation.json` 额外启用内存 Mock 平台，用于架构验收，不进入
-生产发现。KIS-ORB 与 Mock 平台均提供 GoTo2D、FollowPath2D 和 Stop Provider。
+`profiles/mock-navigation.json` 额外启用内存 Mock 平台，用于架构验收。Loader
+仍会发现该插件并解析 manifest，但默认生产 Profile 不启用、也不加载它。
+KIS-ORB 与 Mock 平台均提供 GoTo2D、FollowPath2D 和 Stop Provider。
 当前一个多 Unit 请求必须由同一个 Provider 完整支持，因此混合 KIS-ORB/Mock
 的 `stopUnits` 会被确定性拒绝；跨平台 fan-out 与聚合结果组合留待后续阶段。
 
