@@ -1,0 +1,12 @@
+{
+  "api_version": 1,
+  "id": "capability.navigation",
+  "version": "1.0.0",
+  "type": "capability",
+  "entrypoint": "plugins.capabilities.navigation.plugin:NavigationCapabilityPlugin",
+  "requires": [],
+  "provides": [
+    "capability:navigation.goto2d@1.0",
+    "tool:navigateTo"
+  ]
+}
