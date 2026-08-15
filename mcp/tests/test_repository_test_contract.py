@@ -133,132 +133,36 @@ def _has_module_level_skip(guard):
     )
 
 
-def _active_workflow_lines(workflow):
-    return [
-        (len(line) - len(line.lstrip(" ")), line.strip())
-        for line in workflow.splitlines()
-        if line.strip() and not line.lstrip().startswith("#")
-    ]
+EXPECTED_WORKFLOW = """name: Python tests
 
+on:
+  push:
+  pull_request:
 
-def _block_after(lines, index):
-    indent = lines[index][0]
-    end = next(
-        (
-            candidate
-            for candidate, (child_indent, _) in enumerate(lines[index + 1 :], index + 1)
-            if child_indent <= indent
-        ),
-        len(lines),
-    )
-    return lines[index + 1 : end]
+permissions:
+  contents: read
 
-
-def _top_level_block(lines, header):
-    index = next(
-        (index for index, (indent, text) in enumerate(lines) if indent == 0 and text == header),
-        None,
-    )
-    assert index is not None
-    return _block_after(lines, index)
-
-
-def _direct_indent(lines):
-    assert lines
-    return min(indent for indent, _ in lines)
-
-
-def _direct_texts(lines):
-    indent = _direct_indent(lines)
-    return [text for child_indent, text in lines if child_indent == indent]
-
-
-def _direct_block(lines, header):
-    indent = _direct_indent(lines)
-    index = next(
-        (
-            index
-            for index, (child_indent, text) in enumerate(lines)
-            if child_indent == indent and text == header
-        ),
-        None,
-    )
-    assert index is not None
-    return _block_after(lines, index)
-
-
-def _offline_tests_block(lines):
-    return _direct_block(_top_level_block(lines, "jobs:"), "offline-tests:")
-
-
-def _step_blocks(steps):
-    step_indent = _direct_indent(steps)
-    starts = [
-        index
-        for index, (indent, text) in enumerate(steps)
-        if indent == step_indent and text.startswith("- ")
-    ]
-    assert starts
-    return [
-        steps[start : next_start]
-        for start, next_start in zip(starts, [*starts[1:], len(steps)])
-    ]
-
-
-def _is_action_step(step, action):
-    step_indent, first_text = step[0]
-    return first_text == f"- uses: {action}" or any(
-        indent == step_indent + 2 and text == f"uses: {action}" for indent, text in step[1:]
-    )
-
-
-def _has_run_step(step, command):
-    step_indent, first_text = step[0]
-    return first_text == f"- run: {command}" or any(
-        indent == step_indent + 2 and text == f"run: {command}" for indent, text in step[1:]
-    )
-
-
-def _setup_with_values(step):
-    return _direct_texts(_direct_block(step[1:], "with:"))
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: mcp/requirements.txt
+      - run: python -m pip install -r requirements.txt
+      - run: python -m compileall -q swarm_runtime plugins main.py task_api console_client robot_adapter.py deepseek_mcp_client.py
+      - run: python -m pytest tests -q
+"""
 
 
 def _assert_offline_workflow(workflow):
-    lines = _active_workflow_lines(workflow)
-    active_text = "\n".join(text for _, text in lines)
-    assert not any(text.startswith("services:") for _, text in lines)
-    assert "${{" not in active_text or "secrets." not in active_text.lower()
-    assert "RUN_LIVE_CONSOLE_TESTS" not in active_text
-    assert "manual_tests" not in active_text
-
-    assert {"push:", "pull_request:"} <= set(_direct_texts(_top_level_block(lines, "on:")))
-    assert _direct_texts(_top_level_block(lines, "permissions:")) == ["contents: read"]
-
-    block = _offline_tests_block(lines)
-    assert not any(text.lstrip("- ").startswith("if:") for _, text in block)
-    assert not any(text.lstrip("- ").startswith("continue-on-error:") for _, text in block)
-    assert "runs-on: ubuntu-latest" in _direct_texts(block)
-    defaults = _direct_block(block, "defaults:")
-    assert "working-directory: mcp" in _direct_texts(_direct_block(defaults, "run:"))
-
-    steps = _step_blocks(_direct_block(block, "steps:"))
-    assert any(_is_action_step(step, "actions/checkout@v4") for step in steps)
-    setup_step = next(
-        (step for step in steps if _is_action_step(step, "actions/setup-python@v5")),
-        None,
-    )
-    assert setup_step is not None
-    assert {
-        'python-version: "3.10"',
-        "cache: pip",
-        "cache-dependency-path: mcp/requirements.txt",
-    } <= set(_setup_with_values(setup_step))
-    for command in (
-        "python -m pip install -r requirements.txt",
-        COMPILE_COMMAND,
-        "python -m pytest tests -q",
-    ):
-        assert any(_has_run_step(step, command) for step in steps)
+    assert workflow == EXPECTED_WORKFLOW
 
 
 def test_default_ci_boundary_excludes_live_console_checks():
@@ -351,6 +255,31 @@ def test_default_ci_boundary_excludes_live_console_checks():
     )
     _assert_offline_workflow(workflow)
 
+    with pytest.raises(AssertionError):
+        _assert_offline_workflow(
+            workflow.replace(
+                "    runs-on: ubuntu-latest",
+                "    permissions:\n      contents: write\n    runs-on: ubuntu-latest",
+            )
+        )
+    with pytest.raises(AssertionError):
+        _assert_offline_workflow(
+            workflow.replace("  push:\n", "  push:\n    branches-ignore: [main]\n")
+        )
+    with pytest.raises(AssertionError):
+        _assert_offline_workflow(
+            workflow.replace(
+                "        working-directory: mcp",
+                "        working-directory: mcp\n        shell: echo {0}",
+            )
+        )
+    with pytest.raises(AssertionError):
+        _assert_offline_workflow(
+            workflow.replace(
+                "      - run: python -m pytest tests -q",
+                '      - "continue-on-error": true\n        run: python -m pytest tests -q',
+            )
+        )
     with pytest.raises(AssertionError):
         _assert_offline_workflow(
             workflow.replace(
