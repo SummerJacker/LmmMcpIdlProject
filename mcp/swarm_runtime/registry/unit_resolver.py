@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 
 from ..errors import (
     AmbiguousUnitResolutionError,
@@ -13,10 +14,17 @@ from ..protocols import UnitResolver
 from ..registration import RegistrationJournal
 
 
+@dataclass(frozen=True)
+class _RegisteredUnitResolver:
+    resolver_id: str
+    priority: int
+    resolver: UnitResolver
+
+
 class UnitResolverRegistry:
     def __init__(self, journal: RegistrationJournal) -> None:
         self._journal = journal
-        self._resolvers: dict[str, UnitResolver] = {}
+        self._resolvers: dict[str, _RegisteredUnitResolver] = {}
         self._logger = logging.getLogger("swarm_runtime.registry.unit_resolver")
 
     def register(self, resolver: UnitResolver) -> None:
@@ -35,19 +43,26 @@ class UnitResolverRegistry:
             raise DuplicateRegistrationError(
                 f"unit resolver already registered: {resolver_id}"
             )
-        self._resolvers[resolver_id] = resolver
+        self._resolvers[resolver_id] = _RegisteredUnitResolver(
+            resolver_id=resolver_id,
+            priority=priority,
+            resolver=resolver,
+        )
         self._journal.record(
             f"unit_resolver:{resolver_id}",
             lambda key=resolver_id: self._resolvers.pop(key, None),
         )
 
     def list(self) -> tuple[UnitResolver, ...]:
-        return tuple(self._resolvers[key] for key in sorted(self._resolvers))
+        return tuple(
+            self._resolvers[key].resolver for key in sorted(self._resolvers)
+        )
 
     async def resolve(self, unit_id: str) -> UnitDescriptor:
         candidates: list[tuple[int, str, UnitDescriptor]] = []
         for resolver_id in sorted(self._resolvers):
-            resolver = self._resolvers[resolver_id]
+            registration = self._resolvers[resolver_id]
+            resolver = registration.resolver
             try:
                 candidate = await resolver.resolve(unit_id)
                 if candidate is not None and not isinstance(
@@ -62,7 +77,9 @@ class UnitResolverRegistry:
                 self._logger.exception("unit resolver %s failed", resolver_id)
                 continue
             if candidate is not None:
-                candidates.append((resolver.priority, resolver_id, candidate))
+                candidates.append(
+                    (registration.priority, registration.resolver_id, candidate)
+                )
 
         if not candidates:
             raise UnitNotFoundError(unit_id)

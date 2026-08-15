@@ -324,6 +324,37 @@ async def test_all_resolvers_are_evaluated_and_unique_highest_priority_wins() ->
     assert provider.resolved_units == (high_unit,)
 
 
+@pytest.mark.parametrize("mutated_priority", [0, True, "invalid"])
+@pytest.mark.asyncio
+async def test_registered_priority_snapshot_ignores_later_mutation(
+    mutated_priority: object,
+) -> None:
+    registry = resolver_registry()
+    winner_unit = live_unit("winner")
+    winner = StubResolver("winner", 100, winner_unit)
+    lower = StubResolver("lower", 10, live_unit("lower"))
+    registry.register(winner)
+    registry.register(lower)
+    winner.priority = mutated_priority  # type: ignore[assignment]
+
+    resolved = await registry.resolve("missing")
+
+    assert resolved is winner_unit
+
+
+@pytest.mark.asyncio
+async def test_registered_priority_snapshot_preserves_ambiguity() -> None:
+    registry = resolver_registry()
+    one = StubResolver("one", 100, live_unit("one"))
+    two = StubResolver("two", 100, live_unit("two"))
+    registry.register(one)
+    registry.register(two)
+    two.priority = 1
+
+    with pytest.raises(AmbiguousUnitResolutionError):
+        await registry.resolve("missing")
+
+
 @pytest.mark.asyncio
 async def test_equal_highest_priority_candidates_are_ambiguous() -> None:
     ctx, _ = execution_context()
