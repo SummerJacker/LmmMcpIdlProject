@@ -11,7 +11,10 @@ from task_api.contracts import empty_task_result, rejected_task_response, respon
 def build_stop_units(ctx: SwarmContext):
     async def stopUnits(unit_ids: list[str]) -> str:
         """Request Unit_MA_Stop without cancelling tasks or disbanding formations."""
-        if not unit_ids:
+        normalized_unit_ids = [
+            unit_id.strip() for unit_id in unit_ids if unit_id.strip()
+        ]
+        if not normalized_unit_ids:
             message = "Validation failed: unit_ids is empty"
             return response(
                 success=False,
@@ -29,7 +32,7 @@ def build_stop_units(ctx: SwarmContext):
             request_id=str(uuid.uuid4()),
             capability="motion.stop",
             version="1.0",
-            unit_ids=tuple(unit_ids),
+            unit_ids=tuple(normalized_unit_ids),
             arguments={},
             metadata={"tool_name": "stopUnits"},
         )

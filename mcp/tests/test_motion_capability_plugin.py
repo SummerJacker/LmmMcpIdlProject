@@ -59,8 +59,7 @@ def context_with_stop_provider(
     return ctx, selected
 
 
-@pytest.mark.asyncio
-async def test_motion_plugin_registers_capability_and_tool() -> None:
+def test_motion_plugin_registers_capability_and_tool() -> None:
     ctx = SwarmContext()
 
     MotionCapabilityPlugin().setup(ctx, {})
@@ -122,6 +121,24 @@ async def test_stop_units_builds_versioned_multi_unit_request_in_requested_order
 
 
 @pytest.mark.asyncio
+async def test_stop_units_trims_ids_and_discards_blanks_in_requested_order() -> None:
+    ctx, provider = context_with_stop_provider()
+
+    raw = await ctx.tools.get("stopUnits").callable(
+        ["  robot_2  ", "", " \t ", " GV1 "]
+    )
+    payload = json.loads(raw)
+
+    assert payload == {
+        "success": True,
+        "message": "stopped",
+        "data": {"units": ["GV2", "GV1"]},
+    }
+    assert provider.request is not None
+    assert provider.request.unit_ids == ("robot_2", "GV1")
+
+
+@pytest.mark.asyncio
 async def test_stop_units_empty_list_returns_complete_failed_task() -> None:
     ctx, provider = context_with_stop_provider()
 
@@ -134,6 +151,24 @@ async def test_stop_units_empty_list_returns_complete_failed_task() -> None:
     assert task_payload_has_contract_shape(payload["data"])
     assert payload["data"]["task_type"] == "stop_units"
     assert payload["data"]["state"] == "FAILED"
+    assert payload["data"]["error_code"] == "INTERNAL_ERROR"
+    assert provider.request is None
+
+
+@pytest.mark.asyncio
+async def test_stop_units_all_blank_ids_return_legacy_empty_failure() -> None:
+    ctx, provider = context_with_stop_provider()
+
+    raw = await ctx.tools.get("stopUnits").callable(["", "  ", "\t"])
+    payload = json.loads(raw)
+
+    assert payload["success"] is False
+    assert payload["message"] == "Validation failed: unit_ids is empty"
+    assert payload["error_code"] == "INTERNAL_ERROR"
+    assert task_payload_has_contract_shape(payload["data"])
+    assert payload["data"]["task_type"] == "stop_units"
+    assert payload["data"]["state"] == "FAILED"
+    assert payload["data"]["message"] == "Validation failed: unit_ids is empty"
     assert payload["data"]["error_code"] == "INTERNAL_ERROR"
     assert provider.request is None
 
