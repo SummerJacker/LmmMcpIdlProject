@@ -764,6 +764,113 @@ async def test_navigate_to_posts_only_supported_execution_fields() -> None:
 
 
 @pytest.mark.asyncio
+async def test_execute_motion_task_posts_typed_command() -> None:
+    calls = []
+
+    def fake_http_request(**kwargs: Any) -> tuple[int, dict[str, Any], str]:
+        calls.append(kwargs)
+        return 200, {
+            "success": True,
+            "message": "task completed",
+            "data": {
+                "task_id": "motion-1",
+                "task_type": "execute_motion",
+                "state": "COMPLETED",
+                "progress_pct": 100.0,
+                "unit_results": [],
+                "elapsed_ms": 1,
+                "started_at_ms": 1,
+                "cancellation_effect": "NOT_APPLICABLE",
+            },
+        }, ""
+
+    adapter = RobotAdapter()
+    with patch("robot_adapter.http_request", side_effect=fake_http_request):
+        response = await adapter.execute_motion_task(
+            unit_id="GV1",
+            linear_velocity=0.2,
+            angular_velocity=0.0,
+            duration_ms=100,
+        )
+
+    result = _parse_response(response)
+    assert result["success"] is True
+    assert calls[0]["url"].endswith("/api/task/motion")
+    assert calls[0]["json_body"] == {
+        "unit_id": "GV1",
+        "linear_velocity": 0.2,
+        "angular_velocity": 0.0,
+        "duration_ms": 100,
+    }
+
+
+@pytest.mark.asyncio
+async def test_benchmark_mode_adds_python_timing_without_overwriting_console_timing(
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("SAU_BENCHMARK_TIMINGS", "1")
+    task = {
+        "task_id": "motion-timing",
+        "task_type": "execute_motion",
+        "state": "COMPLETED",
+        "progress_pct": 100.0,
+        "unit_results": [],
+        "elapsed_ms": 1,
+        "started_at_ms": 1,
+        "cancellation_effect": "NOT_APPLICABLE",
+        "_benchmark_timing": {"task_contract_ms": 0.1},
+    }
+    adapter = RobotAdapter()
+    with patch(
+        "robot_adapter.http_request",
+        return_value=(200, {"success": True, "message": "ok", "data": task}, ""),
+    ):
+        result = _parse_response(
+            await adapter.execute_motion_task(
+                unit_id="GV1",
+                linear_velocity=0.2,
+                angular_velocity=0.0,
+                duration_ms=1,
+            )
+        )
+
+    timing = result["data"]["_benchmark_timing"]
+    assert timing["task_contract_ms"] == 0.1
+    assert timing["python_console_roundtrip_ms"] >= 0.0
+    assert timing["python_contract_ms"] >= 0.0
+
+
+@pytest.mark.asyncio
+async def test_production_mode_does_not_add_benchmark_timing(monkeypatch) -> None:
+    monkeypatch.delenv("SAU_BENCHMARK_TIMINGS", raising=False)
+    task = {
+        "task_id": "motion-production",
+        "task_type": "execute_motion",
+        "state": "COMPLETED",
+        "progress_pct": 100.0,
+        "unit_results": [],
+        "elapsed_ms": 1,
+        "started_at_ms": 1,
+        "cancellation_effect": "NOT_APPLICABLE",
+    }
+    adapter = RobotAdapter()
+    with patch(
+        "robot_adapter.http_request",
+        return_value=(200, {"success": True, "message": "ok", "data": task}, ""),
+    ):
+        result = _parse_response(
+            await adapter.execute_motion_task(
+                unit_id="GV1",
+                linear_velocity=0.2,
+                angular_velocity=0.0,
+                duration_ms=1,
+            )
+        )
+
+    assert "_benchmark_timing" not in result["data"]
+
+
+@pytest.mark.asyncio
 async def test_mock_and_real_task_results_keep_the_same_contract_shape() -> None:
     common = {
         "task_id": "goto-1",

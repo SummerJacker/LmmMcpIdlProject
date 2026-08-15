@@ -83,6 +83,20 @@ module MCP_Swarm_Task {
     sequence<FollowMember> followers;
   };
 
+  struct FollowMotionSegment {
+    float linear_velocity;
+    float angular_velocity;
+    unsigned long duration_ms;
+    unsigned long buffer_ms;
+  };
+
+  struct MotionCommandRequest {
+    UnitID unit_id;
+    float linear_velocity;
+    float angular_velocity;
+    unsigned long duration_ms;
+  };
+
   struct FollowMemberStatus {
     UnitID unit_id;
     float requested_distance_m;
@@ -164,6 +178,10 @@ module MCP_Swarm_Task {
     // enables Follow mode and reports READY only after all required steps succeed.
     FormationStatus createFollowFormation(in FollowFormationRequest request);
     TaskResult moveFollowFormation(in Point2D target);
+    TaskResult moveFollowFormationSequence(
+      in sequence<FollowMotionSegment> segments
+    );
+    TaskResult executeMotion(in MotionCommandRequest request);
     FormationStatus getFormationStatus();
     FormationStatus disbandFormation();
 

@@ -33,6 +33,21 @@ class TaskService:
             timeout_ms=timeout_ms,
         )
 
+    async def execute_motion(
+        self,
+        *,
+        unit_id: str,
+        linear_velocity: float,
+        angular_velocity: float,
+        duration_ms: int,
+    ) -> str:
+        return await self._client.execute_motion(
+            unit_id=unit_id,
+            linear_velocity=linear_velocity,
+            angular_velocity=angular_velocity,
+            duration_ms=duration_ms,
+        )
+
     async def create_static_formation(
         self,
         *,
@@ -64,6 +79,11 @@ class TaskService:
 
     async def move_follow_formation(self, *, x: float, y: float) -> str:
         return await self._client.move_follow_formation(x=x, y=y)
+
+    async def move_follow_formation_sequence(
+        self, *, segments: list[dict[str, object]]
+    ) -> str:
+        return await self._client.move_follow_formation_sequence(segments=segments)
 
     async def get_formation_status(self) -> str:
         return await self._client.get_formation_status()

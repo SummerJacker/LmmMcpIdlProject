@@ -67,9 +67,21 @@ async def test_structured_mcp_tool_schemas_match_idl_requests(monkeypatch) -> No
     static_tool = await app.get_tool("createStaticFormation")
     follow_tool = await app.get_tool("createFollowFormation")
     move_tool = await app.get_tool("moveFollowFormation")
+    motion_tool = await app.get_tool("executeMotion")
     assert set(static_tool.parameters["properties"]) == {"request"}
     assert set(follow_tool.parameters["properties"]) == {"request"}
     assert set(move_tool.parameters["properties"]) == {"target"}
+    assert set(motion_tool.parameters["properties"]) == {"request"}
+
+
+def test_idl_declares_typed_motion_request() -> None:
+    text = IDL_PATH.read_text(encoding="utf-8")
+    request = text.split("struct MotionCommandRequest", 1)[1].split("};", 1)[0]
+    assert "UnitID unit_id" in request
+    assert "float linear_velocity" in request
+    assert "float angular_velocity" in request
+    assert "unsigned long duration_ms" in request
+    assert "TaskResult executeMotion(in MotionCommandRequest request)" in text
 
 
 @pytest.mark.asyncio
