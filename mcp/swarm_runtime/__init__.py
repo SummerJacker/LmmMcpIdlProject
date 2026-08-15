@@ -18,6 +18,7 @@ from .models import (
     ToolSpec,
     UnitDescriptor,
 )
+from .context import SwarmContext
 
 __all__ = [
     "AmbiguousProviderError",
@@ -33,6 +34,7 @@ __all__ = [
     "RuntimeExecutionError",
     "RuntimeRegistrationError",
     "RuntimeResolutionError",
+    "SwarmContext",
     "ToolSpec",
     "UnitDescriptor",
     "UnitNotFoundError",
