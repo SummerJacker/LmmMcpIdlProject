@@ -20,9 +20,17 @@ class UnitResolverRegistry:
         self._logger = logging.getLogger("swarm_runtime.registry.unit_resolver")
 
     def register(self, resolver: UnitResolver) -> None:
-        resolver_id = resolver.resolver_id.strip()
-        if not resolver_id:
-            raise RuntimeRegistrationError("resolver_id must not be empty")
+        raw_resolver_id = getattr(resolver, "resolver_id", None)
+        if not isinstance(raw_resolver_id, str) or not raw_resolver_id.strip():
+            raise RuntimeRegistrationError(
+                "resolver_id must be a nonempty string"
+            )
+        resolver_id = raw_resolver_id.strip()
+        priority = getattr(resolver, "priority", None)
+        if not isinstance(priority, int) or isinstance(priority, bool):
+            raise RuntimeRegistrationError("resolver priority must be an integer")
+        if not callable(getattr(resolver, "resolve", None)):
+            raise RuntimeRegistrationError("resolver resolve must be callable")
         if resolver_id in self._resolvers:
             raise DuplicateRegistrationError(
                 f"unit resolver already registered: {resolver_id}"
@@ -42,6 +50,14 @@ class UnitResolverRegistry:
             resolver = self._resolvers[resolver_id]
             try:
                 candidate = await resolver.resolve(unit_id)
+                if candidate is not None and not isinstance(
+                    candidate, UnitDescriptor
+                ):
+                    self._logger.error(
+                        "unit resolver %s returned invalid descriptor",
+                        resolver_id,
+                    )
+                    continue
             except Exception:
                 self._logger.exception("unit resolver %s failed", resolver_id)
                 continue
