@@ -996,8 +996,8 @@ QByteArray HttpApiExecutor::processRequest(const QString &method, const QString 
         const QString unitId = o.value(QStringLiteral("unit_id")).toString().trimmed();
         if (unitId.isEmpty())
             return jsonResponse(false, QStringLiteral("missing unit_id"), QJsonValue::Null, httpStatus);
-        if (!isGroundUnitId(unitId))
-            return jsonResponse(false, QStringLiteral("unit_id must be a ground unit id"), QJsonValue::Null, httpStatus);
+        if (!isGroundUnitId(unitId) && !isAirUnitId(unitId))
+            return jsonResponse(false, QStringLiteral("unit_id must be a ground (G*) or air (A*) unit id"), QJsonValue::Null, httpStatus);
 
         char *sbh = sbhForUid(unitId);
         if (!sbh)

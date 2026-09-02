@@ -1180,10 +1180,27 @@ ilu_boolean getUnitObject(Unit_UnitID uid) {
     char* resolvedUid = const_cast<char*>(resolvedUidBytes.constData());
 
     sbh = (char*)ilu_hash_FindInTable(Units_Hash_Table, resolvedUid);
-    
+
     if (sbh == ILU_NIL) {
         qDebug() << QString::fromUtf8("未注册的单元ID: %1").arg(uid);
         return ilu_FALSE;
+    }
+
+    // Mock 单元：SBH 形如 "MOCK:xxx"，不是有效 CORBA IOR，跳过 ILU 对象创建。
+    // 仅记录 currentUID，currentUnitObj 保持 NULL（由 setToLeader 的 Mock 分支识别）。
+    if (MockRobotSimulator::isMockSbh(sbh)) {
+        if (currentUnitObj != NULL) {
+            Unit_rpc__Free(&currentUnitObj);
+            currentUnitObj = NULL;
+        }
+        if (currentUID != NULL) {
+            ilu_free(currentUID);
+            currentUID = NULL;
+        }
+        currentUID = (char*)ilu_malloc(strlen(resolvedUid) + 1);
+        strcpy(currentUID, resolvedUid);
+        qDebug() << QString::fromUtf8("Mock 单元已切换（无 ILU 对象）: %1").arg(resolvedUid);
+        return ilu_TRUE;
     }
     if (strcmp(uid, resolvedUid) != 0) {
         qDebug() << QString::fromUtf8("单元ID已按绑定表解析: %1 -> %2")
@@ -1270,6 +1287,24 @@ bool setToLeader() {
     qDebug() << "currentAUVLeaderObj地址:" << currentAUVLeaderObj;
     
     if (currentUnitObj == NULL) {
+        // Mock 单元：无真实 CORBA 对象，但 currentUID 已由 getUnitObject 的 Mock 分支设置。
+        // 简化路径：直接记录 currentLeaderUID，跳过 ILU RPC。
+        if (currentUID != NULL) {
+            char *currentSbh = (char*)ilu_hash_FindInTable(Units_Hash_Table, (ilu_refany)currentUID);
+            if (currentSbh != NULL && MockRobotSimulator::isMockSbh(currentSbh)) {
+                if (currentLeaderUID != NULL && strcmp(currentUID, currentLeaderUID) == 0) {
+                    qDebug() << "警告:" << currentUID << "已经是Leader了！";
+                    return true;
+                }
+                if (currentLeaderUID != NULL)
+                    ilu_free(currentLeaderUID);
+                currentLeaderUID = (char*)ilu_malloc(MAX_UNITID_LENGTH);
+                strncpy(currentLeaderUID, currentUID, MAX_UNITID_LENGTH - 1);
+                currentLeaderUID[MAX_UNITID_LENGTH - 1] = '\0';
+                qDebug() << "Mock Leader 已设置（无 ILU 对象）:" << currentLeaderUID;
+                return true;
+            }
+        }
         qDebug() << "错误：未选定控制单元！请先调用 getUnitObject(uid) 选择要设为Leader的单元";
         return false;
     }
