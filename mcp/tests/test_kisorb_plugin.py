@@ -9,6 +9,7 @@ import pytest
 from console_client import ConsoleTaskClient
 from plugins.platforms.kisorb_sau.plugin import KisorbPlugin
 from plugins.platforms.kisorb_sau.providers import (
+    KisorbAirGroundFormationProvider,
     KisorbCancelTaskProvider,
     KisorbDisbandFormationProvider,
     KisorbExecuteMotionProvider,
@@ -203,6 +204,7 @@ def test_kisorb_plugin_registers_configured_units_and_shared_services() -> None:
         "kisorb.formation.follow.move_sequence",
         "kisorb.formation.follow.status",
         "kisorb.formation.follow.disband",
+        "kisorb.formation.air_ground",
         "kisorb.task.status",
         "kisorb.task.cancel",
         "kisorb.fleet.capabilities",
@@ -504,6 +506,7 @@ def test_default_profile_loads_capabilities_before_kisorb() -> None:
         "kisorb.formation.follow.move_sequence",
         "kisorb.formation.follow.status",
         "kisorb.formation.follow.disband",
+        "kisorb.formation.air_ground",
         "kisorb.task.status",
         "kisorb.task.cancel",
         "kisorb.fleet.capabilities",
@@ -530,6 +533,7 @@ def test_kisorb_manifest_and_default_profile_are_exact() -> None:
         "provides": [
             "provider:kisorb.fleet.capabilities",
             "provider:kisorb.fleet.snapshot",
+            "provider:kisorb.formation.air_ground",
             "provider:kisorb.formation.follow.create",
             "provider:kisorb.formation.follow.disband",
             "provider:kisorb.formation.follow.move",
@@ -558,3 +562,52 @@ def test_kisorb_manifest_and_default_profile_are_exact() -> None:
             {"id": "platform.kisorb-sau", "enabled": True, "config": {}},
         ],
     }
+
+
+def test_air_ground_provider_support_semantics() -> None:
+    client = AsyncMock(spec=ConsoleTaskClient)
+    provider = KisorbAirGroundFormationProvider(client)
+    ugv = UnitDescriptor("GV1", "ugv", "kisorb-sau", "platform.kisorb-sau")
+    uav = UnitDescriptor("AV1", "uav", "kisorb-sau", "platform.kisorb-sau")
+    mock = UnitDescriptor("MOCK1", "ugv", "mock-navigation", "platform.mock")
+
+    assert provider.supports((uav, ugv)) is True
+    assert provider.supports((ugv, uav, ugv)) is True
+    assert provider.supports((ugv,)) is False       # 无空中领航
+    assert provider.supports((uav,)) is False       # 无地面链
+    assert provider.supports((ugv, ugv)) is False   # 纯地面
+    assert provider.supports((mock, ugv)) is False  # 跨平台
+    assert provider.supports(()) is False
+
+
+@pytest.mark.asyncio
+async def test_air_ground_provider_forwards_arguments() -> None:
+    client = AsyncMock(spec=ConsoleTaskClient)
+    client.create_air_ground_formation.return_value = complete_running_task_json(
+        "create_air_ground_formation"
+    )
+    provider = KisorbAirGroundFormationProvider(client)
+    request = ExecutionRequest(
+        request_id="req-air-ground",
+        capability="formation.air_ground",
+        version="1.0",
+        unit_ids=("AV1", "GV1", "GV2"),
+        arguments={
+            "air_leader_id": "AV1",
+            "air_altitude_m": 20.0,
+            "followers_json": '[{"unit_id": "GV1", "distance_m": 2.0, "angle_deg": 0.0}]',
+        },
+    )
+    units = (
+        UnitDescriptor("AV1", "uav", "kisorb-sau", "platform.kisorb-sau"),
+        UnitDescriptor("GV1", "ugv", "kisorb-sau", "platform.kisorb-sau"),
+    )
+
+    result = await provider.execute(request, units)
+
+    assert result.success is True
+    client.create_air_ground_formation.assert_awaited_once_with(
+        air_leader_id="AV1",
+        air_altitude_m=20.0,
+        followers_json='[{"unit_id": "GV1", "distance_m": 2.0, "angle_deg": 0.0}]',
+    )
