@@ -9,16 +9,27 @@ from swarm_runtime.context import SwarmContext
 from swarm_runtime.models import UnitDescriptor
 
 from .providers import (
+    KisorbCancelTaskProvider,
+    KisorbCapabilitiesProvider,
+    KisorbDisbandFormationProvider,
+    KisorbExecuteMotionProvider,
+    KisorbFleetSnapshotProvider,
+    KisorbFollowFormationCreateProvider,
+    KisorbFollowFormationMoveProvider,
+    KisorbFollowFormationMoveSequenceProvider,
     KisorbFollowPath2DProvider,
+    KisorbFormationStatusProvider,
     KisorbGoto2DProvider,
+    KisorbStaticFormationProvider,
     KisorbStopProvider,
+    KisorbTaskStatusProvider,
 )
 from .unit_resolver import KisorbLiveUnitResolver
 
 
 class KisorbPlugin:
     plugin_id = "platform.kisorb-sau"
-    version = "1.1.0"
+    version = "1.2.0"
 
     def setup(self, ctx: SwarmContext, config: Mapping[str, Any]) -> None:
         tool_timeout_s = float(config.get("tool_timeout_s", DEFAULT_TOOL_TIMEOUT_S))
@@ -49,3 +60,14 @@ class KisorbPlugin:
         ctx.providers.register(KisorbGoto2DProvider(client))
         ctx.providers.register(KisorbFollowPath2DProvider(client))
         ctx.providers.register(KisorbStopProvider(client))
+        ctx.providers.register(KisorbExecuteMotionProvider(client))
+        ctx.providers.register(KisorbStaticFormationProvider(client))
+        ctx.providers.register(KisorbFollowFormationCreateProvider(client))
+        ctx.providers.register(KisorbFollowFormationMoveProvider(client))
+        ctx.providers.register(KisorbFollowFormationMoveSequenceProvider(client))
+        ctx.providers.register(KisorbFormationStatusProvider(client))
+        ctx.providers.register(KisorbDisbandFormationProvider(client))
+        ctx.providers.register(KisorbTaskStatusProvider(client))
+        ctx.providers.register(KisorbCancelTaskProvider(client))
+        ctx.providers.register(KisorbCapabilitiesProvider(client))
+        ctx.providers.register(KisorbFleetSnapshotProvider(client))

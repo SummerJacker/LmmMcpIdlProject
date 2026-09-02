@@ -1,17 +1,31 @@
 {
   "api_version": 1,
   "id": "platform.kisorb-sau",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "platform",
   "entrypoint": "plugins.platforms.kisorb_sau.plugin:KisorbPlugin",
   "requires": [
     "capability.navigation",
-    "capability.motion"
+    "capability.motion",
+    "capability.formation",
+    "capability.task",
+    "capability.fleet"
   ],
   "provides": [
-    "provider:kisorb.navigation.goto2d",
-    "provider:kisorb.navigation.follow_path2d",
+    "provider:kisorb.fleet.capabilities",
+    "provider:kisorb.fleet.snapshot",
+    "provider:kisorb.formation.follow.create",
+    "provider:kisorb.formation.follow.disband",
+    "provider:kisorb.formation.follow.move",
+    "provider:kisorb.formation.follow.move_sequence",
+    "provider:kisorb.formation.follow.status",
+    "provider:kisorb.formation.static",
+    "provider:kisorb.motion.execute",
     "provider:kisorb.motion.stop",
+    "provider:kisorb.navigation.follow_path2d",
+    "provider:kisorb.navigation.goto2d",
+    "provider:kisorb.task.cancel",
+    "provider:kisorb.task.status",
     "unit_resolver:kisorb.live",
     "service:legacy.robot_adapter",
     "service:legacy.console_task_client"

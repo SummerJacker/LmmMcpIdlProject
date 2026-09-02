@@ -9,8 +9,16 @@ import pytest
 from console_client import ConsoleTaskClient
 from plugins.platforms.kisorb_sau.plugin import KisorbPlugin
 from plugins.platforms.kisorb_sau.providers import (
+    KisorbCancelTaskProvider,
+    KisorbDisbandFormationProvider,
+    KisorbExecuteMotionProvider,
+    KisorbFollowFormationCreateProvider,
+    KisorbFollowFormationMoveProvider,
+    KisorbFollowFormationMoveSequenceProvider,
     KisorbFollowPath2DProvider,
+    KisorbFormationStatusProvider,
     KisorbGoto2DProvider,
+    KisorbStaticFormationProvider,
     KisorbStopProvider,
 )
 from plugins.platforms.kisorb_sau.unit_resolver import KisorbLiveUnitResolver
@@ -188,6 +196,17 @@ def test_kisorb_plugin_registers_configured_units_and_shared_services() -> None:
         "kisorb.navigation.goto2d",
         "kisorb.navigation.follow_path2d",
         "kisorb.motion.stop",
+        "kisorb.motion.execute",
+        "kisorb.formation.static",
+        "kisorb.formation.follow.create",
+        "kisorb.formation.follow.move",
+        "kisorb.formation.follow.move_sequence",
+        "kisorb.formation.follow.status",
+        "kisorb.formation.follow.disband",
+        "kisorb.task.status",
+        "kisorb.task.cancel",
+        "kisorb.fleet.capabilities",
+        "kisorb.fleet.snapshot",
     }
 
 
@@ -317,18 +336,178 @@ async def test_malformed_console_response_becomes_internal_runtime_error(
     assert error.value.error_code == "INTERNAL_ERROR"
 
 
+@pytest.mark.asyncio
+async def test_execute_motion_provider_forwards_canonical_unit_and_arguments() -> None:
+    client = AsyncMock(spec=ConsoleTaskClient)
+    client.execute_motion.return_value = complete_running_task_json("execute_motion")
+    provider = KisorbExecuteMotionProvider(client)
+    request = ExecutionRequest(
+        request_id="req-motion",
+        capability="motion.execute",
+        version="1.0",
+        unit_ids=("robot_1",),
+        arguments={
+            "linear_velocity": 0.2,
+            "angular_velocity": 0.0,
+            "duration_ms": 100,
+        },
+    )
+    unit = UnitDescriptor("GV1", "ugv", "kisorb-sau", "platform.kisorb-sau")
+
+    result = await provider.execute(request, (unit,))
+
+    assert result.success is True
+    client.execute_motion.assert_awaited_once_with(
+        unit_id="GV1",
+        linear_velocity=0.2,
+        angular_velocity=0.0,
+        duration_ms=100,
+    )
+
+
+def test_execute_motion_provider_supports_only_single_ground_unit() -> None:
+    provider = KisorbExecuteMotionProvider(AsyncMock())
+    ugv = UnitDescriptor("GV1", "ugv", "kisorb-sau", "platform.kisorb-sau")
+    uav = UnitDescriptor("AV1", "uav", "kisorb-sau", "platform.kisorb-sau")
+
+    assert provider.supports((ugv,)) is True
+    assert provider.supports((uav,)) is False
+    assert provider.supports((ugv, ugv)) is False
+    assert provider.supports(()) is False
+
+
+@pytest.mark.asyncio
+async def test_static_formation_provider_forwards_resolved_unit_csv() -> None:
+    client = AsyncMock(spec=ConsoleTaskClient)
+    client.create_static_formation.return_value = complete_running_task_json(
+        "create_static_formation"
+    )
+    provider = KisorbStaticFormationProvider(client)
+    request = ExecutionRequest(
+        request_id="req-static",
+        capability="formation.static",
+        version="1.0",
+        unit_ids=("robot_1", "GV2"),
+        arguments={
+            "formation_type": "line",
+            "spacing_m": 2.0,
+            "anchor_x": 10.0,
+            "anchor_y": -3.0,
+            "heading_rad": 1.2,
+            "tolerance_m": 0.15,
+            "timeout_ms": 30000,
+        },
+    )
+    units = (
+        UnitDescriptor("GV1", "ugv", "kisorb-sau", "platform.kisorb-sau"),
+        UnitDescriptor("GV2", "ugv", "kisorb-sau", "platform.kisorb-sau"),
+    )
+
+    result = await provider.execute(request, units)
+
+    assert result.success is True
+    client.create_static_formation.assert_awaited_once_with(
+        formation_type="line",
+        unit_ids_csv="GV1,GV2",
+        spacing_m=2.0,
+        anchor_x=10.0,
+        anchor_y=-3.0,
+        heading_rad=1.2,
+        tolerance_m=0.15,
+        timeout_ms=30000,
+    )
+
+
+@pytest.mark.asyncio
+async def test_follow_formation_and_task_providers_delegate_without_units() -> None:
+    client = AsyncMock(spec=ConsoleTaskClient)
+    client.create_follow_formation.return_value = '{"success": true, "message": "ok", "data": {"state": "READY"}}'
+    client.move_follow_formation.return_value = complete_running_task_json(
+        "move_follow_formation"
+    )
+    client.move_follow_formation_sequence.return_value = complete_running_task_json(
+        "move_follow_formation_sequence"
+    )
+    client.get_formation_status.return_value = '{"success": true, "message": "ok", "data": {"state": "READY"}}'
+    client.disband_formation.return_value = '{"success": true, "message": "ok", "data": {"state": "IDLE"}}'
+    client.cancel_task.return_value = complete_running_task_json("cancel_task")
+
+    create = KisorbFollowFormationCreateProvider(client)
+    move = KisorbFollowFormationMoveProvider(client)
+    sequence = KisorbFollowFormationMoveSequenceProvider(client)
+    status = KisorbFormationStatusProvider(client)
+    disband = KisorbDisbandFormationProvider(client)
+    cancel = KisorbCancelTaskProvider(client)
+
+    assert create.supports(()) is True
+    await create.execute(
+        ExecutionRequest(
+            "r1",
+            "formation.follow.create",
+            "1.0",
+            (),
+            {"leader_id": "GV1", "followers_json": '[{"unit_id": "GV2", "distance_m": 0.3}]'},
+        ),
+        (),
+    )
+    await move.execute(
+        ExecutionRequest("r2", "formation.follow.move", "1.0", (), {"x": 5.0, "y": 6.0}),
+        (),
+    )
+    await sequence.execute(
+        ExecutionRequest("r3", "formation.follow.move_sequence", "1.0", (), {"segments": []}),
+        (),
+    )
+    await status.execute(
+        ExecutionRequest("r4", "formation.follow.status", "1.0", (), {}),
+        (),
+    )
+    await disband.execute(
+        ExecutionRequest("r5", "formation.follow.disband", "1.0", (), {}),
+        (),
+    )
+    await cancel.execute(
+        ExecutionRequest("r6", "task.cancel", "1.0", (), {"task_id": "t-9"}),
+        (),
+    )
+
+    client.create_follow_formation.assert_awaited_once_with(
+        leader_id="GV1",
+        followers_json='[{"unit_id": "GV2", "distance_m": 0.3}]',
+    )
+    client.move_follow_formation.assert_awaited_once_with(x=5.0, y=6.0)
+    client.move_follow_formation_sequence.assert_awaited_once_with(segments=[])
+    client.get_formation_status.assert_awaited_once_with()
+    client.disband_formation.assert_awaited_once_with()
+    client.cancel_task.assert_awaited_once_with(task_id="t-9")
+
+
 def test_default_profile_loads_capabilities_before_kisorb() -> None:
     ctx, loader = load_default_runtime()
 
     assert loader.loaded_plugin_ids == (
         "capability.navigation",
         "capability.motion",
+        "capability.formation",
+        "capability.task",
+        "capability.fleet",
         "platform.kisorb-sau",
     )
     assert {provider.provider_id for provider in ctx.providers.list()} == {
         "kisorb.navigation.goto2d",
         "kisorb.navigation.follow_path2d",
         "kisorb.motion.stop",
+        "kisorb.motion.execute",
+        "kisorb.formation.static",
+        "kisorb.formation.follow.create",
+        "kisorb.formation.follow.move",
+        "kisorb.formation.follow.move_sequence",
+        "kisorb.formation.follow.status",
+        "kisorb.formation.follow.disband",
+        "kisorb.task.status",
+        "kisorb.task.cancel",
+        "kisorb.fleet.capabilities",
+        "kisorb.fleet.snapshot",
     }
 
 
@@ -338,14 +517,31 @@ def test_kisorb_manifest_and_default_profile_are_exact() -> None:
     assert json.loads(manifest_path.read_text(encoding="utf-8")) == {
         "api_version": 1,
         "id": "platform.kisorb-sau",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "type": "platform",
         "entrypoint": "plugins.platforms.kisorb_sau.plugin:KisorbPlugin",
-        "requires": ["capability.navigation", "capability.motion"],
+        "requires": [
+            "capability.navigation",
+            "capability.motion",
+            "capability.formation",
+            "capability.task",
+            "capability.fleet",
+        ],
         "provides": [
-            "provider:kisorb.navigation.goto2d",
-            "provider:kisorb.navigation.follow_path2d",
+            "provider:kisorb.fleet.capabilities",
+            "provider:kisorb.fleet.snapshot",
+            "provider:kisorb.formation.follow.create",
+            "provider:kisorb.formation.follow.disband",
+            "provider:kisorb.formation.follow.move",
+            "provider:kisorb.formation.follow.move_sequence",
+            "provider:kisorb.formation.follow.status",
+            "provider:kisorb.formation.static",
+            "provider:kisorb.motion.execute",
             "provider:kisorb.motion.stop",
+            "provider:kisorb.navigation.follow_path2d",
+            "provider:kisorb.navigation.goto2d",
+            "provider:kisorb.task.cancel",
+            "provider:kisorb.task.status",
             "unit_resolver:kisorb.live",
             "service:legacy.robot_adapter",
             "service:legacy.console_task_client",
@@ -356,6 +552,9 @@ def test_kisorb_manifest_and_default_profile_are_exact() -> None:
         "plugins": [
             {"id": "capability.navigation", "enabled": True, "config": {}},
             {"id": "capability.motion", "enabled": True, "config": {}},
+            {"id": "capability.formation", "enabled": True, "config": {}},
+            {"id": "capability.task", "enabled": True, "config": {}},
+            {"id": "capability.fleet", "enabled": True, "config": {}},
             {"id": "platform.kisorb-sau", "enabled": True, "config": {}},
         ],
     }
