@@ -216,9 +216,14 @@ def test_motion_plugin_manifest_is_exact() -> None:
     assert json.loads(manifest_path.read_text(encoding="utf-8")) == {
         "api_version": 1,
         "id": "capability.motion",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "type": "capability",
         "entrypoint": "plugins.capabilities.motion.plugin:MotionCapabilityPlugin",
         "requires": [],
-        "provides": ["capability:motion.stop@1.0", "tool:stopUnits"],
+        "provides": [
+            "capability:motion.execute@1.0",
+            "capability:motion.stop@1.0",
+            "tool:executeMotion",
+            "tool:stopUnits",
+        ],
     }
