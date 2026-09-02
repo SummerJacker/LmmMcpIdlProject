@@ -2,3 +2,19 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .worktrees/
+
+# Codex agent artifacts
+.codex-runtime/
+.codex_review/
+.codex_tmp*/
+.codex/
+
+# Large archives (do not track)
+*.rar
+*.zip
+
+# Logs and backups
+mcp/logs/
+*.log
+*.bak
+mcp/robots copy.json

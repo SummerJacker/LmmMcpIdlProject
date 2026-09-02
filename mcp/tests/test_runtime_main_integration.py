@@ -124,11 +124,9 @@ async def test_runtime_path_and_stop_preserve_exact_legacy_contracts() -> None:
 
 @pytest.mark.asyncio
 async def test_runtime_and_production_tool_names_are_exact() -> None:
-    assert {tool.name for tool in create_runtime().tools.list()} == {
-        "navigateTo",
-        "followPath",
-        "stopUnits",
-    }
+    assert {tool.name for tool in create_runtime().tools.list()} == (
+        PRODUCTION_TOOL_NAMES
+    )
     assert {tool.name for tool in await create_app().list_tools()} == (
         PRODUCTION_TOOL_NAMES
     )
