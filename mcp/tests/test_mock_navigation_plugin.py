@@ -73,6 +73,9 @@ async def test_mock_profile_executes_same_capability_without_core_changes() -> N
     assert loader.loaded_plugin_ids == (
         "capability.navigation",
         "capability.motion",
+        "capability.formation",
+        "capability.task",
+        "capability.fleet",
         "platform.kisorb-sau",
         "platform.mock-navigation",
     )
@@ -80,6 +83,17 @@ async def test_mock_profile_executes_same_capability_without_core_changes() -> N
         "kisorb.navigation.goto2d",
         "kisorb.navigation.follow_path2d",
         "kisorb.motion.stop",
+        "kisorb.motion.execute",
+        "kisorb.formation.static",
+        "kisorb.formation.follow.create",
+        "kisorb.formation.follow.move",
+        "kisorb.formation.follow.move_sequence",
+        "kisorb.formation.follow.status",
+        "kisorb.formation.follow.disband",
+        "kisorb.task.status",
+        "kisorb.task.cancel",
+        "kisorb.fleet.capabilities",
+        "kisorb.fleet.snapshot",
         "mock.navigation.goto2d",
         "mock.navigation.follow_path2d",
         "mock.motion.stop",
@@ -210,6 +224,9 @@ def test_mock_manifest_and_profile_are_exact() -> None:
         "plugins": [
             {"id": "capability.navigation", "enabled": True, "config": {}},
             {"id": "capability.motion", "enabled": True, "config": {}},
+            {"id": "capability.formation", "enabled": True, "config": {}},
+            {"id": "capability.task", "enabled": True, "config": {}},
+            {"id": "capability.fleet", "enabled": True, "config": {}},
             {"id": "platform.kisorb-sau", "enabled": True, "config": {}},
             {
                 "id": "platform.mock-navigation",

@@ -12,6 +12,21 @@
       "config": {}
     },
     {
+      "id": "capability.formation",
+      "enabled": true,
+      "config": {}
+    },
+    {
+      "id": "capability.task",
+      "enabled": true,
+      "config": {}
+    },
+    {
+      "id": "capability.fleet",
+      "enabled": true,
+      "config": {}
+    },
+    {
       "id": "platform.kisorb-sau",
       "enabled": true,
       "config": {}
