@@ -784,7 +784,42 @@ void MainWindow::sendFormation()
 
     // 使用 setFormationWithResult 获取详细结果 (Requirements 10.2, 10.4)
     FormationResult result = setFormationWithResult(formation);
-    
+
+    // Mock 编队：setFormationWithResult 在 Mock 下地面组不会真正下发（currentGUVLeaderObj==NULL），
+    // 这里用 MockRobotSimulator 做空地链投影，使地面车位置可观测（与 HTTP 端点行为一致）。
+    bool allMock = true;
+    for (int i = 0; i < (int)formation->robot_ids._length; ++i) {
+        const char* muid = formation->robot_ids._buffer[i];
+        char* msbh = (char*)ilu_hash_FindInTable(Units_Hash_Table, (ilu_refany)muid);
+        if (msbh == NULL || !MockRobotSimulator::isMockSbh(msbh)) {
+            allMock = false;
+            break;
+        }
+    }
+    if (allMock) {
+        QString airLeaderId;
+        QStringList groundChainIds;
+        QVector<float> chainDistances;
+        QVector<float> chainAnglesRad;
+        for (int i = 0; i < (int)formation->robot_ids._length; ++i) {
+            const char* muid = formation->robot_ids._buffer[i];
+            if (muid == NULL)
+                continue;
+            if (muid[0] == 'A' && airLeaderId.isEmpty()) {
+                airLeaderId = QString::fromUtf8(muid);
+            } else if (muid[0] == 'G') {
+                groundChainIds.append(QString::fromUtf8(muid));
+                chainDistances.append(formation->distances._buffer[i]);
+                chainAnglesRad.append(formation->angles._buffer[i]);
+            }
+        }
+        if (!airLeaderId.isEmpty() && !groundChainIds.isEmpty()) {
+            QString mockErr;
+            MockRobotSimulator::instance().configureAirGroundFormation(
+                airLeaderId, groundChainIds, chainDistances, chainAnglesRad, &mockErr);
+        }
+    }
+
     // 显示跨类型边警告 (Requirements 6.1)
     if (!result.crossTypeWarnings.empty()) {
         ui->textBrowser_2->append(QString::fromUtf8("⚠ 检测到跨类型边（空地混合），已自动忽略："));
