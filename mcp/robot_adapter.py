@@ -61,6 +61,8 @@ from config import (
     QT_FOLLOW_FORMATION_STATUS_V2_PATH,
     QT_FOLLOW_FORMATION_DISBAND_PATH,
     QT_AIR_GROUND_FORMATION_PATH,
+    QT_AIR_GROUND_FORMATION_STATUS_PATH,
+    QT_AIR_GROUND_FORMATION_DISBAND_PATH,
     QT_STOP_UNITS_PATH,
     QT_MOTION_TASK_PATH,
     load_robot_configs,
@@ -1435,6 +1437,23 @@ class RobotAdapter:
             json_body={},
             robot_id_for_lock=None,
             op_name="disband_formation",
+        )
+
+    async def get_air_ground_status(self) -> str:
+        return await self._run_http(
+            method="GET",
+            url=qt_url(QT_AIR_GROUND_FORMATION_STATUS_PATH),
+            json_body=None,
+            robot_id_for_lock=None,
+            op_name="get_air_ground_status",
+        )
+
+    async def disband_air_ground(self) -> str:
+        return await self._post_qt(
+            path=QT_AIR_GROUND_FORMATION_DISBAND_PATH,
+            json_body={},
+            robot_id_for_lock=None,
+            op_name="disband_air_ground",
         )
 
     async def stop_units(self, *, unit_ids_csv: str) -> str:

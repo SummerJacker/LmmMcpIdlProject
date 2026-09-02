@@ -296,3 +296,35 @@ def build_create_air_ground_formation(ctx: SwarmContext):
         return await _run(ctx, execution_request, formation=True)
 
     return createAirGroundFormation
+
+
+def build_get_air_ground_status(ctx: SwarmContext):
+    async def getAirGroundFormationStatus() -> str:
+        """Return the Console-owned persistent air-ground formation state."""
+        execution_request = ExecutionRequest(
+            request_id=str(uuid.uuid4()),
+            capability="formation.air_ground.status",
+            version="1.0",
+            unit_ids=(),
+            arguments={},
+            metadata={"tool_name": "getAirGroundFormationStatus"},
+        )
+        return await _run(ctx, execution_request, formation=True)
+
+    return getAirGroundFormationStatus
+
+
+def build_disband_air_ground(ctx: SwarmContext):
+    async def disbandAirGroundFormation() -> str:
+        """Remove the air-ground formation and clear the ground chain projection."""
+        execution_request = ExecutionRequest(
+            request_id=str(uuid.uuid4()),
+            capability="formation.air_ground.disband",
+            version="1.0",
+            unit_ids=(),
+            arguments={},
+            metadata={"tool_name": "disbandAirGroundFormation"},
+        )
+        return await _run(ctx, execution_request, formation=True)
+
+    return disbandAirGroundFormation

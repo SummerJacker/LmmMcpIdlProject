@@ -57,6 +57,8 @@ def test_formation_plugin_registers_six_capabilities_and_tools() -> None:
         "getFormationStatus",
         "disbandFormation",
         "createAirGroundFormation",
+        "getAirGroundFormationStatus",
+        "disbandAirGroundFormation",
     }
     assert ctx.capabilities.get("formation.static", "1.0").tool_name == "createStaticFormation"
     assert ctx.capabilities.get("formation.static", "1.0").scope == "multi_unit"
@@ -252,6 +254,8 @@ def test_formation_plugin_manifest_is_exact() -> None:
             "capability:formation.follow.status@1.0",
             "capability:formation.follow.disband@1.0",
             "capability:formation.air_ground@1.0",
+            "capability:formation.air_ground.status@1.0",
+            "capability:formation.air_ground.disband@1.0",
             "tool:createStaticFormation",
             "tool:createFollowFormation",
             "tool:moveFollowFormation",
@@ -259,5 +263,7 @@ def test_formation_plugin_manifest_is_exact() -> None:
             "tool:getFormationStatus",
             "tool:disbandFormation",
             "tool:createAirGroundFormation",
+            "tool:getAirGroundFormationStatus",
+            "tool:disbandAirGroundFormation",
         ],
     }

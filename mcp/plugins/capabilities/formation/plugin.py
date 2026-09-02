@@ -9,7 +9,9 @@ from .tools import (
     build_create_air_ground_formation,
     build_create_follow_formation,
     build_create_static_formation,
+    build_disband_air_ground,
     build_disband_formation,
+    build_get_air_ground_status,
     build_get_formation_status,
     build_move_follow_formation,
     build_move_follow_formation_sequence,
@@ -29,6 +31,8 @@ class FormationCapabilityPlugin:
             ("formation.follow.status", "1.0", "Report the persistent follow-formation state", "fleet", "getFormationStatus"),
             ("formation.follow.disband", "1.0", "Remove leader/follower relationships", "fleet", "disbandFormation"),
             ("formation.air_ground", "1.0", "Create a hybrid air-ground formation (UAV leader + UGV chain)", "multi_unit", "createAirGroundFormation"),
+            ("formation.air_ground.status", "1.0", "Report the persistent air-ground formation state", "fleet", "getAirGroundFormationStatus"),
+            ("formation.air_ground.disband", "1.0", "Remove the air-ground formation", "fleet", "disbandAirGroundFormation"),
         ]
         for name, version, description, scope, tool_name in specs:
             ctx.capabilities.register(
@@ -48,3 +52,5 @@ class FormationCapabilityPlugin:
         ctx.tools.register(ToolSpec("getFormationStatus", build_get_formation_status(ctx)))
         ctx.tools.register(ToolSpec("disbandFormation", build_disband_formation(ctx)))
         ctx.tools.register(ToolSpec("createAirGroundFormation", build_create_air_ground_formation(ctx)))
+        ctx.tools.register(ToolSpec("getAirGroundFormationStatus", build_get_air_ground_status(ctx)))
+        ctx.tools.register(ToolSpec("disbandAirGroundFormation", build_disband_air_ground(ctx)))

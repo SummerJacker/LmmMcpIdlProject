@@ -192,6 +192,8 @@ module MCP_Swarm_Task {
 
     // Hybrid air-ground formation: a UAV leader + a UGV ground chain.
     FormationStatus createAirGroundFormation(in AirGroundFormationRequest request);
+    FormationStatus getAirGroundFormationStatus();
+    FormationStatus disbandAirGroundFormation();
     TaskResult moveFollowFormation(in Point2D target);
     TaskResult moveFollowFormationSequence(
       in sequence<FollowMotionSegment> segments

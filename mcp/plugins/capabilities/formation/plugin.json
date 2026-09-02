@@ -13,12 +13,16 @@
     "capability:formation.follow.status@1.0",
     "capability:formation.follow.disband@1.0",
     "capability:formation.air_ground@1.0",
+    "capability:formation.air_ground.status@1.0",
+    "capability:formation.air_ground.disband@1.0",
     "tool:createStaticFormation",
     "tool:createFollowFormation",
     "tool:moveFollowFormation",
     "tool:moveFollowFormationSequence",
     "tool:getFormationStatus",
     "tool:disbandFormation",
-    "tool:createAirGroundFormation"
+    "tool:createAirGroundFormation",
+    "tool:getAirGroundFormationStatus",
+    "tool:disbandAirGroundFormation"
   ]
 }

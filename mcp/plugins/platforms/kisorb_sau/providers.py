@@ -432,3 +432,45 @@ class KisorbAirGroundFormationProvider:
             followers_json=request.arguments["followers_json"],
         )
         return ExecutionResult.from_json(raw)
+
+
+class KisorbAirGroundStatusProvider:
+    provider_id = "kisorb.formation.air_ground.status"
+    capability = "formation.air_ground.status"
+    version = "1.0"
+    priority = 100
+
+    def __init__(self, client: ConsoleTaskClient) -> None:
+        self._client = client
+
+    def supports(self, units: tuple[UnitDescriptor, ...]) -> bool:
+        return _no_units(units)
+
+    async def execute(
+        self,
+        request: ExecutionRequest,
+        units: tuple[UnitDescriptor, ...],
+    ) -> ExecutionResult:
+        raw = await self._client.get_air_ground_status()
+        return ExecutionResult.from_json(raw)
+
+
+class KisorbDisbandAirGroundProvider:
+    provider_id = "kisorb.formation.air_ground.disband"
+    capability = "formation.air_ground.disband"
+    version = "1.0"
+    priority = 100
+
+    def __init__(self, client: ConsoleTaskClient) -> None:
+        self._client = client
+
+    def supports(self, units: tuple[UnitDescriptor, ...]) -> bool:
+        return _no_units(units)
+
+    async def execute(
+        self,
+        request: ExecutionRequest,
+        units: tuple[UnitDescriptor, ...],
+    ) -> ExecutionResult:
+        raw = await self._client.disband_air_ground()
+        return ExecutionResult.from_json(raw)

@@ -91,6 +91,8 @@ async def test_mock_profile_executes_same_capability_without_core_changes() -> N
         "kisorb.formation.follow.status",
         "kisorb.formation.follow.disband",
         "kisorb.formation.air_ground",
+        "kisorb.formation.air_ground.status",
+        "kisorb.formation.air_ground.disband",
         "kisorb.task.status",
         "kisorb.task.cancel",
         "kisorb.fleet.capabilities",

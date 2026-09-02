@@ -121,6 +121,12 @@ class ConsoleTaskClient:
     async def disband_formation(self) -> str:
         return normalize_formation_response(await self._adapter.disband_formation())
 
+    async def get_air_ground_status(self) -> str:
+        return normalize_formation_response(await self._adapter.get_air_ground_status())
+
+    async def disband_air_ground(self) -> str:
+        return normalize_formation_response(await self._adapter.disband_air_ground())
+
     async def get_task_status(self, *, task_id: str) -> str:
         return normalize_task_response(
             await self._adapter.get_task_status(task_id=task_id),

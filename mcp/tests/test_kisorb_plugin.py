@@ -10,7 +10,9 @@ from console_client import ConsoleTaskClient
 from plugins.platforms.kisorb_sau.plugin import KisorbPlugin
 from plugins.platforms.kisorb_sau.providers import (
     KisorbAirGroundFormationProvider,
+    KisorbAirGroundStatusProvider,
     KisorbCancelTaskProvider,
+    KisorbDisbandAirGroundProvider,
     KisorbDisbandFormationProvider,
     KisorbExecuteMotionProvider,
     KisorbFollowFormationCreateProvider,
@@ -205,6 +207,8 @@ def test_kisorb_plugin_registers_configured_units_and_shared_services() -> None:
         "kisorb.formation.follow.status",
         "kisorb.formation.follow.disband",
         "kisorb.formation.air_ground",
+        "kisorb.formation.air_ground.status",
+        "kisorb.formation.air_ground.disband",
         "kisorb.task.status",
         "kisorb.task.cancel",
         "kisorb.fleet.capabilities",
@@ -507,6 +511,8 @@ def test_default_profile_loads_capabilities_before_kisorb() -> None:
         "kisorb.formation.follow.status",
         "kisorb.formation.follow.disband",
         "kisorb.formation.air_ground",
+        "kisorb.formation.air_ground.status",
+        "kisorb.formation.air_ground.disband",
         "kisorb.task.status",
         "kisorb.task.cancel",
         "kisorb.fleet.capabilities",
@@ -534,6 +540,8 @@ def test_kisorb_manifest_and_default_profile_are_exact() -> None:
             "provider:kisorb.fleet.capabilities",
             "provider:kisorb.fleet.snapshot",
             "provider:kisorb.formation.air_ground",
+            "provider:kisorb.formation.air_ground.status",
+            "provider:kisorb.formation.air_ground.disband",
             "provider:kisorb.formation.follow.create",
             "provider:kisorb.formation.follow.disband",
             "provider:kisorb.formation.follow.move",
@@ -611,3 +619,37 @@ async def test_air_ground_provider_forwards_arguments() -> None:
         air_altitude_m=20.0,
         followers_json='[{"unit_id": "GV1", "distance_m": 2.0, "angle_deg": 0.0}]',
     )
+
+
+@pytest.mark.asyncio
+async def test_air_ground_status_and_disband_providers() -> None:
+    client = AsyncMock(spec=ConsoleTaskClient)
+    client.get_air_ground_status.return_value = complete_running_task_json(
+        "get_air_ground_status"
+    )
+    client.disband_air_ground.return_value = complete_running_task_json(
+        "disband_air_ground"
+    )
+    status = KisorbAirGroundStatusProvider(client)
+    disband = KisorbDisbandAirGroundProvider(client)
+
+    assert status.supports(()) is True
+    assert disband.supports(()) is True
+    assert status.supports(
+        (UnitDescriptor("GV1", "ugv", "kisorb-sau", "platform.kisorb-sau"),)
+    ) is False
+
+    request = ExecutionRequest(
+        request_id="req-ag-status",
+        capability="formation.air_ground.status",
+        version="1.0",
+        unit_ids=(),
+        arguments={},
+    )
+    r1 = await status.execute(request, ())
+    assert r1.success is True
+    client.get_air_ground_status.assert_awaited_once()
+
+    r2 = await disband.execute(request, ())
+    assert r2.success is True
+    client.disband_air_ground.assert_awaited_once()
