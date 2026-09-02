@@ -14,6 +14,7 @@
   "provides": [
     "provider:kisorb.fleet.capabilities",
     "provider:kisorb.fleet.snapshot",
+    "provider:kisorb.formation.air_ground",
     "provider:kisorb.formation.follow.create",
     "provider:kisorb.formation.follow.disband",
     "provider:kisorb.formation.follow.move",

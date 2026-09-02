@@ -9,6 +9,7 @@ from swarm_runtime.context import SwarmContext
 from swarm_runtime.models import UnitDescriptor
 
 from .providers import (
+    KisorbAirGroundFormationProvider,
     KisorbCancelTaskProvider,
     KisorbCapabilitiesProvider,
     KisorbDisbandFormationProvider,
@@ -71,3 +72,4 @@ class KisorbPlugin:
         ctx.providers.register(KisorbCancelTaskProvider(client))
         ctx.providers.register(KisorbCapabilitiesProvider(client))
         ctx.providers.register(KisorbFleetSnapshotProvider(client))
+        ctx.providers.register(KisorbAirGroundFormationProvider(client))

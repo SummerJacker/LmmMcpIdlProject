@@ -401,3 +401,34 @@ class KisorbFleetSnapshotProvider:
     ) -> ExecutionResult:
         raw = await self._client.get_fleet_snapshot()
         return ExecutionResult.from_json(raw)
+
+
+class KisorbAirGroundFormationProvider:
+    provider_id = "kisorb.formation.air_ground"
+    capability = "formation.air_ground"
+    version = "1.0"
+    priority = 100
+
+    def __init__(self, client: ConsoleTaskClient) -> None:
+        self._client = client
+
+    def supports(self, units: tuple[UnitDescriptor, ...]) -> bool:
+        # 混合空地编队：至少一个空中领航(uav) + 至少一个地面链(ugv)，同平台
+        return (
+            bool(units)
+            and all(unit.platform == "kisorb-sau" for unit in units)
+            and any(unit.kind == "uav" for unit in units)
+            and any(unit.kind == "ugv" for unit in units)
+        )
+
+    async def execute(
+        self,
+        request: ExecutionRequest,
+        units: tuple[UnitDescriptor, ...],
+    ) -> ExecutionResult:
+        raw = await self._client.create_air_ground_formation(
+            air_leader_id=request.arguments["air_leader_id"],
+            air_altitude_m=request.arguments["air_altitude_m"],
+            followers_json=request.arguments["followers_json"],
+        )
+        return ExecutionResult.from_json(raw)
