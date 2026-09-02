@@ -93,12 +93,10 @@ class ConsoleTaskClient:
     async def create_air_ground_formation(
         self, *, air_leader_id: str, air_altitude_m: float, followers_json: str
     ) -> str:
-        return normalize_formation_response(
-            await self._adapter.create_air_ground_formation(
-                air_leader_id=air_leader_id,
-                air_altitude_m=air_altitude_m,
-                followers_json=followers_json,
-            )
+        return await self._adapter.create_air_ground_formation(
+            air_leader_id=air_leader_id,
+            air_altitude_m=air_altitude_m,
+            followers_json=followers_json,
         )
 
     async def move_follow_formation(self, *, x: float, y: float) -> str:
@@ -122,10 +120,10 @@ class ConsoleTaskClient:
         return normalize_formation_response(await self._adapter.disband_formation())
 
     async def get_air_ground_status(self) -> str:
-        return normalize_formation_response(await self._adapter.get_air_ground_status())
+        return await self._adapter.get_air_ground_status()
 
     async def disband_air_ground(self) -> str:
-        return normalize_formation_response(await self._adapter.disband_air_ground())
+        return await self._adapter.disband_air_ground()
 
     async def get_task_status(self, *, task_id: str) -> str:
         return normalize_task_response(
