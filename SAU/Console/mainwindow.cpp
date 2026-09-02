@@ -2,6 +2,7 @@
 #include "ui_mainwindow.h"
 #include "console.h"
 #include "MockRobotSimulator.h"
+#include "FormationTopologyView.h"
 #include <iostream>
 #include <QNetworkInterface>
 #include <QHostAddress>
@@ -64,6 +65,11 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->textBrowser->setFont(outputFont);
     ui->textBrowser_2->setFont(outputFont);
     ui->textBrowser_4->setFont(outputFont);
+
+    // 编队拓扑可视化画布（放在队形设置窗口 duixingframe 底部）
+    formationTopologyView_ = new FormationTopologyView(ui->duixingframe);
+    formationTopologyView_->setGeometry(10, 210, 451, 240);
+    formationTopologyView_->show();
 
     // =============================
     // 关键：显式绑定按钮槽函数
@@ -646,6 +652,9 @@ void MainWindow::addFormationUnit()
                              .arg(currentUnitCount)
                              .arg(groupNum)
                              .arg(leaderIdx));
+
+    if (formationTopologyView_)
+        formationTopologyView_->refreshFromFormation(formation);
 }
 
 void MainWindow::on_PBtnTrapSet_clicked()
@@ -714,6 +723,8 @@ void MainWindow::resetFormation()
         Unit_FloatSeq__Free(&formation->angles);
         free(formation);
         ui->textBrowser_2->append(QString::fromUtf8("已重置队形信息！"));
+        if (formationTopologyView_)
+            formationTopologyView_->refreshFromFormation(nullptr);
     }else
         ui->textBrowser_2->append(QString::fromUtf8("当前未录入队形信息！"));
 }
