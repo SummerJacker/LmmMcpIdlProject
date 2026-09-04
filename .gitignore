@@ -18,3 +18,50 @@ mcp/logs/
 *.log
 *.bak
 mcp/robots copy.json
+
+# Qt build artifacts
+SAU/**/build*/
+SAU/**/debug/
+SAU/**/release/
+SAU/Build/
+SAU/build-*/
+*.pro.user*
+.qmake.stash
+Makefile
+Makefile.*
+*.obj
+*.exe
+*.dll
+*.pdb
+*.ilk
+*.lib
+*.exp
+*.res
+*.rc
+ui_*.h
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+object_script.*.Release
+object_script.*.Debug
+
+# Qt Creator
+.qtc_clangd/
+.qtcreator/
+*.autosave
+
+# IDE
+.vscode/
+.kiro/
+.idea/
+
+# ILU/CORBA build artifacts
+cosnaming/**/build*/
+cosnaming/**/*.obj
+cosnaming/**/*.exe
+cosnaming/**/*.pdb
+cosnaming/**/*.ilk
+cosnaming/**/*.lib
+
+# Experiment data (large, tracked separately)
+experiment_data/
