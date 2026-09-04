@@ -65,3 +65,6 @@ cosnaming/**/*.lib
 
 # Experiment data (large, tracked separately)
 experiment_data/
+
+# Documentation (tracked separately, do not push to GitHub)
+docs/
