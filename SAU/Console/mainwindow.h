@@ -8,6 +8,18 @@
 #include <QDebug>
 #include <QCloseEvent>
 #include <QTextCodec>
+#include <QTimer>
+#include <QDateTime>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QCryptographicHash>
+#include <QMessageBox>
+#include <QDir>
+#include <QHash>
+#include <QPair>
+#include <QtMath>
 #include "ui_mainwindow.h"
 #include "stubs\Unit.h"
 #include "stubs\Ground_Unit.h"
@@ -173,6 +185,10 @@ private slots:
 
     void on_pushButton_56_clicked();
 
+    // 数据记录槽函数
+    void on_btnStartRecording_clicked();
+    void on_btnStopRecording_clicked();
+    void onRecordingTimerTimeout();
 
 public:
 
@@ -197,6 +213,38 @@ public:
     FormationTopologyView *formationTopologyView_;
 
     CORBA_long procedureStartTime;
+
+    // 数据记录成员变量
+    QTimer* recordingTimer_;
+    bool isRecording_;
+    QDateTime recordingStartTime_;
+    QString currentExperimentName_;
+    QString experimentOutputDir_;
+
+    QFile* gpsFile_;
+    QFile* commLogFile_;
+    QFile* formationFile_;
+
+    int gpsRecordCount_;
+    int commLogCount_;
+    int formationRecordCount_;
+
+    // 通信统计（丢包率）
+    int commSuccessCount_;
+    int commFailCount_;
+
+    // 最近一次地面单元位置（uid -> (x, y)），用于计算实际跟随距离
+    QHash<QString, QPair<double, double>> lastGroundPositions_;
+
+    // 辅助函数
+    void initializeRecording(const QString& experimentName, const QString& weather);
+    void finalizeRecording();
+    void recordGPSData();
+    void recordCommunicationLog();
+    void recordFormationStatus();
+    void updateRecordingStatus();
+    QString generateMD5(const QString& filePath);
+
 };
 
 #endif // MAINWINDOW_H

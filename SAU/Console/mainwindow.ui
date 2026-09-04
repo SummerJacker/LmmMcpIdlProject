@@ -2130,6 +2130,152 @@
      </item>
     </layout>
    </widget>
+   <!-- 数据记录面板 -->
+   <widget class="QGroupBox" name="groupBoxRecording">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>620</y>
+      <width>380</width>
+      <height>200</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>📊 实验数据记录</string>
+    </property>
+    <widget class="QLabel" name="labelExperimentName">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>30</y>
+       <width>80</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>实验名称：</string>
+     </property>
+    </widget>
+    <widget class="QLineEdit" name="lineEditExperimentName">
+     <property name="geometry">
+      <rect>
+       <x>90</x>
+       <y>30</y>
+       <width>270</width>
+       <height>25</height>
+      </rect>
+     </property>
+     <property name="placeholderText">
+      <string>例如: scenario1_trial1</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="labelWeather">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>65</y>
+       <width>80</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>天气条件：</string>
+     </property>
+    </widget>
+    <widget class="QLineEdit" name="lineEditWeather">
+     <property name="geometry">
+      <rect>
+       <x>90</x>
+       <y>65</y>
+       <width>270</width>
+       <height>25</height>
+      </rect>
+     </property>
+     <property name="placeholderText">
+      <string>例如: 晴天,25°C,风速2m/s</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btnStartRecording">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>110</y>
+       <width>170</width>
+       <height>40</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>🔴 开始记录</string>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">QPushButton {
+    background-color: #4CAF50;
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+    border-radius: 5px;
+}
+QPushButton:hover {
+    background-color: #45a049;
+}
+QPushButton:disabled {
+    background-color: #cccccc;
+    color: #666666;
+}</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="btnStopRecording">
+     <property name="geometry">
+      <rect>
+       <x>190</x>
+       <y>110</y>
+       <width>170</width>
+       <height>40</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>⏹️ 停止记录</string>
+     </property>
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">QPushButton {
+    background-color: #f44336;
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+    border-radius: 5px;
+}
+QPushButton:hover {
+    background-color: #da190b;
+}
+QPushButton:disabled {
+    background-color: #cccccc;
+    color: #666666;
+}</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="labelRecordingStatus">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>160</y>
+       <width>350</width>
+       <height>25</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>状态: 就绪</string>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">QLabel {
+    color: #666666;
+    font-size: 12px;
+}</string>
+     </property>
+    </widget>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">

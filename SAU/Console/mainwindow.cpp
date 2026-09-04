@@ -145,10 +145,34 @@ MainWindow::MainWindow(QWidget *parent) :
     timeval tv;
     gettimeofday(&tv, NULL);    //该函数在sys/time.h头文件中
     this->procedureStartTime=tv.tv_sec;
+
+    // 数据记录初始化
+    recordingTimer_ = new QTimer(this);
+    connect(recordingTimer_, &QTimer::timeout, this, &MainWindow::onRecordingTimerTimeout);
+    isRecording_ = false;
+    gpsFile_ = nullptr;
+    commLogFile_ = nullptr;
+    formationFile_ = nullptr;
+    gpsRecordCount_ = 0;
+    commLogCount_ = 0;
+    formationRecordCount_ = 0;
+    commSuccessCount_ = 0;
+    commFailCount_ = 0;
+
+    // 初始状态：停止记录按钮禁用
+    if (ui->btnStopRecording) {
+        ui->btnStopRecording->setEnabled(false);
+    }
 }
 
 MainWindow::~MainWindow()
 {
+    // 如果正在记录，先停止
+    if (isRecording_) {
+        recordingTimer_->stop();
+        finalizeRecording();
+    }
+
     delete ui;
 }
 
@@ -1758,4 +1782,436 @@ void MainWindow::on_pushButton_56_clicked()
     }
     else
         ui->textBrowser_2->append(QString::fromUtf8("操作失败，单元%1不存在！").arg(str.c_str()));
+}
+
+
+// ==================== 数据记录功能实现 ====================
+
+void MainWindow::on_btnStartRecording_clicked()
+{
+    if (isRecording_) {
+        QMessageBox::warning(this, QString::fromUtf8("警告"),
+                            QString::fromUtf8("已经在记录中，请先停止当前记录！"));
+        return;
+    }
+
+    // 获取实验名称和天气信息
+    QString experimentName = ui->lineEditExperimentName->text().trimmed();
+    QString weather = ui->lineEditWeather->text().trimmed();
+
+    if (experimentName.isEmpty()) {
+        QMessageBox::warning(this, QString::fromUtf8("警告"),
+                            QString::fromUtf8("请输入实验名称！"));
+        return;
+    }
+
+    // 初始化记录
+    initializeRecording(experimentName, weather);
+
+    // 启动定时器（每秒记录一次）
+    recordingTimer_->start(1000);
+    isRecording_ = true;
+
+    // 更新按钮状态
+    ui->btnStartRecording->setEnabled(false);
+    ui->btnStopRecording->setEnabled(true);
+    ui->lineEditExperimentName->setEnabled(false);
+    ui->lineEditWeather->setEnabled(false);
+
+    ui->textBrowser->append(QString::fromUtf8("========================================"));
+    ui->textBrowser->append(QString::fromUtf8("📊 数据记录已开始"));
+    ui->textBrowser->append(QString::fromUtf8("实验名称: %1").arg(experimentName));
+    ui->textBrowser->append(QString::fromUtf8("天气条件: %1").arg(weather.isEmpty() ? QString::fromUtf8("未填写") : weather));
+    ui->textBrowser->append(QString::fromUtf8("输出目录: %1").arg(experimentOutputDir_));
+    ui->textBrowser->append(QString::fromUtf8("========================================"));
+}
+
+void MainWindow::on_btnStopRecording_clicked()
+{
+    if (!isRecording_) {
+        return;
+    }
+
+    // 停止定时器
+    recordingTimer_->stop();
+    isRecording_ = false;
+
+    // 结束记录
+    finalizeRecording();
+
+    // 更新按钮状态
+    ui->btnStartRecording->setEnabled(true);
+    ui->btnStopRecording->setEnabled(false);
+    ui->lineEditExperimentName->setEnabled(true);
+    ui->lineEditWeather->setEnabled(true);
+
+    ui->textBrowser->append(QString::fromUtf8("========================================"));
+    ui->textBrowser->append(QString::fromUtf8("⏹️ 数据记录已停止"));
+    ui->textBrowser->append(QString::fromUtf8("总计记录:"));
+    ui->textBrowser->append(QString::fromUtf8("  - GPS 数据: %1 条").arg(gpsRecordCount_));
+    ui->textBrowser->append(QString::fromUtf8("  - 通信日志: %1 条").arg(commLogCount_));
+    ui->textBrowser->append(QString::fromUtf8("  - 编队状态: %1 条").arg(formationRecordCount_));
+    ui->textBrowser->append(QString::fromUtf8("========================================"));
+}
+
+void MainWindow::onRecordingTimerTimeout()
+{
+    if (!isRecording_) return;
+
+    // 记录各类数据
+    recordGPSData();
+    recordCommunicationLog();
+    recordFormationStatus();
+
+    // 更新状态显示
+    updateRecordingStatus();
+}
+
+void MainWindow::initializeRecording(const QString& experimentName, const QString& weather)
+{
+    currentExperimentName_ = experimentName;
+    recordingStartTime_ = QDateTime::currentDateTime();
+    gpsRecordCount_ = 0;
+    commLogCount_ = 0;
+    formationRecordCount_ = 0;
+    commSuccessCount_ = 0;
+    commFailCount_ = 0;
+    lastGroundPositions_.clear();
+
+    // 创建输出目录
+    QString baseDir = QCoreApplication::applicationDirPath() + "/experiment_data";
+    experimentOutputDir_ = baseDir + "/" + experimentName;
+
+    QDir dir;
+    if (!dir.exists(experimentOutputDir_)) {
+        dir.mkpath(experimentOutputDir_);
+    }
+
+    // 创建文件
+    QString timestamp = recordingStartTime_.toString("yyyyMMdd_HHmmss");
+
+    gpsFile_ = new QFile(experimentOutputDir_ + "/gps_data.jsonl");
+    commLogFile_ = new QFile(experimentOutputDir_ + "/communication_log.jsonl");
+    formationFile_ = new QFile(experimentOutputDir_ + "/formation_status.jsonl");
+
+    gpsFile_->open(QIODevice::WriteOnly | QIODevice::Text);
+    commLogFile_->open(QIODevice::WriteOnly | QIODevice::Text);
+    formationFile_->open(QIODevice::WriteOnly | QIODevice::Text);
+
+    // 写入元数据
+    QJsonObject metadata;
+    metadata["experiment_name"] = experimentName;
+    metadata["start_time"] = recordingStartTime_.toString(Qt::ISODate);
+    metadata["weather"] = weather;
+    metadata["console_version"] = "1.0";
+
+    QFile metaFile(experimentOutputDir_ + "/metadata.json");
+    if (metaFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        metaFile.write(QJsonDocument(metadata).toJson(QJsonDocument::Indented));
+        metaFile.close();
+    }
+}
+void MainWindow::finalizeRecording()
+{
+    // 关闭文件
+    if (gpsFile_) {
+        gpsFile_->close();
+        delete gpsFile_;
+        gpsFile_ = nullptr;
+    }
+    if (commLogFile_) {
+        commLogFile_->close();
+        delete commLogFile_;
+        commLogFile_ = nullptr;
+    }
+    if (formationFile_) {
+        formationFile_->close();
+        delete formationFile_;
+        formationFile_ = nullptr;
+    }
+
+    // 生成校验和
+    QStringList files = {"gps_data.jsonl", "communication_log.jsonl", "formation_status.jsonl", "metadata.json"};
+    QJsonObject checksums;
+
+    for (const QString& filename : files) {
+        QString filepath = experimentOutputDir_ + "/" + filename;
+        if (QFile::exists(filepath)) {
+            checksums[filename] = generateMD5(filepath);
+        }
+    }
+
+    // 写入校验和文件
+    QFile checksumFile(experimentOutputDir_ + "/checksums.json");
+    if (checksumFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        checksumFile.write(QJsonDocument(checksums).toJson(QJsonDocument::Indented));
+        checksumFile.close();
+    }
+
+    // 写入统计摘要（含丢包率、通信负载）
+    QJsonObject summary;
+    summary["experiment_name"] = currentExperimentName_;
+    summary["end_time"] = QDateTime::currentDateTime().toString(Qt::ISODate);
+    int durationSec = recordingStartTime_.secsTo(QDateTime::currentDateTime());
+    summary["duration_seconds"] = durationSec;
+    summary["gps_records"] = gpsRecordCount_;
+    summary["comm_records"] = commLogCount_;
+    summary["formation_records"] = formationRecordCount_;
+    summary["comm_success"] = commSuccessCount_;
+    summary["comm_fail"] = commFailCount_;
+    int commTotal = commSuccessCount_ + commFailCount_;
+    summary["packet_loss_rate_percent"] = commTotal > 0 ? (commFailCount_ * 100.0 / commTotal) : 0.0;
+    // 通信负载：Console 侧轮询 RPC 速率（消息数/秒）
+    // 注意：这是 Console 对各单元的状态轮询速率，非单元间编队通信流量
+    summary["poll_messages_per_second"] = durationSec > 0 ? (commLogCount_ / (double)durationSec) : 0.0;
+
+    QFile summaryFile(experimentOutputDir_ + "/summary.json");
+    if (summaryFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        summaryFile.write(QJsonDocument(summary).toJson(QJsonDocument::Indented));
+        summaryFile.close();
+    }
+}
+
+void MainWindow::recordGPSData()
+{
+    if (!gpsFile_ || !gpsFile_->isOpen()) return;
+
+    // 遍历所有在线单元，读取真实位置/速度信息
+    ilu_refany uid, sbh;
+    ilu_HashEnumerator_s he;
+    ilu_hash_BeginEnumeration(Units_Hash_Table, &he);
+
+    while (ilu_hash_Next(&he, &uid, &sbh)) {
+        const char unitType = ((char*)uid)[0];
+        CORBA_Environment ev;
+        memset(&ev, 0, sizeof(ev));
+
+        if (unitType == 'G') {
+            // 地面单元：记录 2D 位姿(x,y,yaw) + 线速度/角速度
+            Ground_Unit_rpc obj = (Ground_Unit_rpc)ILU_C_SBHToObject(
+                (char*)sbh, Ground_Unit_rpc__MSType, &ev);
+            if (!ILU_C_SUCCESSFUL(&ev) || !obj) {
+                if (!ILU_C_SUCCESSFUL(&ev)) ILU_C_EXCEPTION_FREE(&ev);
+                continue;
+            }
+
+            Ground_Unit_GroundUnitInfo* info = Ground_Unit_rpc_getCurrentInfo(obj, &ev);
+            if (ILU_C_SUCCESSFUL(&ev) && info) {
+                QJsonObject d;
+                d["timestamp"] = QDateTime::currentMSecsSinceEpoch() / 1000.0;
+                d["unit_id"] = QString::fromUtf8((char*)uid);
+                d["type"] = "ground";
+                d["role"] = (int)info->role;   // 0=Leader, 1=Follower, 2=None
+                d["x"] = (double)info->pose.x;
+                d["y"] = (double)info->pose.y;
+                d["yaw"] = (double)info->pose.yaw;
+                d["linear_vel"] = (double)info->speed.leanerVel;
+                d["angular_vel"] = (double)info->speed.angularVel;
+
+                gpsFile_->write(QJsonDocument(d).toJson(QJsonDocument::Compact));
+                gpsFile_->write("\n");
+                gpsRecordCount_++;
+
+                // 缓存地面位置，供计算实际跟随距离使用
+                lastGroundPositions_[QString::fromUtf8((char*)uid)] =
+                    qMakePair((double)info->pose.x, (double)info->pose.y);
+
+                Ground_Unit_GroundUnitInfo__Free(info);
+            }
+            if (!ILU_C_SUCCESSFUL(&ev)) ILU_C_EXCEPTION_FREE(&ev);
+            Ground_Unit_rpc__Free(&obj);
+        }
+        else if (unitType == 'A') {
+            // 空中单元：记录 GPS(经度/纬度/海拔/健康度) + 3D 速度
+            Air_Unit_rpc obj = (Air_Unit_rpc)ILU_C_SBHToObject(
+                (char*)sbh, Air_Unit_rpc__MSType, &ev);
+            if (!ILU_C_SUCCESSFUL(&ev) || !obj) {
+                if (!ILU_C_SUCCESSFUL(&ev)) ILU_C_EXCEPTION_FREE(&ev);
+                continue;
+            }
+
+            Air_Unit_AirUnitInfo* info = Air_Unit_rpc_getCurrentInfo(obj, &ev);
+            if (ILU_C_SUCCESSFUL(&ev) && info) {
+                QJsonObject d;
+                d["timestamp"] = QDateTime::currentMSecsSinceEpoch() / 1000.0;
+                d["unit_id"] = QString::fromUtf8((char*)uid);
+                d["type"] = "air";
+                d["role"] = (int)info->role;   // 0=Leader, 1=Follower, 2=None
+                d["longitude"] = (double)info->gps.longitude;
+                d["latitude"] = (double)info->gps.latitude;
+                d["altitude"] = (double)info->gps.altitude;
+                d["gps_health"] = (int)info->gps.health;
+                d["speed_x"] = (double)info->speed.x;
+                d["speed_y"] = (double)info->speed.y;
+                d["speed_z"] = (double)info->speed.z;
+                d["angular_vel_x"] = (double)info->angularVelocity.x;
+                d["angular_vel_y"] = (double)info->angularVelocity.y;
+                d["angular_vel_z"] = (double)info->angularVelocity.z;
+
+                // 额外获取机体姿态 (pitch/roll/yaw)，getCurrentInfo 不含机体姿态
+                Air_Unit_Pose3D pose = Air_Unit_rpc_getCurrentPose(obj, &ev);
+                if (ILU_C_SUCCESSFUL(&ev)) {
+                    d["pitch"] = (double)pose.pitch;
+                    d["roll"] = (double)pose.roll;
+                    d["attitude_yaw"] = (double)pose.yaw;
+                }
+
+                gpsFile_->write(QJsonDocument(d).toJson(QJsonDocument::Compact));
+                gpsFile_->write("\n");
+                gpsRecordCount_++;
+
+                Air_Unit_AirUnitInfo__Free(info);
+            }
+            if (!ILU_C_SUCCESSFUL(&ev)) ILU_C_EXCEPTION_FREE(&ev);
+            Air_Unit_rpc__Free(&obj);
+        }
+    }
+
+    gpsFile_->flush();
+}
+
+void MainWindow::recordCommunicationLog()
+{
+    if (!commLogFile_ || !commLogFile_->isOpen()) return;
+
+    // 遍历所有在线单元，测量 getCurrentInfo RPC 往返延迟
+    ilu_refany uid, sbh;
+    ilu_HashEnumerator_s he;
+    ilu_hash_BeginEnumeration(Units_Hash_Table, &he);
+
+    while (ilu_hash_Next(&he, &uid, &sbh)) {
+        const char unitType = ((char*)uid)[0];
+        CORBA_Environment ev;
+        memset(&ev, 0, sizeof(ev));
+
+        qint64 t0 = QDateTime::currentMSecsSinceEpoch();
+        bool success = false;
+
+        if (unitType == 'G') {
+            Ground_Unit_rpc obj = (Ground_Unit_rpc)ILU_C_SBHToObject(
+                (char*)sbh, Ground_Unit_rpc__MSType, &ev);
+            if (ILU_C_SUCCESSFUL(&ev) && obj) {
+                Ground_Unit_GroundUnitInfo* info = Ground_Unit_rpc_getCurrentInfo(obj, &ev);
+                success = (ILU_C_SUCCESSFUL(&ev) && info != NULL);
+                if (success) Ground_Unit_GroundUnitInfo__Free(info);
+                Ground_Unit_rpc__Free(&obj);
+            }
+        }
+        else if (unitType == 'A') {
+            Air_Unit_rpc obj = (Air_Unit_rpc)ILU_C_SBHToObject(
+                (char*)sbh, Air_Unit_rpc__MSType, &ev);
+            if (ILU_C_SUCCESSFUL(&ev) && obj) {
+                Air_Unit_AirUnitInfo* info = Air_Unit_rpc_getCurrentInfo(obj, &ev);
+                success = (ILU_C_SUCCESSFUL(&ev) && info != NULL);
+                if (success) Air_Unit_AirUnitInfo__Free(info);
+                Air_Unit_rpc__Free(&obj);
+            }
+        }
+
+        qint64 t1 = QDateTime::currentMSecsSinceEpoch();
+
+        QJsonObject d;
+        d["timestamp"] = t1 / 1000.0;
+        d["unit_id"] = QString::fromUtf8((char*)uid);
+        d["latency_ms"] = (double)(t1 - t0);
+        d["success"] = success;
+
+        commLogFile_->write(QJsonDocument(d).toJson(QJsonDocument::Compact));
+        commLogFile_->write("\n");
+        commLogCount_++;
+
+        if (success) commSuccessCount_++; else commFailCount_++;
+
+        if (!ILU_C_SUCCESSFUL(&ev)) ILU_C_EXCEPTION_FREE(&ev);
+    }
+
+    commLogFile_->flush();
+}
+
+void MainWindow::recordFormationStatus()
+{
+    if (!formationFile_ || !formationFile_->isOpen()) return;
+
+    // 每 5 秒记录一次编队拓扑（链式关系变化较慢）
+    static int counter = 0;
+    counter++;
+    if (counter % 5 != 0) return;
+
+    QJsonObject status;
+    status["timestamp"] = QDateTime::currentMSecsSinceEpoch() / 1000.0;
+    status["unit_count"] = (int)(formation ? formation->robot_ids._length : 0);
+
+    QJsonArray units;
+    if (formation && formation->robot_ids._length > 0) {
+        for (unsigned long i = 0; i < formation->robot_ids._length; i++) {
+            QJsonObject u;
+            QString unitId = QString::fromUtf8(formation->robot_ids._buffer[i]);
+            u["unit_id"] = unitId;
+
+            if (i < formation->leader_ids._length) {
+                int leaderIdx = formation->leader_ids._buffer[i];
+                u["leader_idx"] = leaderIdx;
+                if (leaderIdx >= 0 && leaderIdx < (int)formation->robot_ids._length) {
+                    QString leaderId = QString::fromUtf8(formation->robot_ids._buffer[leaderIdx]);
+                    u["leader_id"] = leaderId;
+
+                    // 计算实际跟随距离（仅地面-地面，坐标同框架）
+                    if (unitId.startsWith('G') && leaderId.startsWith('G') &&
+                        lastGroundPositions_.contains(unitId) &&
+                        lastGroundPositions_.contains(leaderId)) {
+                        double dx = lastGroundPositions_[unitId].first  - lastGroundPositions_[leaderId].first;
+                        double dy = lastGroundPositions_[unitId].second - lastGroundPositions_[leaderId].second;
+                        u["actual_distance"] = qSqrt(dx * dx + dy * dy);
+                    }
+                }
+            }
+            if (i < formation->distances._length) {
+                u["distance"] = (double)formation->distances._buffer[i];
+            }
+            if (i < formation->angles._length) {
+                u["angle"] = (double)formation->angles._buffer[i];
+            }
+
+            units.append(u);
+        }
+    }
+    status["units"] = units;
+
+    formationFile_->write(QJsonDocument(status).toJson(QJsonDocument::Compact));
+    formationFile_->write("\n");
+    formationFile_->flush();
+
+    formationRecordCount_++;
+}
+
+void MainWindow::updateRecordingStatus()
+{
+    // 每 10 秒在状态栏显示一次统计
+    static int updateCounter = 0;
+    updateCounter++;
+    if (updateCounter % 10 == 0) {
+        qint64 elapsed = recordingStartTime_.secsTo(QDateTime::currentDateTime());
+        QString status = QString::fromUtf8("⏺️ 记录中 [%1s] GPS:%2 通信:%3 编队:%4")
+            .arg(elapsed)
+            .arg(gpsRecordCount_)
+            .arg(commLogCount_)
+            .arg(formationRecordCount_);
+
+        statusBar()->showMessage(status);
+    }
+}
+
+QString MainWindow::generateMD5(const QString& filePath)
+{
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return QString();
+    }
+
+    QCryptographicHash hash(QCryptographicHash::Md5);
+    if (hash.addData(&file)) {
+        return QString(hash.result().toHex());
+    }
+
+    return QString();
 }
